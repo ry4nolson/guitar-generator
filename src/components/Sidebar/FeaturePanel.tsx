@@ -31,7 +31,9 @@ export function FeaturePanel() {
     <ParamSlider
       key={meta.key}
       label={meta.label}
-      value={params[meta.key]}
+      // Older saves may predate a param (e.g. anchorCount); fall back to the
+      // meta max, which matches the geometry's own "missing = full" default.
+      value={params[meta.key] ?? meta.max}
       min={meta.min}
       max={meta.max}
       step={meta.step}

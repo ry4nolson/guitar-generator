@@ -35,6 +35,11 @@ pickup/control system using real hardware footprints.
   never float outside the board.
 - Standard dot inlays (3/5/7/9/15/17/19/21, doubles at 12 and 24), fan-aware
   and sized to the local fret gap, in the canvas and SVG exports.
+- Configurable body anchor count (4 up to the template's full set: 13 for
+  Tele/Strat, 10 for Flying V) via a new "Anchor points" slider. Each template
+  defines which anchors survive at lower counts (skeleton first, smoothing
+  points last); the neck joint is always kept and manual edits on surviving
+  anchors are preserved.
 
 ## 0.4.0 — FretForge + headstock / tuners
 

@@ -7,6 +7,23 @@ import type { Point } from '../types';
 import type { AnchorSpec } from '../bodyEngine';
 import type { BodyFeatureId } from '../bodyFeatures';
 
+/** Minimum anchors for a usable closed body loop. */
+export const MIN_BODY_ANCHORS = 4;
+
+/**
+ * Pick which anchors survive at a reduced anchor count: keep the top
+ * `anchorCount` ids from the template's priority list, in loop order.
+ * Priority lists must put `neckJoint` within the first MIN_BODY_ANCHORS so it
+ * can never be dropped. Count clamps to [MIN_BODY_ANCHORS, order.length].
+ */
+export function selectAnchorOrder(order: string[], priority: string[], anchorCount: number | undefined): string[] {
+  const requested = Number.isFinite(anchorCount) ? (anchorCount as number) : order.length;
+  const count = Math.round(Math.min(order.length, Math.max(MIN_BODY_ANCHORS, requested)));
+  if (count >= order.length) return order;
+  const keep = new Set(priority.slice(0, count));
+  return order.filter((id) => keep.has(id));
+}
+
 /** Build smooth-continuity specs with handle lengths = fraction of each segment. */
 export function buildSmoothLoop(opts: {
   order: string[];

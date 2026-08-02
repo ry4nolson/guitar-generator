@@ -9,7 +9,7 @@ export interface TemplateParamMeta {
   min: number;
   max: number;
   step: number;
-  unit: 'mm' | 'deg' | 'ratio';
+  unit: 'mm' | 'deg' | 'ratio' | 'count';
   /** Which sidebar feature-section this slider appears under; omit (or 'global') for the always-visible Global section. */
   featureId?: BodyFeatureId;
 }

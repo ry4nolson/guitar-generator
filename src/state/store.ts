@@ -327,7 +327,10 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const bodyAnchors = recomputeAnchorsPreservingEdits(template, bodyParams, get().bodyAnchors);
     const dx = neckJoinPoint(bodyAnchors).x - oldJoinX;
     const hardware = dx !== 0 ? translateHardware(get().hardware, dx, 0) : get().hardware;
-    set({ bodyParams, bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
+    // Lowering anchorCount can remove the currently selected anchor.
+    const sel = get().selected;
+    const selected = sel?.kind === 'anchor' && !bodyAnchors.some((a) => a.id === sel.id) ? null : sel;
+    set({ bodyParams, bodyAnchors, hardware, selected, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
 

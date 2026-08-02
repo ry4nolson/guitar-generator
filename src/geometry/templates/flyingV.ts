@@ -9,10 +9,12 @@ import type { Point } from '../types';
 import { buildHardwareDefaults } from '../../state/hardwareDefaults';
 import { DEFAULT_NECK_PARAMS } from '../neckParams';
 import type { BodyTemplate, TemplateParamMeta } from './types';
+import { selectAnchorOrder, MIN_BODY_ANCHORS } from './smoothLoop';
 
 const PARAM_META: TemplateParamMeta[] = [
   { key: 'bodyLength', label: 'Body length', min: 420, max: 480, step: 1, unit: 'mm' },
   { key: 'bodyWidth', label: 'Body width', min: 300, max: 360, step: 1, unit: 'mm' },
+  { key: 'anchorCount', label: 'Anchor points', min: MIN_BODY_ANCHORS, max: 10, step: 1, unit: 'count' },
   { key: 'forwardLean', label: 'Forward lean', min: -3, max: 6, step: 0.5, unit: 'deg' },
   { key: 'wingSpread', label: 'Wing spread', min: 0.88, max: 1.02, step: 0.01, unit: 'ratio', featureId: 'upperHorn' },
   { key: 'wingLength', label: 'Wing tip position', min: 0.9, max: 1.0, step: 0.01, unit: 'ratio', featureId: 'upperHorn' },
@@ -23,6 +25,7 @@ const PARAM_META: TemplateParamMeta[] = [
 const DEFAULT_PARAMS: Record<string, number> = {
   bodyLength: 450,
   bodyWidth: 338,
+  anchorCount: 10,
   forwardLean: 0,
   wingSpread: 0.95,
   wingLength: 0.97,
@@ -55,7 +58,7 @@ function buildAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
     lowerWingRoot: { x: 0.09 * L, y: -rootY },
   };
 
-  const order = [
+  const fullOrder = [
     'neckJoint',
     'upperWingRoot',
     'upperWingBend',
@@ -67,6 +70,23 @@ function buildAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
     'lowerWingBend',
     'lowerWingRoot',
   ];
+
+  // Reduced-count survival order: the V skeleton (neck / both tips / notch),
+  // then wing roots, inner edges, and finally the outer bend points.
+  const priority = [
+    'neckJoint',
+    'upperWingTip',
+    'rearNotch',
+    'lowerWingTip',
+    'upperWingRoot',
+    'lowerWingRoot',
+    'upperInnerEdge',
+    'lowerInnerEdge',
+    'upperWingBend',
+    'lowerWingBend',
+  ];
+
+  const order = selectAnchorOrder(fullOrder, priority, params.anchorCount);
 
   const featureOf: Record<string, AnchorSpec['featureId']> = {
     neckJoint: 'neckTransition',

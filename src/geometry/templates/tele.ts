@@ -9,11 +9,12 @@ import type { Point } from '../types';
 import { buildHardwareDefaults } from '../../state/hardwareDefaults';
 import { DEFAULT_NECK_PARAMS } from '../neckParams';
 import type { BodyTemplate, TemplateParamMeta } from './types';
-import { buildSmoothLoop } from './smoothLoop';
+import { buildSmoothLoop, selectAnchorOrder, MIN_BODY_ANCHORS } from './smoothLoop';
 
 const PARAM_META: TemplateParamMeta[] = [
   { key: 'bodyLength', label: 'Body length', min: 400, max: 460, step: 1, unit: 'mm' },
   { key: 'bodyWidth', label: 'Body width', min: 300, max: 350, step: 1, unit: 'mm' },
+  { key: 'anchorCount', label: 'Anchor points', min: MIN_BODY_ANCHORS, max: 13, step: 1, unit: 'count' },
   { key: 'forwardLean', label: 'Forward lean', min: -4, max: 10, step: 0.5, unit: 'deg' },
   { key: 'upperHornReach', label: 'Upper horn reach', min: 0, max: 45, step: 1, unit: 'mm', featureId: 'upperHorn' },
   { key: 'waistDepth', label: 'Waist depth', min: 0, max: 28, step: 1, unit: 'mm', featureId: 'rearWaist' },
@@ -26,6 +27,7 @@ const PARAM_META: TemplateParamMeta[] = [
 const DEFAULT_PARAMS: Record<string, number> = {
   bodyLength: 430,
   bodyWidth: 324,
+  anchorCount: 13,
   forwardLean: 0,
   upperHornReach: 22,
   waistDepth: 12,
@@ -64,7 +66,7 @@ function buildAnchorSpecs(params: Record<string, number>) {
     lowerHornTip: { x: 0.07 * L, y: -0.42 * hw - cut * 0.3 },
   };
 
-  const order = [
+  const fullOrder = [
     'neckJoint',
     'upperHornTip',
     'upperHornShoulder',
@@ -79,6 +81,27 @@ function buildAnchorSpecs(params: Record<string, number>) {
     'lowerHornShoulder',
     'lowerHornTip',
   ];
+
+  // Which anchors survive at reduced anchor counts, most important first:
+  // the 4-point skeleton (neck / top bout / tail / bottom bout), then horns,
+  // then waist/hip refinement, then shoulder smoothing points.
+  const priority = [
+    'neckJoint',
+    'upperBoutApex',
+    'tailPoint',
+    'lowerTrebleBoutApex',
+    'upperHornTip',
+    'lowerHornTip',
+    'waistPoint',
+    'lowerBassBoutApex',
+    'hipContourPoint',
+    'upperHornShoulder',
+    'lowerHornShoulder',
+    'tailShoulderBass',
+    'tailShoulderTreble',
+  ];
+
+  const order = selectAnchorOrder(fullOrder, priority, params.anchorCount);
 
   const featureOf: Record<string, import('../bodyFeatures').BodyFeatureId> = {
     neckJoint: 'neckTransition',
