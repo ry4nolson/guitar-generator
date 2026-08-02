@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useDesignStore, type DesignDocument } from '../state/store';
 import { downloadJson, deserializeDocument } from '../export/jsonPersistence';
 import { buildSvgDocument, downloadSvg } from '../export/svgExport';
-import { BODY_TEMPLATES } from '../geometry/templates';
+import { TemplateGallery } from './Toolbar/TemplateGallery';
 import type { ViewMode } from '../geometry/types';
 
 const VIEWS: { key: ViewMode; label: string }[] = [
@@ -67,7 +67,9 @@ export function Toolbar() {
   const handleTemplateChange = (id: string) => {
     if (id === templateId) return;
     if (isBodyDirty()) {
-      const ok = confirm('Switching templates replaces the current body shape. Discard your manual edits?');
+      const ok = confirm(
+        'You have manual body edits. Switching templates will discard those edits and reset body geometry/hardware.\n\nSwitch and discard edits?',
+      );
       if (!ok) return;
     }
     setTemplate(id);
@@ -79,22 +81,8 @@ export function Toolbar() {
         <span className="brand">Headless Guitar Designer</span>
       </div>
 
-      <div className="toolbar-group">
-        <span className="muted" style={{ fontSize: 11 }}>
-          Template
-        </span>
-        <div className="segmented">
-          {BODY_TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              className={templateId === t.id ? 'active' : ''}
-              title={t.description}
-              onClick={() => handleTemplateChange(t.id)}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
+      <div className="toolbar-group template-gallery-wrap">
+        <TemplateGallery onSelect={handleTemplateChange} />
       </div>
 
       <div className="toolbar-group">
@@ -118,7 +106,11 @@ export function Toolbar() {
         >
           Reset body
         </button>
-        <button onClick={() => confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') && resetToDefaults()}>
+        <button
+          onClick={() =>
+            confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') && resetToDefaults()
+          }
+        >
           Reset all
         </button>
       </div>

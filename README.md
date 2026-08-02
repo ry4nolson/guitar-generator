@@ -1,12 +1,13 @@
 # Headless Guitar Designer
 
-A browser-based, parametric editor for a headless, Tele-inspired electric
-guitar. Built with React + TypeScript + Vite, SVG for all drawing/interaction,
-Zustand for state, and Vitest for geometry tests. No canvas, no backend.
+A browser-based, parametric editor for headless electric guitar body designs.
+Three inspired starting silhouettes ship out of the box (Tele, Strat, Flying V
+families — original outlines, not traced trademarked production shapes). Built
+with React + TypeScript + Vite, SVG for all drawing/interaction, Zustand for
+state, and Vitest for geometry tests. No canvas, no backend.
 
-This is a **first working version**: a solid, persistent, editable foundation
-for a future build-ready SVG/CAD-style tool — not a finished fabrication
-product.
+This is a **working editor foundation** for a future build-ready SVG/CAD-style
+tool — not a finished fabrication product.
 
 ## Architecture
 
@@ -14,60 +15,44 @@ product.
 src/
   geometry/        Pure math — no React, no state, fully unit-testable
     types.ts          Shared Point/Anchor/Fret/Hardware types (mm units)
-    bodyParams.ts      Body slider definitions + defaults
-    bodyModel.ts       BodyParams -> 8 named anchors + Bezier handles;
-                       preserves manual edits when params change
-    neckParams.ts      Neck slider definitions + defaults
+    bodyEngine.ts      Continuity modes (smooth/tangent/corner) → Bezier handles
+    bodyModel.ts       Template + params → anchors; preserves manual edits
+    bodyFeatures.ts    Semantic feature ids shared across templates
+    templates/         Tele / Strat / Flying-V inspired presets
     frets.ts           Equal-temperament fret math + true multiscale fan
     neckPlacement.ts   Places neck-local geometry into body space
-    svgPath.ts         Anchors -> real cubic-Bezier SVG path `d` string
-    snapping.ts        Grid snap helper
-    units.ts           mm <-> inch conversion
-    bodyFeatures.ts    Semantic feature grouping over the 8 raw anchors
-    constraints.ts     Extensible advisory constraint engine
-    templates.ts       Plugin/template scaffold (default data only)
+    svgPath.ts         Anchors → real cubic-Bezier SVG path `d` string
     bounds.ts          Full-design bounding box (body + neck + hardware)
+    constraints.ts     Extensible advisory constraint engine
+    …
 
   state/
-    store.ts            Single Zustand store: the persistent design document
-                         (body params + anchors, neck params, hardware,
-                         layers, settings) + undo/redo history + localStorage
-                         autosave
-    hardwareDefaults.ts  Default hardware layout
-    layers.ts            Figma-style layer registry
+    store.ts                 Persistent design document + undo/redo + autosave
+    referenceOverlay.ts      Lightweight overlay settings (localStorage)
+    ReferenceOverlayContext  Session image URL + settings for the canvas
+    hardwareDefaults.ts      Per-template hardware layout helper
+    layers.ts                Figma-style layer registry
 
   components/
-    Toolbar.tsx          Undo/redo/reset, save/load JSON, SVG export, view
-                         switch, theme toggle
-    Editor/              SVG rendering + drag interaction
-      EditorCanvas.tsx     Top-level SVG stage: pan/zoom/fit, bounds-based
-                           viewBox, body/neck/hardware composition
-      BodyOutline.tsx      Renders the single shared body path (top + back)
-      AnchorPoints.tsx     Draggable anchors + Bezier handles
-      FeatureHitRegions.tsx Click-to-select body regions + whole-feature drag
-      NeckAndFrets.tsx     Neck outline + fanned frets
-      Hardware.tsx         Draggable bridge/knob/saddles/neck bolts
-      BackView.tsx         Back view (reuses the same body outline)
-      ConstructionView.tsx Centerlines, scale/nut/bridge/neutral-fret lines,
-                           neck pocket, pickup/control routes
-      Centerlines.tsx, ReferenceLines.tsx, RoutesOverlay.tsx, Dimensions.tsx
-      LayerGroup.tsx       Gates rendering by layer visibility/lock
-    Sidebar/              Feature-based parameter panel, hardware coordinate
-                         inputs, selected-point inspector, layers panel,
-                         constraints panel, editor settings
+    Toolbar.tsx              Template gallery, views, undo/redo, save/export
+    Toolbar/TemplateGallery  Silhouette cards from real template geometry
+    Editor/                  SVG rendering + drag interaction
+      EditorCanvas.tsx         Pan/zoom/fit, reference overlay, composition
+      ReferenceImageOverlay    Optional tracing image (never exported)
+      AnchorPoints.tsx         Selection-scoped handles + dimmed unselected
+      …
+    Sidebar/                 Feature params, neck, hardware, reference overlay,
+                             layers, constraints, editor settings
 
   export/
-    svgExport.ts        Builds clean / blueprint / fabrication SVG documents
-                         with the required layer IDs and embedded metadata
-    jsonPersistence.ts   Save/load the full design document as JSON
+    svgExport.ts        Clean / blueprint / fabrication SVG (geometry only)
+    jsonPersistence.ts  Save/load the design document as JSON
 
   hooks/
-    useSvgDrag.ts        Pointer-drag -> body-local mm coordinates via the
-                         SVG element's screen CTM (works at any zoom)
-    useViewport.ts       Pan/zoom/fit: wheel, middle-mouse/space+drag, touch
-                         pinch/pan, and gesture-independent D-pad/zoom buttons
-    useNeckGeometry.ts   Memoized neck/fret geometry shared by consumers
-    useKeyboardNudge.ts  Arrow-key nudging for the selected anchor
+    useViewport.ts         Pan/zoom/fit; wheel zooms around cursor
+    useEditorShortcuts.ts  F / 0 / Esc / Delete shortcuts
+    useReferenceOverlay.ts Session reference image + persisted settings
+    …
 ```
 
 ### The persistence rule
@@ -75,34 +60,26 @@ src/
 The product requirement is that **the guitar is generated from persistent
 geometry, not redrawn from scratch**. This is implemented as:
 
-- `bodyAnchors` (8 named anchors with position + 2 handles each) live in the
-  Zustand store, not in a component.
+- `bodyAnchors` live in the Zustand store, not in a component.
 - Moving a body-param slider calls `recomputeAnchorsPreservingEdits`, which
-  recomputes only the anchors that have **not** been manually edited. Anchors
-  the user dragged (`manuallyEdited: true`) or locked are left untouched until
-  explicitly reset.
-- Every other control (neck params, hardware position, view/unit/theme) writes
-  directly into the same store slice that the SVG reads from — there is no
-  separate "regenerate" path.
+  recomputes only anchors that have **not** been manually edited.
+- Switching templates is the deliberate full-replace exception: it resets
+  body params/anchors/hardware for the new topology, warns if there are
+  manual edits, and preserves shared neck settings plus unit/view prefs.
 
-## Body outline
+## Body templates
 
-The body is 8 named cubic-Bezier segments forming one closed loop (not a
-single arbitrary path string):
+Three presets, each authored as semantic anchors + continuity modes (not
+hard-coded SVG path strings):
 
-`upper horn → upper bout → rear upper bout → rear waist → lower rear bout →
-hip cutout → lower horn → neck-side cutaway → (back to upper horn)`
+| Preset | Character |
+|--------|-----------|
+| **Tele-inspired** | Compact, modest upper horn, shallow waist, broad rounded lower bout, small lower cutaway |
+| **Strat-inspired** | Offset double-cut, longer upper horn, shorter lower horn, deeper waist, flowing lower bout |
+| **Flying-V-inspired** | Symmetrical wings, tips rearmost, rearward V notch, straight edges, corner continuity |
 
-Each anchor has independent `handleIn`/`handleOut` control points, editable
-directly in the Construction view (or on the Top view via the anchor
-overlay, or by clicking a body region to select/drag the whole feature).
-Every handle uses the same Catmull-Rom-style tangent + radius-scaled length,
-with the length always capped at a fraction of the distance to the
-neighboring anchor — so a handle can never overshoot past the anchor it's
-steering toward. The hip-cutout anchor is positioned relative to its own
-neighbors' edge level (pulled inward by `hipCutoutDepth`), which is what
-makes it read as a genuine inward notch rather than an outward bulge —
-see the regression tests in `tests/bodyModelHandles.test.ts`.
+Default body size stays in a realistic electric range (~420–470 mm length,
+~300–360 mm width).
 
 ## Multiscale (fanned-fret) neck
 
@@ -130,81 +107,57 @@ centerline "for free," with no extra rotation hack. See
   and optional bridge access outline. No string-through holes anywhere.
 - **Construction** — centerlines, nut/bridge/neutral-fret lines, scale
   reference lines, neck pocket, pickup + control routes, and the same
-  anchor/handle editing overlay as the Top view.
+  anchor/handle editing overlay as the Top view. Unselected construction
+  guides dim while a feature/anchor is selected.
 
 ## Canvas navigation
 
-- Mouse wheel zooms (around the cursor); middle-mouse or space+drag pans;
-  double-click fits.
+- Mouse wheel zooms around the cursor; middle-mouse or space+drag pans;
+  double-click / **Fit** (shortcut **F**) centers and maximizes the guitar;
+  **Reset View** (shortcut **0**) returns to the default camera.
+- Pan/zoom survive Top ↔ Back ↔ Construction switches; Fit runs when the
+  body template changes.
 - Touch: one finger pans, two fingers pinch-zoom.
-- On-screen D-pad + zoom buttons provide a gesture-independent fallback for
-  environments that intercept swipe gestures (e.g. some embedding webviews).
-- The canvas fits the FULL design (body + neck + hardware bounding box, not
-  just the body's own rectangle) with configurable padding.
+- On-screen D-pad + zoom buttons provide a gesture-independent fallback.
+- Optional PNG/JPEG reference overlay for tracing (sidebar controls; not
+  exported).
 
 ## Controls summary
 
-- **Body**: feature-based panel (Global dimensions + per-region sliders when
-  you click a body region), plus a collapsible "Advanced: all parameters"
-  fallback.
-- **Neck**: bass/treble scale length, neutral fret, fret count, nut width,
-  heel width, neck length, neck angle.
-- **Direct editing**: drag any anchor, handle, or whole feature; mirror-handle
-  ("smooth point") toggle; lock/unlock; reset a single point; numeric x/y
-  entry; arrow-key nudging; grid snap with adjustable size; show/hide points
-  & handles.
-- **Hardware**: drag bridge humbucker, volume knob, 6 individual saddles, and
-  4 neck bolts; numeric X/Y entry; per-item lock/visibility.
-- **Layers**: Figma-style panel (Body/Neck/Frets/Hardware/Construction/
-  Dimensions/Routes/Centerlines) with per-layer visibility + lock.
-- **Constraints**: live advisory panel (bridge-on-centerline, minimum wood
-  around the neck pocket, pickup/neck-pocket overlap, knob-to-pickup
-  distance, hardware collision).
-- **History/persistence**: undo/redo, reset to defaults, save/load versioned
-  design JSON, autosave to `localStorage`.
-- **Export**: clean SVG, blueprint SVG (construction lines), fabrication SVG
-  (1:1 mm, no UI chrome) — each grouped under
-  `body-outline / neck / frets / hardware / routes / construction /
-  dimensions` with embedded design-parameter metadata.
+- **Templates**: silhouette preview gallery; confirm before discarding manual
+  body edits on switch.
+- **Body**: feature-based panel (Global + per-region sliders), Advanced
+  fallback for all parameters.
+- **Neck**: bass/treble scale, neutral fret, fret count, nut/heel width,
+  neck length, neck angle.
+- **Direct editing**: drag anchors, handles (selected only), or whole
+  features; Escape clears selection; Delete/Backspace resets a manual
+  override after confirm.
+- **Reference overlay**: upload, opacity, scale, X/Y, lock, show/hide, remove.
+- **Hardware / Layers / Constraints / History / Export**: as before (JSON
+  save/load, clean/blueprint/fabrication SVG).
 
 ## Running it
 
 ```bash
 npm install
 npm run dev       # start the editor at http://localhost:5173
-npm test          # run geometry tests (Vitest)
+npm test          # run geometry + store tests (Vitest)
 npm run build     # type-check + production build
 npm run lint      # oxlint
 ```
 
-## Known limitations (first version)
+## Known limitations
 
-- Neck-pocket / pickup-route / control-route shapes in the Construction view
-  are simple placeholder rectangles/ellipses, not yet parametric or routed
-  from real pickup/pot footprints.
+- Neck-pocket / pickup-route / control-route shapes in Construction are
+  simple placeholders, not yet parametric from real footprints.
 - Constraints are advisory-only; no auto-correction/solver.
-- No outline self-intersection validation as a live UI warning (it's covered
-  by tests, not a runtime check).
-- Per-layer export and layer "selection" are stubbed (visibility/lock work;
-  export/selection don't yet).
-- The template scaffold (`geometry/templates.ts`) isn't wired to a UI
-  switcher yet — only one template ships.
-
-## Next five most valuable improvements
-
-1. Wire the template scaffold to a real switcher (Strat/Jazzmaster/Explorer/
-   Flying V/bass/acoustic).
-2. Derive neck pocket / pickup / control routes from real hardware footprint
-   data instead of placeholder shapes.
-3. Per-layer export + a real "active layer" selection concept.
-4. Constraint auto-correction (e.g., snap bridge back onto centerline) as an
-   opt-in mode.
-5. Outline self-intersection / minimum-radius validation feeding into the
-   same Constraints panel as a live warning.
+- Reference image bytes are not persisted across reloads (settings are).
+- Per-layer export and layer "selection" are stubbed (visibility/lock work).
+- No live UI warning for outline self-intersection (covered by tests).
 
 ## Note on assets
 
-`public/favicon.svg` and `public/icons.svg` (default Vite scaffold assets,
-not part of this project's custom work) were intentionally left out of this
-upload; running `npm create vite@latest -- --template react-ts` regenerates
-equivalents if needed, or just drop in your own favicon.
+`public/favicon.svg` and `public/icons.svg` (default Vite scaffold assets)
+were intentionally left out of this upload; drop in your own favicon if
+needed.

@@ -55,7 +55,10 @@ export function ViewSettings() {
         <span>Debug overlay (names / tangents / continuity)</span>
         <input type="checkbox" checked={settings.showDebugOverlay} onChange={toggleDebugOverlay} />
       </label>
-      <p className="muted">Scroll = zoom · middle-click or space+drag = pan · double-click = fit to screen.</p>
+      <p className="muted">
+        Scroll = zoom at cursor · middle-click or space+drag = pan · Fit (F) / Reset View (0) · Esc clears
+        selection · Delete resets a manual override (with confirm).
+      </p>
     </section>
   );
 }

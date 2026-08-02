@@ -85,7 +85,7 @@ function defaultDocument(): DesignDocument {
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'guitar-designer-autosave-v2';
+const AUTOSAVE_KEY = 'guitar-designer-autosave-v3';
 
 interface HistoryEntry {
   templateId: string;
@@ -196,11 +196,22 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setTemplate: (templateId) => {
     const before = snapshotOf(get());
     const template = getBodyTemplate(templateId);
+    const currentNeck = get().neckParams;
+    // Preserve shared neck settings the user already dialed in; reset only
+    // template-specific body geometry + hardware placement.
+    const neckParams: NeckParams = {
+      ...template.defaultNeckParams,
+      bassScale: currentNeck.bassScale,
+      trebleScale: currentNeck.trebleScale,
+      fretCount: currentNeck.fretCount,
+      nutWidth: currentNeck.nutWidth,
+      neutralFret: currentNeck.neutralFret,
+    };
     set({
       templateId: template.id,
       bodyParams: { ...template.defaultParams },
       bodyAnchors: computeParametricAnchors(template, template.defaultParams),
-      neckParams: { ...template.defaultNeckParams },
+      neckParams,
       hardware: structuredClone(template.defaultHardware),
       selected: null,
       past: pushPast(get().past, before),

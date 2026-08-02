@@ -5,6 +5,7 @@ import { NeckControls } from './NeckControls';
 import { HardwareControls } from './HardwareControls';
 import { LayersPanel } from './LayersPanel';
 import { ConstraintsPanel } from './ConstraintsPanel';
+import { ReferenceOverlayPanel } from './ReferenceOverlayPanel';
 
 export function Sidebar() {
   return (
@@ -14,6 +15,7 @@ export function Sidebar() {
       <FeaturePanel />
       <NeckControls />
       <HardwareControls />
+      <ReferenceOverlayPanel />
       <LayersPanel />
       <ViewSettings />
     </aside>

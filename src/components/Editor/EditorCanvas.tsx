@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect } from 'react';
 import { useDesignStore } from '../../state/store';
 import { useViewport } from '../../hooks/useViewport';
 import { useKeyboardNudge } from '../../hooks/useKeyboardNudge';
+import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 import { computeDesignBounds } from '../../geometry/bounds';
 import { BodyOutline } from './BodyOutline';
@@ -13,6 +14,7 @@ import { BackView } from './BackView';
 import { ConstructionView } from './ConstructionView';
 import { LayerGroup } from './LayerGroup';
 import { DebugOverlay } from './DebugOverlay';
+import { ReferenceImageOverlay } from './ReferenceImageOverlay';
 
 /**
  * Top-level SVG stage. The viewBox + stage transform are derived from the
@@ -21,16 +23,9 @@ import { DebugOverlay } from './DebugOverlay';
  * rectangle: the neck extends well beyond the body in -x, so sizing the
  * viewBox from bodyParams alone clipped most of it off-canvas.
  *
- * The stage transform applies `scale(-1,-1)`:
- *   - The y flip is required because body-local geometry uses +y = bass/
- *     upper-bout side, meant to read as "up" on screen, but SVG's own
- *     coordinate space has +y pointing down.
- *   - The x flip orients the neck/headstock toward the right side of the
- *     canvas (screen convention for this app), matching how neck-local
- *     coordinates increase in -x away from the body (see neckPlacement.ts).
- * Because all drag/pan/zoom math goes through `getScreenCTM()` (see
- * hooks/useSvgDrag.ts, useViewport.ts), this transform is transparent to
- * every interaction — nothing else needs to account for it.
+ * Pan/zoom lives in useViewport (not the design store) so it survives
+ * Top/Back/Construction panel switches. Template switches call fit() so the
+ * new silhouette is centered.
  */
 export function EditorCanvas() {
   const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
@@ -41,17 +36,29 @@ export function EditorCanvas() {
   const showDebugOverlay = useDesignStore((s) => s.settings.showDebugOverlay);
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
+  const templateId = useDesignStore((s) => s.templateId);
   const { outlinePoints } = useNeckGeometry();
 
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const stageRef = useRef<SVGGElement | null>(null);
-  const { viewport, onPointerDown, onDoubleClick, fit, bindSpaceKeys, bindWheel, bindTouch, panBy, zoomBy } =
+  const { viewport, onPointerDown, onDoubleClick, fit, resetView, bindSpaceKeys, bindWheel, bindTouch, panBy, zoomBy } =
     useViewport(svgRootRef);
 
   useKeyboardNudge();
+  useEditorShortcuts({ fit, resetView });
   useEffect(() => bindSpaceKeys(), [bindSpaceKeys]);
   useEffect(() => bindWheel(), [bindWheel]);
   useEffect(() => bindTouch(), [bindTouch]);
+
+  // New template → re-fit so pan/zoom from the previous silhouette don't leave
+  // the guitar off-screen. View-mode switches deliberately do NOT reset.
+  const prevTemplateRef = useRef(templateId);
+  useEffect(() => {
+    if (prevTemplateRef.current !== templateId) {
+      prevTemplateRef.current = templateId;
+      fit();
+    }
+  }, [templateId, fit]);
 
   const bounds = useMemo(
     () => computeDesignBounds(bodyAnchors, outlinePoints, hardware),
@@ -62,22 +69,14 @@ export function EditorCanvas() {
   const contentHeight = bounds.maxY - bounds.minY;
   const width = contentWidth + canvasPadding * 2;
   const height = contentHeight + canvasPadding * 2;
-  // See the module comment: tx/ty are derived so that scale(-1,-1) both
-  // flips y (upper-bout side renders "up") and mirrors x (neck renders
-  // toward the right), while fitting the full bounds within [0,width]x[0,height].
   const stageTx = canvasPadding + bounds.maxX;
   const stageTy = canvasPadding + bounds.maxY;
 
-  // Which anchors are owned by the selected feature — read directly off the
-  // current anchor set's own featureId rather than a static per-template
-  // table, so this works for any template's anchor topology.
   const onlyFeatureAnchorIds = useMemo(
     () => (selected?.kind === 'feature' ? bodyAnchors.filter((a) => a.featureId === selected.id).map((a) => a.id) : undefined),
     [selected, bodyAnchors],
   );
 
-  // A fixed on-screen nudge distance (in viewBox units, scaled by the current
-  // zoom so each button press feels like a consistent screen-space step).
   const panStep = Math.max(width, height) * 0.08;
 
   return (
@@ -108,6 +107,7 @@ export function EditorCanvas() {
       />
       <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
         <g ref={stageRef} id="stage" transform={`translate(${stageTx}, ${stageTy}) scale(-1,-1)`}>
+          <ReferenceImageOverlay />
           {view === 'top' && (
             <>
               <LayerGroup id="body">
@@ -136,7 +136,7 @@ export function EditorCanvas() {
           )}
         </g>
       </g>
-      <FitButtonPortal onFit={fit} />
+      <ViewportButtonsPortal onFit={fit} onResetView={resetView} />
       <ViewportControlsPortal
         width={width}
         onPanLeft={() => panBy(-panStep, 0)}
@@ -150,33 +150,21 @@ export function EditorCanvas() {
   );
 }
 
-/**
- * A small always-visible "Fit" affordance, rendered as a foreignObject so it
- * doesn't require a separate absolutely-positioned wrapper element around the
- * <svg> (keeping EditorCanvas a single drop-in element for the editor pane).
- */
-function FitButtonPortal({ onFit }: { onFit: () => void }) {
+function ViewportButtonsPortal({ onFit, onResetView }: { onFit: () => void; onResetView: () => void }) {
   return (
-    <foreignObject x={8} y={8} width={70} height={30} style={{ overflow: 'visible' }}>
-      <button
-        className="fit-button"
-        onClick={onFit}
-        title="Fit to screen (or double-click the canvas)"
-        style={{ pointerEvents: 'auto' }}
-      >
-        ⤢ Fit
-      </button>
+    <foreignObject x={8} y={8} width={160} height={30} style={{ overflow: 'visible' }}>
+      <div className="viewport-top-buttons" style={{ pointerEvents: 'auto' }}>
+        <button className="fit-button" onClick={onFit} title="Fit to screen (F)">
+          ⤢ Fit
+        </button>
+        <button className="fit-button" onClick={onResetView} title="Reset view (0)">
+          Reset View
+        </button>
+      </div>
     </foreignObject>
   );
 }
 
-/**
- * Gesture-independent pan (D-pad) + zoom controls. Wheel/drag/touch gestures
- * are the primary way to navigate, but some embedding contexts (e.g. an
- * in-app preview webview) intercept horizontal swipes for their own
- * navigation before this page ever sees them — these buttons work no matter
- * what gestures the host environment does or doesn't forward.
- */
 function ViewportControlsPortal({
   width,
   onPanLeft,

@@ -59,7 +59,11 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
   );
   const singleTouchPan = useRef<{ startClientX: number; startClientY: number; startPan: Viewport } | null>(null);
 
+  /** Fit = center and maximize the guitar in the current viewBox (identity camera). */
   const fit = useCallback(() => setViewport(DEFAULT_VIEWPORT), []);
+
+  /** Reset View = return to the default camera; same identity as Fit in this model. */
+  const resetView = useCallback(() => setViewport(DEFAULT_VIEWPORT), []);
 
   /**
    * Gesture-independent pan/zoom, for the on-screen D-pad/zoom buttons. Some
@@ -305,5 +309,16 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
     };
   }, []);
 
-  return { viewport, onPointerDown, onDoubleClick, fit, bindSpaceKeys, bindWheel, bindTouch, panBy, zoomBy };
+  return {
+    viewport,
+    onPointerDown,
+    onDoubleClick,
+    fit,
+    resetView,
+    bindSpaceKeys,
+    bindWheel,
+    bindTouch,
+    panBy,
+    zoomBy,
+  };
 }

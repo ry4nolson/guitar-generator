@@ -24,17 +24,30 @@ function expand(b: Bounds, p: Point, margin = 0): Bounds {
   };
 }
 
+export interface DesignBoundsOptions {
+  /**
+   * When true, Bezier handles inflate the box (useful if you must never clip
+   * construction geometry). Default false so Fit maximizes the visible guitar
+   * silhouette rather than empty handle overhang.
+   */
+  includeHandles?: boolean;
+}
+
 export function computeDesignBounds(
   bodyAnchors: BodyAnchor[],
   neckOutlinePoints: Point[],
   hardware: HardwareState,
+  options: DesignBoundsOptions = {},
 ): Bounds {
+  const includeHandles = options.includeHandles ?? false;
   let bounds: Bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
 
   for (const a of bodyAnchors) {
     bounds = expand(bounds, a.position);
-    bounds = expand(bounds, a.handleIn);
-    bounds = expand(bounds, a.handleOut);
+    if (includeHandles) {
+      bounds = expand(bounds, a.handleIn);
+      bounds = expand(bounds, a.handleOut);
+    }
   }
   for (const p of neckOutlinePoints) {
     bounds = expand(bounds, p);

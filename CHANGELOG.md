@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.3.0 — Usability + preset silhouette pass
+
+Focused improvement pass: better default body templates, reference tracing,
+safer template switching, and smoother canvas editing. Architecture unchanged.
+
+### Added
+
+- Compact template preview gallery (silhouette cards generated from real
+  parametric geometry) for Tele / Strat / Flying-V inspired presets.
+- Optional reference-image overlay (PNG/JPEG) behind the outline: opacity,
+  scale, X/Y, lock, show/hide, remove. Settings persist in localStorage; the
+  bitmap is session-only. Never included in SVG exports.
+- Reset View control + keyboard shortcuts: F (fit), 0 (reset view), Escape
+  (clear selection), Delete/Backspace (reset selected manual override after
+  confirm).
+- Template-switch confirmation when manual body edits exist; switching
+  preserves shared neck settings (scale lengths, fret count, nut width,
+  neutral fret) and unit/view prefs while resetting body geometry + hardware.
+
+### Changed
+
+- Refined Tele / Strat / Flying-V default anchor geometry for more intentional
+  silhouettes within realistic electric-guitar bounds (~420–470 × 300–360 mm).
+- Flying-V tips are now the rearmost points with a rearward-opening notch
+  (solid body mass around the bridge).
+- Fit uses outline+neck+hardware bounds (handles no longer inflate the
+  viewBox), so Fit maximizes the visible guitar.
+- Bézier handles only appear for the selected anchor or selected feature;
+  unselected anchors and construction guides dim while a selection is active.
+- Pan/zoom is preserved across Top/Back/Construction; Fit runs on template
+  switch.
+
+### Tests
+
+- Closed valid paths, finite coordinates, realistic body bounds.
+- Flying-V corner continuity + tip/notch topology.
+- Tele/Strat smooth tangent alignment.
+- Template switch preserves neck settings / resets body geometry.
+- SVG export never includes reference images.
+
 ## 0.1.0 — Initial working MVP
 
 First working version of the parametric headless electric guitar designer.
