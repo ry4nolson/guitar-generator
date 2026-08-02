@@ -307,6 +307,16 @@ describe('SVG export excludes reference overlays', () => {
       bodyAnchors: computeParametricAnchors(tele, tele.defaultParams),
       neckParams: { ...tele.defaultNeckParams },
       hardware: structuredClone(tele.defaultHardware),
+      bridgeSettings: { type: 'hardtail' as const, stringSpacing: 52.5, saddleTravel: 18, stopbarOffset: 28, postSpacing: 74 },
+      nutSettings: { type: 'standard' as const, stringSpacing: 35, thickness: 5 },
+      headstockSettings: {
+        type: 'paddle' as const,
+        length: 175,
+        tipWidth: 68,
+        earWidth: 30,
+        showTuners: true,
+        tunerLayout: '6-inline' as const,
+      },
       settings: {
         unit: 'mm' as const,
         theme: 'dark' as const,

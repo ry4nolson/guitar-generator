@@ -5,13 +5,17 @@ import { useMemo } from 'react';
 import { useDesignStore } from '../state/store';
 import { computeBridgeX, computeFanFrets } from '../geometry/frets';
 import { neckToBodySpace } from '../geometry/neckPlacement';
+import { neckJoinPoint } from '../geometry/scaleLock';
+import { computeHeadstockOutlineBody, computeTunerPositions } from '../geometry/headstock';
 import type { Point } from '../geometry/types';
 
 export function useNeckGeometry() {
   const neckParams = useDesignStore((s) => s.neckParams);
-  const joinX = useDesignStore((s) => s.bodyAnchors.find((a) => a.id === 'neckJoint')!.position.x);
+  const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
+  const headstockSettings = useDesignStore((s) => s.headstockSettings);
+  const saddles = useDesignStore((s) => s.hardware.saddles);
 
-  const joinPoint = useMemo<Point>(() => ({ x: joinX, y: 0 }), [joinX]);
+  const joinPoint = useMemo<Point>(() => neckJoinPoint(bodyAnchors), [bodyAnchors]);
   const frets = useMemo(() => computeFanFrets(neckParams), [neckParams]);
   const bridgeX = useMemo(() => computeBridgeX(neckParams), [neckParams]);
 
@@ -26,6 +30,16 @@ export function useNeckGeometry() {
     [neckParams, joinPoint],
   );
 
+  const headstockPoints = useMemo(
+    () => computeHeadstockOutlineBody(neckParams, headstockSettings, { joinPoint }),
+    [neckParams, headstockSettings, joinPoint],
+  );
+
+  const tunerPoints = useMemo(
+    () => computeTunerPositions(neckParams, headstockSettings, { joinPoint }, saddles).map((t) => t.position),
+    [neckParams, headstockSettings, joinPoint, saddles],
+  );
+
   const placedFrets = useMemo(
     () =>
       frets.map((f) => ({
@@ -36,5 +50,14 @@ export function useNeckGeometry() {
     [frets, neckParams, joinPoint],
   );
 
-  return { neckParams, joinPoint, frets, placedFrets, bridgeX, outlinePoints };
+  return {
+    neckParams,
+    joinPoint,
+    frets,
+    placedFrets,
+    bridgeX,
+    outlinePoints,
+    headstockPoints,
+    tunerPoints,
+  };
 }

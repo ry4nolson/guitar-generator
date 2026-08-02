@@ -3,20 +3,21 @@
 //   - clean:        body/neck/frets/hardware, no construction lines, no UI-only markers
 //   - blueprint:     everything, including construction geometry
 //   - fabrication:   clean, guaranteed 1:1 physical mm sizing, minimal styling
-//
-// All flavors use real vector primitives (path/line/circle) grouped under the
-// IDs required by the spec, and embed a metadata comment with the design params.
-//
-// Sizing/orientation mirrors the live editor (EditorCanvas + geometry/bounds.ts):
-// the viewBox fits the FULL design (body + neck + hardware), and a
-// `scale(-1,-1)` transform both flips y (body-local +y renders as screen
-// "up") and mirrors x (neck renders toward the right) — see EditorCanvas's
-// module comment for the full rationale.
 
 import { anchorsToPathD } from '../geometry/svgPath';
 import { computeFanFrets } from '../geometry/frets';
 import { neckToBodySpace } from '../geometry/neckPlacement';
 import { computeDesignBounds } from '../geometry/bounds';
+import {
+  computeBridgeStringPoints,
+  computeNutStringPoints,
+  computeStringSegments,
+} from '../geometry/strings';
+import {
+  computeHeadstockOutlineBody,
+  computeTunerPositions,
+  DEFAULT_HEADSTOCK_SETTINGS,
+} from '../geometry/headstock';
 import type { DesignDocument } from '../state/store';
 
 export type ExportFlavor = 'clean' | 'blueprint' | 'fabrication';
@@ -26,18 +27,34 @@ function pad(n: number) {
 }
 
 export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): string {
-  const { bodyParams, bodyAnchors, neckParams, hardware } = doc;
+  const {
+    bodyParams,
+    bodyAnchors,
+    neckParams,
+    hardware,
+    bridgeSettings,
+    nutSettings,
+    headstockSettings = DEFAULT_HEADSTOCK_SETTINGS,
+    layers,
+  } = doc;
   const margin = 40;
 
   const joinPoint = { x: bodyAnchors.find((a) => a.id === 'neckJoint')!.position.x, y: 0 };
+  const placement = { joinPoint };
   const neckOutlinePts = [
     { x: 0, y: neckParams.nutWidth / 2 },
     { x: neckParams.neckLength, y: neckParams.heelWidth / 2 },
     { x: neckParams.neckLength, y: -neckParams.heelWidth / 2 },
     { x: 0, y: -neckParams.nutWidth / 2 },
-  ].map((p) => neckToBodySpace(p, neckParams, { joinPoint }));
+  ].map((p) => neckToBodySpace(p, neckParams, placement));
 
-  const bounds = computeDesignBounds(bodyAnchors, neckOutlinePts, hardware);
+  const headstockPts = computeHeadstockOutlineBody(neckParams, headstockSettings, placement);
+  const tunerPts = computeTunerPositions(neckParams, headstockSettings, placement, hardware.saddles);
+
+  const bounds = computeDesignBounds(bodyAnchors, neckOutlinePts, hardware, {}, [
+    ...headstockPts,
+    ...tunerPts.map((t) => t.position),
+  ]);
   const width = bounds.maxX - bounds.minX + margin * 2;
   const height = bounds.maxY - bounds.minY + margin * 2;
   const tx = margin + bounds.maxX;
@@ -56,15 +73,38 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     flavor === 'fabrication' ? 'none' : '#caa46a'
   }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
 
+  let headstockGroup = '<g id="headstock"></g>';
+  if (headstockPts.length >= 3) {
+    const hsPath = `M ${headstockPts.map((p) => `${pad(p.x)} ${pad(p.y)}`).join(' L ')} Z`;
+    headstockGroup = `<g id="headstock"><path d="${hsPath}" fill="${
+      flavor === 'fabrication' ? 'none' : '#caa46a'
+    }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
+  }
+
   const fretLines = frets
-    .slice(1) // skip fret 0 (the nut line is drawn separately)
+    .slice(1)
     .map((f) => {
-      const b = neckToBodySpace(f.bassPoint, neckParams, { joinPoint });
-      const t = neckToBodySpace(f.treblePoint, neckParams, { joinPoint });
+      const b = neckToBodySpace(f.bassPoint, neckParams, placement);
+      const t = neckToBodySpace(f.treblePoint, neckParams, placement);
       return `<line x1="${pad(b.x)}" y1="${pad(b.y)}" x2="${pad(t.x)}" y2="${pad(t.y)}" stroke="#333" stroke-width="0.6"/>`;
     })
     .join('');
   const fretsGroup = `<g id="frets" transform="${transform}">${fretLines}</g>`;
+
+  const showStrings = layers?.strings?.visible && flavor !== 'fabrication';
+  let stringsGroup = '<g id="strings"></g>';
+  if (showStrings && bridgeSettings && nutSettings) {
+    const nutPts = computeNutStringPoints(neckParams, nutSettings, placement);
+    const bridgePts = computeBridgeStringPoints(hardware.saddles);
+    const segs = computeStringSegments(nutPts, bridgePts);
+    const gauges = [0.9, 0.75, 0.6, 0.5, 0.4, 0.35];
+    stringsGroup = `<g id="strings" transform="${transform}">${segs
+      .map(
+        (s) =>
+          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="#aaa" stroke-width="${gauges[s.index] ?? 0.45}" stroke-linecap="round"/>`,
+      )
+      .join('')}</g>`;
+  }
 
   const hw: string[] = [];
   const drawCircle = (p: { x: number; y: number; visible: boolean }, r: number, fill: string) => {
@@ -77,19 +117,24 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   if (flavor !== 'fabrication') {
     for (const b of hardware.neckBolts) drawCircle(b, 3.5, '#777');
   }
+  for (const t of tunerPts) {
+    hw.push(
+      `<circle cx="${pad(t.position.x)}" cy="${pad(t.position.y)}" r="${t.radius}" fill="#c8c8c8" stroke="#222" stroke-width="0.6"/>`,
+    );
+  }
   const hardwareGroup = `<g id="hardware" transform="${transform}">${hw.join('')}</g>`;
 
   const routesGroup = `<g id="routes" transform="${transform}"></g>`;
 
   let constructionGroup = '<g id="construction"></g>';
   if (flavor === 'blueprint') {
-    const nutB = neckToBodySpace({ x: 0, y: neckParams.nutWidth / 2 }, neckParams, { joinPoint });
-    const nutT = neckToBodySpace({ x: 0, y: -neckParams.nutWidth / 2 }, neckParams, { joinPoint });
-    const bridgeB = neckToBodySpace({ x: neckParams.bassScale, y: 20 }, neckParams, { joinPoint });
+    const nutB = neckToBodySpace({ x: 0, y: neckParams.nutWidth / 2 }, neckParams, placement);
+    const nutT = neckToBodySpace({ x: 0, y: -neckParams.nutWidth / 2 }, neckParams, placement);
+    const bridgeB = neckToBodySpace({ x: neckParams.bassScale, y: 20 }, neckParams, placement);
     const bridgeT = neckToBodySpace(
       { x: neckParams.bassScale - (neckParams.bassScale - neckParams.trebleScale), y: -20 },
       neckParams,
-      { joinPoint },
+      placement,
     );
     const lines = [
       `<line x1="0" y1="0" x2="${pad(bodyParams.bodyLength)}" y2="0" stroke="#0af" stroke-dasharray="4 2" stroke-width="0.5"/>`,
@@ -104,6 +149,9 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const metadata = `<!-- design-metadata: ${JSON.stringify({
     bodyParams,
     neckParams,
+    bridgeSettings,
+    nutSettings,
+    headstockSettings,
     exportedAt: new Date().toISOString(),
     unit: 'mm',
   }).replace(/-->/g, '')} -->`;
@@ -113,7 +161,9 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
 ${metadata}
 ${bodyGroup}
 ${neckGroup}
+${headstockGroup}
 ${fretsGroup}
+${stringsGroup}
 ${hardwareGroup}
 ${routesGroup}
 ${constructionGroup}

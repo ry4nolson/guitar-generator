@@ -38,6 +38,8 @@ export function computeDesignBounds(
   neckOutlinePoints: Point[],
   hardware: HardwareState,
   options: DesignBoundsOptions = {},
+  /** Extra silhouette points (headstock, tuners, etc.). */
+  extraPoints: Point[] = [],
 ): Bounds {
   const includeHandles = options.includeHandles ?? false;
   let bounds: Bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
@@ -51,6 +53,9 @@ export function computeDesignBounds(
   }
   for (const p of neckOutlinePoints) {
     bounds = expand(bounds, p);
+  }
+  for (const p of extraPoints) {
+    bounds = expand(bounds, p, 6);
   }
   bounds = expand(bounds, hardware.bridgeHumbucker, 18);
   bounds = expand(bounds, hardware.volumeKnob, 9);

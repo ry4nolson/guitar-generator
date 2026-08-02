@@ -3,6 +3,7 @@ import { useSvgDrag } from '../../hooks/useSvgDrag';
 import { snapToGrid } from '../../geometry/snapping';
 import type { HardwareState } from '../../state/hardwareDefaults';
 import type { HardwarePosition } from '../../geometry/types';
+import { BridgeAssembly } from './BridgeAssembly';
 
 function DraggablePart({
   name,
@@ -43,22 +44,61 @@ function DraggablePart({
   );
 }
 
-/** Bridge humbucker, volume knob, 6 individual saddles. No switch, no tone knob, no string-through holes. */
+/** Bridge assembly (by type) + pickup + volume + saddles. */
 export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
   const hardware = useDesignStore((s) => s.hardware);
+  const bridgeType = useDesignStore((s) => s.bridgeSettings.type);
+
+  const saddleFill = bridgeType === 'tom' ? '#e8e8e8' : bridgeType === 'floyd-rose' ? '#888' : '#c0c0c0';
 
   return (
     <g id="hardware">
-      <DraggablePart name="bridgeHumbucker" item={hardware.bridgeHumbucker} stageRef={stageRef} render={(sel) => (
-        <rect x={-18} y={-11} width={36} height={22} rx={4} fill="#181818" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.5 : 0.8} />
-      )} />
-      <DraggablePart name="volumeKnob" item={hardware.volumeKnob} stageRef={stageRef} render={(sel) => (
-        <circle r={9} fill="#3a3a3a" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.5 : 0.8} />
-      )} />
+      <BridgeAssembly />
+      <DraggablePart
+        name="bridgeHumbucker"
+        item={hardware.bridgeHumbucker}
+        stageRef={stageRef}
+        render={(sel) => (
+          <rect
+            x={-18}
+            y={-11}
+            width={36}
+            height={22}
+            rx={4}
+            fill="#181818"
+            stroke={sel ? '#ff5533' : '#000'}
+            strokeWidth={sel ? 1.5 : 0.8}
+          />
+        )}
+      />
+      <DraggablePart
+        name="volumeKnob"
+        item={hardware.volumeKnob}
+        stageRef={stageRef}
+        render={(sel) => (
+          <circle r={9} fill="#3a3a3a" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.5 : 0.8} />
+        )}
+      />
       {hardware.saddles.map((s, i) => (
-        <DraggablePart key={i} name="saddles" index={i} item={s} stageRef={stageRef} render={(sel) => (
-          <rect x={-6} y={-2.5} width={12} height={5} rx={1.5} fill="#c0c0c0" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.2 : 0.6} />
-        )} />
+        <DraggablePart
+          key={i}
+          name="saddles"
+          index={i}
+          item={s}
+          stageRef={stageRef}
+          render={(sel) => (
+            <rect
+              x={-6}
+              y={-2.5}
+              width={12}
+              height={5}
+              rx={1.5}
+              fill={saddleFill}
+              stroke={sel ? '#ff5533' : '#000'}
+              strokeWidth={sel ? 1.2 : 0.6}
+            />
+          )}
+        />
       ))}
     </g>
   );
@@ -70,9 +110,16 @@ export function NeckBolts({ stageRef }: { stageRef: React.RefObject<SVGGElement 
   return (
     <g id="neck-bolts">
       {bolts.map((b, i) => (
-        <DraggablePart key={i} name="neckBolts" index={i} item={b} stageRef={stageRef} render={(sel) => (
-          <circle r={4} fill="#999" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.4 : 0.7} />
-        )} />
+        <DraggablePart
+          key={i}
+          name="neckBolts"
+          index={i}
+          item={b}
+          stageRef={stageRef}
+          render={(sel) => (
+            <circle r={4} fill="#999" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.4 : 0.7} />
+          )}
+        />
       ))}
     </g>
   );

@@ -37,6 +37,9 @@ export function Toolbar() {
       bodyAnchors: s.bodyAnchors,
       neckParams: s.neckParams,
       hardware: s.hardware,
+      bridgeSettings: s.bridgeSettings,
+      nutSettings: s.nutSettings,
+      headstockSettings: s.headstockSettings,
       settings: s.settings,
       layers: s.layers,
     };
@@ -61,7 +64,7 @@ export function Toolbar() {
 
   const exportSvg = (flavor: 'clean' | 'blueprint' | 'fabrication') => {
     const svg = buildSvgDocument(currentDocument(), flavor);
-    downloadSvg(svg, `guitar-design-${flavor}.svg`);
+    downloadSvg(svg, `fretforge-${flavor}.svg`);
   };
 
   const handleTemplateChange = (id: string) => {
@@ -78,7 +81,7 @@ export function Toolbar() {
   return (
     <header className="toolbar">
       <div className="toolbar-group">
-        <span className="brand">Headless Guitar Designer</span>
+        <span className="brand">FretForge</span>
       </div>
 
       <div className="toolbar-group template-gallery-wrap">

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 
-/** Headless neck outline only (layer: "neck"). */
+/** Headless or headed neck outline (layer: "neck"). */
 export const NeckOutline = memo(function NeckOutline() {
   const { outlinePoints } = useNeckGeometry();
   const d = `M ${outlinePoints.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')} Z`;

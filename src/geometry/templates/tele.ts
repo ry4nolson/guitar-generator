@@ -109,8 +109,8 @@ export const TELE_TEMPLATE: BodyTemplate = {
   buildAnchorSpecs,
   defaultNeckParams: { ...DEFAULT_NECK_PARAMS },
   defaultHardware: buildHardwareDefaults({
-    bridgeX: DEFAULT_PARAMS.bodyLength * 0.8,
-    bridgeY: -4,
-    neckJointX: DEFAULT_PARAMS.bodyLength * 0.06,
+    joinX: DEFAULT_PARAMS.bodyLength * 0.06,
+    neckParams: { ...DEFAULT_NECK_PARAMS },
+    volumeOffsetY: 51,
   }),
 };

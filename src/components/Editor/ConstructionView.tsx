@@ -8,6 +8,9 @@ import { ReferenceLines } from './ReferenceLines';
 import { RoutesOverlay } from './RoutesOverlay';
 import { Dimensions } from './Dimensions';
 import { useDesignStore } from '../../state/store';
+import { Strings } from './Strings';
+import { NutHardware } from './NutHardware';
+import { HeadstockOutline, Tuners } from './Headstock';
 
 /**
  * Reference/build geometry: body + neck + hardware for context, plus
@@ -15,9 +18,6 @@ import { useDesignStore } from '../../state/store';
  * control routes, dimension annotations, and the raw anchor/handle editing
  * overlay — each gated by its own layer so any of it can be hidden or
  * locked independently via the Layers panel.
- *
- * When a feature/anchor is selected, non-selected construction guides dim so
- * the active region reads clearly.
  */
 export function ConstructionView({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
   const selected = useDesignStore((s) => s.selected);
@@ -30,12 +30,18 @@ export function ConstructionView({ stageRef }: { stageRef: React.RefObject<SVGGE
       </LayerGroup>
       <LayerGroup id="neck">
         <NeckOutline />
+        <HeadstockOutline />
+        <NutHardware />
       </LayerGroup>
       <LayerGroup id="frets">
         <FretLines />
       </LayerGroup>
+      <LayerGroup id="strings">
+        <Strings />
+      </LayerGroup>
       <LayerGroup id="hardware">
         <Hardware stageRef={stageRef} />
+        <Tuners />
       </LayerGroup>
       <g opacity={dimGuides ? 0.28 : 1}>
         <LayerGroup id="centerlines">

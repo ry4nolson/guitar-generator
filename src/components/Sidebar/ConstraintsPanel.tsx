@@ -11,11 +11,39 @@ export function ConstraintsPanel() {
   const hardware = useDesignStore((s) => s.hardware);
   const settings = useDesignStore((s) => s.settings);
   const layers = useDesignStore((s) => s.layers);
+  const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
+  const nutSettings = useDesignStore((s) => s.nutSettings);
+  const headstockSettings = useDesignStore((s) => s.headstockSettings);
   const version = useDesignStore((s) => s.version);
 
   const violations = useMemo(
-    () => evaluateConstraints({ version, templateId, bodyParams, bodyAnchors, neckParams, hardware, settings, layers }),
-    [version, templateId, bodyParams, bodyAnchors, neckParams, hardware, settings, layers],
+    () =>
+      evaluateConstraints({
+        version,
+        templateId,
+        bodyParams,
+        bodyAnchors,
+        neckParams,
+        hardware,
+        bridgeSettings,
+        nutSettings,
+        headstockSettings,
+        settings,
+        layers,
+      }),
+    [
+      version,
+      templateId,
+      bodyParams,
+      bodyAnchors,
+      neckParams,
+      hardware,
+      bridgeSettings,
+      nutSettings,
+      headstockSettings,
+      settings,
+      layers,
+    ],
   );
 
   return (

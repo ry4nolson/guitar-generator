@@ -7,6 +7,7 @@ export const LAYER_IDS = [
   'body',
   'neck',
   'frets',
+  'strings',
   'hardware',
   'construction',
   'dimensions',
@@ -24,6 +25,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   body: 'Body',
   neck: 'Neck',
   frets: 'Frets',
+  strings: 'Strings',
   hardware: 'Hardware',
   construction: 'Construction',
   dimensions: 'Dimensions',
@@ -32,6 +34,10 @@ export const LAYER_LABELS: Record<LayerId, string> = {
 };
 
 export function defaultLayers(): Record<LayerId, LayerState> {
-  const entries = LAYER_IDS.map((id) => [id, { visible: true, locked: false }] as const);
+  const entries = LAYER_IDS.map((id) => {
+    // Strings are opt-in so the default view stays uncluttered.
+    const visible = id !== 'strings';
+    return [id, { visible, locked: false }] as const;
+  });
   return Object.fromEntries(entries) as Record<LayerId, LayerState>;
 }

@@ -21,7 +21,7 @@ export const DEFAULT_REFERENCE_SETTINGS: ReferenceOverlaySettings = {
   offsetY: 0,
 };
 
-const SETTINGS_KEY = 'guitar-designer-reference-overlay-v1';
+const SETTINGS_KEY = 'fretforge-reference-overlay-v1';
 
 export function loadReferenceSettings(): ReferenceOverlaySettings {
   try {

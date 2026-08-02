@@ -122,8 +122,8 @@ export const STRAT_TEMPLATE: BodyTemplate = {
   buildAnchorSpecs,
   defaultNeckParams: { ...DEFAULT_NECK_PARAMS },
   defaultHardware: buildHardwareDefaults({
-    bridgeX: DEFAULT_PARAMS.bodyLength * 0.8,
-    bridgeY: -3,
-    neckJointX: DEFAULT_PARAMS.bodyLength * 0.07,
+    joinX: DEFAULT_PARAMS.bodyLength * 0.07,
+    neckParams: { ...DEFAULT_NECK_PARAMS },
+    volumeOffsetY: 52,
   }),
 };

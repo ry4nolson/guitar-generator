@@ -110,9 +110,8 @@ export const FLYING_V_TEMPLATE: BodyTemplate = {
   buildAnchorSpecs,
   defaultNeckParams: { ...DEFAULT_NECK_PARAMS, neckLength: 480 },
   defaultHardware: buildHardwareDefaults({
-    bridgeX: DEFAULT_PARAMS.bodyLength * 0.5,
-    bridgeY: 0,
-    neckJointX: DEFAULT_PARAMS.bodyLength * 0.045,
+    joinX: DEFAULT_PARAMS.bodyLength * 0.045,
+    neckParams: { ...DEFAULT_NECK_PARAMS, neckLength: 480 },
     neckBoltSpanX: 42,
     neckBoltSpanY: 16,
   }),

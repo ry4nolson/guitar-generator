@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0 — FretForge + headstock / tuners
+
+Renamed the app to **FretForge** and lifted the headless-only assumption.
+
+### Added
+
+- Headstock styles: headless, paddle, 6-inline, 3×3, pointy — with length / tip /
+  ear controls where relevant.
+- Tuner layouts: none, bridge-end (headless), 6-inline, 3×3; toggleable visibility.
+- Sidebar Headstock panel; headstock + tuners in the canvas and SVG export.
+- Document schema v5 (`headstockSettings`); legacy saves migrate as headless.
+
+### Changed
+
+- Product name / branding: FretForge (toolbar, page title, package, export filenames).
+- New designs default to a paddle headstock with 6-inline tuners.
+
 ## 0.3.0 — Usability + preset silhouette pass
 
 Focused improvement pass: better default body templates, reference tracing,

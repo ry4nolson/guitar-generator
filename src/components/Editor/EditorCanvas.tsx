@@ -15,10 +15,13 @@ import { ConstructionView } from './ConstructionView';
 import { LayerGroup } from './LayerGroup';
 import { DebugOverlay } from './DebugOverlay';
 import { ReferenceImageOverlay } from './ReferenceImageOverlay';
+import { Strings } from './Strings';
+import { NutHardware } from './NutHardware';
+import { HeadstockOutline, Tuners } from './Headstock';
 
 /**
  * Top-level SVG stage. The viewBox + stage transform are derived from the
- * FULL design's bounding box (body outline + neck + hardware — see
+ * FULL design's bounding box (body outline + neck + headstock + hardware — see
  * geometry/bounds.ts), not just the body's own bodyLength x bodyWidth
  * rectangle: the neck extends well beyond the body in -x, so sizing the
  * viewBox from bodyParams alone clipped most of it off-canvas.
@@ -37,7 +40,7 @@ export function EditorCanvas() {
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const templateId = useDesignStore((s) => s.templateId);
-  const { outlinePoints } = useNeckGeometry();
+  const { outlinePoints, headstockPoints, tunerPoints } = useNeckGeometry();
 
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const stageRef = useRef<SVGGElement | null>(null);
@@ -61,8 +64,8 @@ export function EditorCanvas() {
   }, [templateId, fit]);
 
   const bounds = useMemo(
-    () => computeDesignBounds(bodyAnchors, outlinePoints, hardware),
-    [bodyAnchors, outlinePoints, hardware],
+    () => computeDesignBounds(bodyAnchors, outlinePoints, hardware, {}, [...headstockPoints, ...tunerPoints]),
+    [bodyAnchors, outlinePoints, hardware, headstockPoints, tunerPoints],
   );
 
   const contentWidth = bounds.maxX - bounds.minX;
@@ -86,7 +89,7 @@ export function EditorCanvas() {
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`Guitar body ${view} view`}
+      aria-label={`FretForge ${view} view`}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
     >
@@ -115,12 +118,18 @@ export function EditorCanvas() {
               </LayerGroup>
               <LayerGroup id="neck">
                 <NeckOutline />
+                <HeadstockOutline />
+                <NutHardware />
               </LayerGroup>
               <LayerGroup id="frets">
                 <FretLines />
               </LayerGroup>
+              <LayerGroup id="strings">
+                <Strings />
+              </LayerGroup>
               <LayerGroup id="hardware">
                 <Hardware stageRef={stageRef} />
+                <Tuners />
               </LayerGroup>
               <FeatureHitRegions stageRef={stageRef} />
               <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />

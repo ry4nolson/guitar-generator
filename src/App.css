@@ -60,8 +60,18 @@
 
 .brand {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
   margin-right: 8px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin: 6px 0 10px;
+  cursor: pointer;
 }
 
 .toolbar button,
@@ -126,10 +136,20 @@
   cursor: pointer;
 }
 
-.viewport-top-buttons {
-  display: flex;
-  gap: 6px;
+.bridge-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
 }
+
+.bridge-type-grid button {
+  font-size: 11px;
+  padding: 6px 4px;
+  white-space: normal;
+  line-height: 1.2;
+}
+
 
 .template-gallery-wrap {
   align-items: stretch;
