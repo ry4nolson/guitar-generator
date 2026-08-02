@@ -1,31 +1,57 @@
 import { useDesignStore } from '../../state/store';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
+import { fanTrebleX } from '../../geometry/frets';
 import { neckToBodySpace } from '../../geometry/neckPlacement';
+import { PICKUP_DIMENSIONS, PICKUP_SLOTS } from '../../geometry/pickups';
+import type { PickupType } from '../../geometry/pickups';
+
+const ROUTE_MARGIN_MM = 3;
 
 /**
- * Neck pocket + pickup route + control (volume pot) route (layer: "routes").
- * These are placeholder rectangles/ellipses sized off the neck/hardware
- * params — see README "Known limitations" for the plan to derive them from
- * real hardware footprints instead.
+ * Neck pocket + pickup routes + control (pot/selector) routes (layer:
+ * "routes"). Route rectangles derive from the real pickup footprints plus a
+ * routing margin.
  */
 export function RoutesOverlay() {
-  const bridge = useDesignStore((s) => s.hardware.bridgeHumbucker);
-  const volume = useDesignStore((s) => s.hardware.volumeKnob);
+  const hardware = useDesignStore((s) => s.hardware);
+  const pickupSettings = useDesignStore((s) => s.pickupSettings);
+  const controlSettings = useDesignStore((s) => s.controlSettings);
   const { neckParams, joinPoint } = useNeckGeometry();
 
+  // Pocket edges follow the fret fan so they stay parallel to the (angled)
+  // heel end of the fretboard on multiscale necks.
   const pocketPts = [
     { x: neckParams.neckLength - 30, y: neckParams.heelWidth / 2 + 3 },
     { x: neckParams.neckLength + 6, y: neckParams.heelWidth / 2 + 3 },
-    { x: neckParams.neckLength + 6, y: -neckParams.heelWidth / 2 - 3 },
-    { x: neckParams.neckLength - 30, y: -neckParams.heelWidth / 2 - 3 },
+    { x: fanTrebleX(neckParams, neckParams.neckLength + 6), y: -neckParams.heelWidth / 2 - 3 },
+    { x: fanTrebleX(neckParams, neckParams.neckLength - 30), y: -neckParams.heelWidth / 2 - 3 },
   ].map((p) => neckToBodySpace(p, neckParams, { joinPoint }));
   const pocketD = `M ${pocketPts.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')} Z`;
 
   return (
     <g id="routes" stroke="#ffb400" strokeWidth={0.8} strokeDasharray="3 2" fill="none">
       <path d={pocketD} />
-      <rect x={bridge.x - 22} y={bridge.y - 15} width={44} height={30} rx={5} />
-      <circle cx={volume.x} cy={volume.y} r={13} />
+      {hardware.pickups.map((p, i) => {
+        const type = pickupSettings[PICKUP_SLOTS[i]];
+        if (type === 'none' || !p.visible) return null;
+        const dims = PICKUP_DIMENSIONS[type as PickupType];
+        const w = dims.along + ROUTE_MARGIN_MM * 2;
+        const h = dims.across + ROUTE_MARGIN_MM * 2;
+        return <rect key={i} x={p.x - w / 2} y={p.y - h / 2} width={w} height={h} rx={dims.radius + 2} />;
+      })}
+      {hardware.controls.map(
+        (c, i) => c.visible && <circle key={`c${i}`} cx={c.x} cy={c.y} r={13} />,
+      )}
+      {controlSettings.selector !== 'none' && hardware.selector.visible && (
+        <rect
+          x={hardware.selector.x - 9}
+          y={hardware.selector.y - 28}
+          width={18}
+          height={56}
+          rx={6}
+          transform={`rotate(${hardware.selector.rotation}, ${hardware.selector.x}, ${hardware.selector.y})`}
+        />
+      )}
     </g>
   );
 }

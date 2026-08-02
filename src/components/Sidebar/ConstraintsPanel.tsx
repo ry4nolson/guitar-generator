@@ -14,6 +14,8 @@ export function ConstraintsPanel() {
   const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
   const nutSettings = useDesignStore((s) => s.nutSettings);
   const headstockSettings = useDesignStore((s) => s.headstockSettings);
+  const pickupSettings = useDesignStore((s) => s.pickupSettings);
+  const controlSettings = useDesignStore((s) => s.controlSettings);
   const version = useDesignStore((s) => s.version);
 
   const violations = useMemo(
@@ -28,6 +30,8 @@ export function ConstraintsPanel() {
         bridgeSettings,
         nutSettings,
         headstockSettings,
+        pickupSettings,
+        controlSettings,
         settings,
         layers,
       }),
@@ -41,6 +45,8 @@ export function ConstraintsPanel() {
       bridgeSettings,
       nutSettings,
       headstockSettings,
+      pickupSettings,
+      controlSettings,
       settings,
       layers,
     ],

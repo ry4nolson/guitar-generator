@@ -57,8 +57,10 @@ export function computeDesignBounds(
   for (const p of extraPoints) {
     bounds = expand(bounds, p, 6);
   }
-  bounds = expand(bounds, hardware.bridgeHumbucker, 18);
-  bounds = expand(bounds, hardware.volumeKnob, 9);
+  // Pickups can be up to ~86 mm across (P90); use the worst-case half-extent.
+  for (const p of hardware.pickups) if (p.visible) bounds = expand(bounds, p, 44);
+  for (const c of hardware.controls) if (c.visible) bounds = expand(bounds, c, 11);
+  if (hardware.selector.visible) bounds = expand(bounds, hardware.selector, 27);
   for (const s of hardware.saddles) bounds = expand(bounds, s, 4);
   for (const b of hardware.neckBolts) bounds = expand(bounds, b, 4);
 

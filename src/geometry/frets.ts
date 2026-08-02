@@ -24,9 +24,13 @@ export function fretDistanceFromNut(scaleLength: number, fretNumber: number): nu
   return scaleLength * (1 - Math.pow(2, -fretNumber / 12));
 }
 
-/** Width of the neck (nut-to-heel taper) at longitudinal position x, given neck length. */
+/**
+ * Width of the neck (nut-to-heel taper) at longitudinal position x. The taper
+ * line extends past the heel so a fretboard overhang (frets beyond neckLength)
+ * keeps its edges collinear with the rest of the board.
+ */
 function neckWidthAt(x: number, params: NeckParams): number {
-  const t = Math.max(0, Math.min(1, x / params.neckLength));
+  const t = Math.max(0, x / params.neckLength);
   return params.nutWidth + (params.heelWidth - params.nutWidth) * t;
 }
 
@@ -69,4 +73,100 @@ export function computeBridgeX(params: NeckParams): { bassBridgeX: number; trebl
     bassBridgeX: params.bassScale,
     trebleBridgeX: trebleOffsetX + params.trebleScale,
   };
+}
+
+// --- Fan-line helpers -------------------------------------------------------
+//
+// Every "musical" transverse line on a fanned board (nut, each fret, bridge)
+// is a fan line: for bass-side x, its treble-side x is
+//   trebleFanOffset + (trebleScale / bassScale) * x
+// (exact — substitute the fret-distance formula to verify). The nut, the
+// fretboard/heel end, nut string slots, and pocket edges must all lie on fan
+// lines or they visibly disagree with the fret angles.
+
+/** Treble-side x of the nut (fret 0) — the fan's longitudinal offset. Zero when scales match. */
+export function trebleFanOffset(params: NeckParams): number {
+  return (
+    fretDistanceFromNut(params.bassScale, params.neutralFret) -
+    fretDistanceFromNut(params.trebleScale, params.neutralFret)
+  );
+}
+
+/** Treble-side x on the fan line whose bass-side x is `bassX`. */
+export function fanTrebleX(params: NeckParams, bassX: number): number {
+  return trebleFanOffset(params) + (params.trebleScale / params.bassScale) * bassX;
+}
+
+/** X at cross position y on the fan line through bass-side `bassX`, spanning y = ±halfWidth. */
+export function fanLineX(params: NeckParams, bassX: number, y: number, halfWidth: number): number {
+  if (halfWidth <= 0) return bassX;
+  const t = (halfWidth - y) / (2 * halfWidth);
+  return bassX + (fanTrebleX(params, bassX) - bassX) * t;
+}
+
+/** Board continues this far past the last fret, mm. */
+const FRETBOARD_END_MARGIN = 5;
+
+/**
+ * Bass-side x where the fretboard ends: the heel, or just past the last fret
+ * when the fret count runs beyond the heel (the classic overhang over the body).
+ */
+export function fretboardEndX(params: NeckParams): number {
+  const lastFret = fretDistanceFromNut(params.bassScale, params.fretCount);
+  return Math.max(params.neckLength, lastFret + FRETBOARD_END_MARGIN);
+}
+
+/**
+ * Neck outline in neck-local space — the nut edge and board end follow the
+ * fret fan, and the board extends past the heel when frets overhang it.
+ */
+export function computeNeckOutlineLocal(params: NeckParams): Point[] {
+  const endBassX = fretboardEndX(params);
+  const endTrebleX = fanTrebleX(params, endBassX);
+  const nutTrebleX = trebleFanOffset(params);
+  // Each edge corner sits on the taper locus y = ±width(x)/2 at its own x, so
+  // fret endpoints (which use the same locus) land exactly on the edges.
+  return [
+    { x: 0, y: params.nutWidth / 2 },
+    { x: endBassX, y: neckWidthAt(endBassX, params) / 2 },
+    { x: endTrebleX, y: -neckWidthAt(endTrebleX, params) / 2 },
+    { x: nutTrebleX, y: -neckWidthAt(nutTrebleX, params) / 2 },
+  ];
+}
+
+// --- Inlays -----------------------------------------------------------------
+
+export interface InlayDot {
+  fret: number;
+  /** Center in neck-local coordinates. */
+  x: number;
+  y: number;
+  radius: number;
+}
+
+const INLAY_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24, 27];
+
+/**
+ * Standard dot inlays, centered between fret n−1 and fret n on the fan line
+ * through that midpoint. Octave frets (12, 24) get double dots.
+ */
+export function computeInlayDots(params: NeckParams): InlayDot[] {
+  const dots: InlayDot[] = [];
+  for (const n of INLAY_FRETS) {
+    if (n > params.fretCount) break;
+    const bassMid =
+      (fretDistanceFromNut(params.bassScale, n - 1) + fretDistanceFromNut(params.bassScale, n)) / 2;
+    const half = neckWidthAt(bassMid, params) / 2;
+    // Dots shrink slightly up the neck as the fret gaps tighten.
+    const gap = fretDistanceFromNut(params.bassScale, n) - fretDistanceFromNut(params.bassScale, n - 1);
+    const radius = Math.min(3, gap * 0.18);
+    if (n % 12 === 0) {
+      for (const y of [half * 0.42, -half * 0.42]) {
+        dots.push({ fret: n, x: fanLineX(params, bassMid, y, half), y, radius });
+      }
+    } else {
+      dots.push({ fret: n, x: fanLineX(params, bassMid, 0, half), y: 0, radius });
+    }
+  }
+  return dots;
 }

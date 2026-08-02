@@ -124,6 +124,5 @@ export const STRAT_TEMPLATE: BodyTemplate = {
   defaultHardware: buildHardwareDefaults({
     joinX: DEFAULT_PARAMS.bodyLength * 0.07,
     neckParams: { ...DEFAULT_NECK_PARAMS },
-    volumeOffsetY: 52,
   }),
 };

@@ -143,6 +143,51 @@
   margin-bottom: 8px;
 }
 
+.pickup-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.pickup-slot-row .hardware-label {
+  flex: 0 0 44px;
+}
+
+.pickup-slot-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  flex: 1;
+}
+
+.pickup-slot-buttons button {
+  font-size: 10.5px;
+  padding: 4px 2px;
+}
+
+.count-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.count-stepper .hardware-label {
+  flex: 1;
+}
+
+.count-stepper button {
+  width: 24px;
+  padding: 3px 0;
+}
+
+.count-value {
+  min-width: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
 .bridge-type-grid button {
   font-size: 11px;
   padding: 6px 4px;

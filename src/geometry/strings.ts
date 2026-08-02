@@ -6,6 +6,7 @@ import type { Point } from './types';
 import type { NeckParams } from './neckParams';
 import type { NutSettings, BridgeSettings } from './bridgeTypes';
 import { stringSlotOffsets } from './bridgeTypes';
+import { fanLineX } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 import type { HardwarePosition } from './types';
 
@@ -24,11 +25,12 @@ export function computeNutStringPoints(
   const offsets = stringSlotOffsets(nutSettings.stringSpacing, 6);
   // Compensated nut: tiny stagger along x (toward the bridge) on the G/B strings.
   return offsets.map((y, i) => {
-    let x = 0;
+    // Each string starts on the fanned fret-0 (nut) line, not at a flat x=0.
+    let x = fanLineX(neckParams, 0, y, neckParams.nutWidth / 2);
     if (nutSettings.type === 'compensated') {
       // Mild visual compensation — not a full Buzz Feiten table.
       const stagger = [0, 0.2, 0.4, 0.8, 0.5, 0.15][i] ?? 0;
-      x = stagger;
+      x += stagger;
     }
     return neckToBodySpace({ x, y }, neckParams, placement);
   });

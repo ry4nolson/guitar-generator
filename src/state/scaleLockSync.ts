@@ -17,8 +17,9 @@ function translatePos(p: HardwarePosition, dx: number, dy: number): HardwarePosi
 /** Translate unlocked hardware by a body-space delta (used when the neck joint moves). */
 export function translateHardware(hw: HardwareState, dx: number, dy: number): HardwareState {
   return {
-    bridgeHumbucker: translatePos(hw.bridgeHumbucker, dx, dy),
-    volumeKnob: translatePos(hw.volumeKnob, dx, dy),
+    pickups: hw.pickups.map((p) => translatePos(p, dx, dy)),
+    controls: hw.controls.map((c) => translatePos(c, dx, dy)),
+    selector: translatePos(hw.selector, dx, dy),
     saddles: hw.saddles.map((s) => translatePos(s, dx, dy)),
     neckBolts: hw.neckBolts.map((b) => translatePos(b, dx, dy)),
   };
@@ -26,7 +27,8 @@ export function translateHardware(hw: HardwareState, dx: number, dy: number): Ha
 
 /**
  * Relayout unlocked saddles to the current scale lengths, and shift unlocked
- * pickup/volume with the bridge cluster. Neck bolts stay put (heel-relative).
+ * pickups/knobs/selector with the bridge cluster. Neck bolts stay put
+ * (heel-relative).
  */
 export function relayoutHardwareToScale(
   hw: HardwareState,
@@ -41,8 +43,9 @@ export function relayoutHardwareToScale(
   const dx = newCenter.x - oldCenter.x;
   const dy = newCenter.y - oldCenter.y;
   return {
-    bridgeHumbucker: translatePos(hw.bridgeHumbucker, dx, dy),
-    volumeKnob: translatePos(hw.volumeKnob, dx, dy),
+    pickups: hw.pickups.map((p) => translatePos(p, dx, dy)),
+    controls: hw.controls.map((c) => translatePos(c, dx, dy)),
+    selector: translatePos(hw.selector, dx, dy),
     saddles,
     neckBolts: hw.neckBolts,
   };

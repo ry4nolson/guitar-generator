@@ -3,7 +3,7 @@
 // math runs once per relevant state change instead of once per consumer.
 import { useMemo } from 'react';
 import { useDesignStore } from '../state/store';
-import { computeBridgeX, computeFanFrets } from '../geometry/frets';
+import { computeBridgeX, computeFanFrets, computeInlayDots, computeNeckOutlineLocal } from '../geometry/frets';
 import { neckToBodySpace } from '../geometry/neckPlacement';
 import { neckJoinPoint } from '../geometry/scaleLock';
 import { computeHeadstockOutlineBody, computeTunerPositions } from '../geometry/headstock';
@@ -20,13 +20,7 @@ export function useNeckGeometry() {
   const bridgeX = useMemo(() => computeBridgeX(neckParams), [neckParams]);
 
   const outlinePoints = useMemo(
-    () =>
-      [
-        { x: 0, y: neckParams.nutWidth / 2 },
-        { x: neckParams.neckLength, y: neckParams.heelWidth / 2 },
-        { x: neckParams.neckLength, y: -neckParams.heelWidth / 2 },
-        { x: 0, y: -neckParams.nutWidth / 2 },
-      ].map((p) => neckToBodySpace(p, neckParams, { joinPoint })),
+    () => computeNeckOutlineLocal(neckParams).map((p) => neckToBodySpace(p, neckParams, { joinPoint })),
     [neckParams, joinPoint],
   );
 
@@ -50,11 +44,22 @@ export function useNeckGeometry() {
     [frets, neckParams, joinPoint],
   );
 
+  const placedInlays = useMemo(
+    () =>
+      computeInlayDots(neckParams).map((d) => ({
+        fret: d.fret,
+        radius: d.radius,
+        center: neckToBodySpace({ x: d.x, y: d.y }, neckParams, { joinPoint }),
+      })),
+    [neckParams, joinPoint],
+  );
+
   return {
     neckParams,
     joinPoint,
     frets,
     placedFrets,
+    placedInlays,
     bridgeX,
     outlinePoints,
     headstockPoints,

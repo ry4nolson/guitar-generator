@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.5.0 — Pickups & controls overhaul
+
+Replaced the fixed "bridge humbucker + volume knob" pair with a configurable
+pickup/control system using real hardware footprints.
+
+### Added
+
+- Three pickup slots (neck / middle / bridge), each none, single-coil, P90, or
+  humbucker — drawn at real sizes (single-coil 70×18, humbucker 70×38, P90
+  86×36 mm) with pole pieces, and routed at footprint + 3 mm in the routes layer.
+- 0–2 volume + 0–2 tone knobs (19 mm pot knobs) defaulting to the treble side
+  behind the bridge; adding knobs never moves ones you've already placed.
+- Pickup selector: 3-way/5-way blade (treble side) or LP-style toggle (bass
+  upper bout).
+- Sidebar "Pickups" panel; per-item position/lock/visibility rows in Hardware.
+- Document schema v6 (`pickupSettings`, `controlSettings`); legacy saves keep
+  their bridge pickup and volume knob exactly where they were.
+
+### Fixed
+
+- Default volume knob no longer lands on the bass side near the nut hardware —
+  controls are placed scale-relative on the treble side behind the bridge.
+- Humbucker rendered at its real 70×38 mm footprint instead of a 36×22 blob.
+- Back-view control cavity now follows the actual knob/selector cluster, and
+  bridge access / reference lines follow the saddle cluster rather than the
+  pickup.
+- Multiscale (fanned-fret) necks: the nut, fretboard/heel end, nut string
+  slots, headstock base, and neck-pocket route now follow the fret fan
+  instead of being drawn square. Everything collapses back to square when the
+  bass and treble scales are equal.
+- The fretboard now extends past the heel to 5 mm beyond the last fret (the
+  classic overhang) when the fret count runs past the neck length, so frets
+  never float outside the board.
+- Standard dot inlays (3/5/7/9/15/17/19/21, doubles at 12 and 24), fan-aware
+  and sized to the local fret gap, in the canvas and SVG exports.
+
 ## 0.4.0 — FretForge + headstock / tuners
 
 Renamed the app to **FretForge** and lifted the headless-only assumption.

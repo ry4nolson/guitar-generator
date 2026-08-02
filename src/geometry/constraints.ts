@@ -8,6 +8,9 @@
 // `CONSTRAINTS`; nothing else needs to change.
 
 import type { DesignDocument } from '../state/store';
+import { saddleClusterCenter } from './strings';
+import { PICKUP_DIMENSIONS, PICKUP_SLOTS, PICKUP_SLOT_LABELS, controlKnobLabel } from './pickups';
+import type { PickupType } from './pickups';
 
 export interface ConstraintViolation {
   constraintId: string;
@@ -27,8 +30,18 @@ const BRIDGE_CENTERLINE_TOLERANCE_MM = 15;
 const MIN_WOOD_AROUND_NECK_POCKET_MM = 20;
 const MIN_KNOB_TO_PICKUP_MM = 25;
 
+/** Active pickups as (slot label, position, real dimensions). */
+function activePickups(doc: DesignDocument) {
+  return doc.hardware.pickups.flatMap((p, i) => {
+    const slot = PICKUP_SLOTS[i];
+    const type = doc.pickupSettings[slot];
+    if (type === 'none' || !p.visible) return [];
+    return [{ slot, label: `${PICKUP_SLOT_LABELS[slot]} pickup`, position: p, dims: PICKUP_DIMENSIONS[type as PickupType] }];
+  });
+}
+
 function bridgeOnCenterline(doc: DesignDocument): ConstraintViolation[] {
-  const y = doc.hardware.bridgeHumbucker.y;
+  const y = saddleClusterCenter(doc.hardware.saddles).y;
   if (Math.abs(y) > BRIDGE_CENTERLINE_TOLERANCE_MM) {
     return [
       {
@@ -47,7 +60,7 @@ function bridgeOnCenterline(doc: DesignDocument): ConstraintViolation[] {
 // a small overhang beyond it, not a full neckLength beyond it.
 const NECK_POCKET_OVERHANG_MM = 6;
 
-/** Approximates the neck pocket's edge nearest the pickup, in body-local x. */
+/** Approximates the neck pocket's edge nearest the pickups, in body-local x. */
 function neckPocketRightEdge(doc: DesignDocument): number {
   const joinX = doc.bodyAnchors.find((a) => a.id === 'neckJoint')?.position.x ?? 0;
   return joinX + NECK_POCKET_OVERHANG_MM;
@@ -55,56 +68,71 @@ function neckPocketRightEdge(doc: DesignDocument): number {
 
 function minimumWoodAroundNeckPocket(doc: DesignDocument): ConstraintViolation[] {
   const pocketRightEdge = neckPocketRightEdge(doc);
-  const pickupLeftEdge = doc.hardware.bridgeHumbucker.x - 18;
-  const clearance = pickupLeftEdge - pocketRightEdge;
-  if (clearance < MIN_WOOD_AROUND_NECK_POCKET_MM) {
-    return [
-      {
+  const violations: ConstraintViolation[] = [];
+  for (const p of activePickups(doc)) {
+    const pickupLeftEdge = p.position.x - p.dims.along / 2;
+    const clearance = pickupLeftEdge - pocketRightEdge;
+    if (clearance >= 0 && clearance < MIN_WOOD_AROUND_NECK_POCKET_MM) {
+      violations.push({
         constraintId: 'min-wood-neck-pocket',
-        severity: clearance < 0 ? 'error' : 'warning',
-        message: `Only ${clearance.toFixed(1)}mm of wood between the neck pocket and the pickup route (minimum ${MIN_WOOD_AROUND_NECK_POCKET_MM}mm).`,
-      },
-    ];
+        severity: 'warning',
+        message: `Only ${clearance.toFixed(1)}mm of wood between the neck pocket and the ${p.label.toLowerCase()} route (minimum ${MIN_WOOD_AROUND_NECK_POCKET_MM}mm).`,
+      });
+    }
   }
-  return [];
+  return violations;
 }
 
 function pickupDoesNotOverlapNeckPocket(doc: DesignDocument): ConstraintViolation[] {
   const pocketRightEdge = neckPocketRightEdge(doc);
-  const pickupLeftEdge = doc.hardware.bridgeHumbucker.x - 18;
-  if (pickupLeftEdge < pocketRightEdge) {
-    return [
-      {
+  const violations: ConstraintViolation[] = [];
+  for (const p of activePickups(doc)) {
+    const pickupLeftEdge = p.position.x - p.dims.along / 2;
+    if (pickupLeftEdge < pocketRightEdge) {
+      violations.push({
         constraintId: 'pickup-neck-overlap',
         severity: 'error',
-        message: 'Pickup route physically overlaps the neck pocket.',
-      },
-    ];
+        message: `${p.label} route physically overlaps the neck pocket.`,
+      });
+    }
   }
-  return [];
+  return violations;
 }
 
-function volumeKnobDistanceFromPickup(doc: DesignDocument): ConstraintViolation[] {
-  const pickup = doc.hardware.bridgeHumbucker;
-  const knob = doc.hardware.volumeKnob;
-  const distance = Math.hypot(pickup.x - knob.x, pickup.y - knob.y);
-  if (distance < MIN_KNOB_TO_PICKUP_MM) {
-    return [
-      {
-        constraintId: 'knob-pickup-distance',
-        severity: 'warning',
-        message: `Volume knob is only ${distance.toFixed(1)}mm from the pickup (minimum ${MIN_KNOB_TO_PICKUP_MM}mm recommended).`,
-      },
-    ];
-  }
-  return [];
+function knobDistanceFromPickups(doc: DesignDocument): ConstraintViolation[] {
+  const violations: ConstraintViolation[] = [];
+  doc.hardware.controls.forEach((knob, i) => {
+    if (!knob.visible) return;
+    for (const p of activePickups(doc)) {
+      const distance = Math.hypot(p.position.x - knob.x, p.position.y - knob.y);
+      if (distance < MIN_KNOB_TO_PICKUP_MM) {
+        violations.push({
+          constraintId: 'knob-pickup-distance',
+          severity: 'warning',
+          message: `${controlKnobLabel(doc.controlSettings, i)} knob is only ${distance.toFixed(1)}mm from the ${p.label.toLowerCase()} (minimum ${MIN_KNOB_TO_PICKUP_MM}mm recommended).`,
+        });
+      }
+    }
+  });
+  return violations;
 }
 
 /** Pairwise bounding-circle overlap check across the hardware layout. */
 function hardwareCollisionDetection(doc: DesignDocument): ConstraintViolation[] {
   const items: { name: string; x: number; y: number; r: number }[] = [
-    { name: 'Bridge pickup', x: doc.hardware.bridgeHumbucker.x, y: doc.hardware.bridgeHumbucker.y, r: 18 },
-    { name: 'Volume knob', x: doc.hardware.volumeKnob.x, y: doc.hardware.volumeKnob.y, r: 9 },
+    ...activePickups(doc).map((p) => ({
+      name: p.label,
+      x: p.position.x,
+      y: p.position.y,
+      // Along-axis half-extent: pickups sitting side by side across strings is fine.
+      r: p.dims.along / 2,
+    })),
+    ...doc.hardware.controls
+      .filter((c) => c.visible)
+      .map((c, i) => ({ name: `${controlKnobLabel(doc.controlSettings, i)} knob`, x: c.x, y: c.y, r: 10 })),
+    ...(doc.controlSettings.selector !== 'none' && doc.hardware.selector.visible
+      ? [{ name: 'Selector', x: doc.hardware.selector.x, y: doc.hardware.selector.y, r: 8 }]
+      : []),
     ...doc.hardware.saddles.map((s, i) => ({ name: `Saddle ${i + 1}`, x: s.x, y: s.y, r: 3 })),
   ];
   const violations: ConstraintViolation[] = [];
@@ -131,8 +159,8 @@ export const CONSTRAINTS: Constraint[] = [
   { id: 'pickup-neck-overlap', label: 'Pickup cannot overlap neck pocket', evaluate: pickupDoesNotOverlapNeckPocket },
   {
     id: 'knob-pickup-distance',
-    label: 'Volume knob minimum distance from pickup',
-    evaluate: volumeKnobDistanceFromPickup,
+    label: 'Knob minimum distance from pickups',
+    evaluate: knobDistanceFromPickups,
   },
   { id: 'hardware-collision', label: 'Hardware collision detection', evaluate: hardwareCollisionDetection },
 ];

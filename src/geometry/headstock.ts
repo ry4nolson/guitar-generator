@@ -3,6 +3,7 @@
 
 import type { Point } from './types';
 import type { NeckParams } from './neckParams';
+import { trebleFanOffset } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 import { saddleClusterCenter } from './strings';
 import type { HardwarePosition } from './types';
@@ -106,7 +107,24 @@ export function computeHeadstockOutlineLocal(
   const L = Math.max(40, settings.length);
   const ear = settings.earWidth;
 
-  switch (settings.type) {
+  const outline = computeOutlineShape(settings.type, L, nutHalf, tipHalf, ear);
+  if (!outline) return null;
+
+  // On a fanned board the nut face is angled (fret 0): the treble nut corner
+  // sits trebleFanOffset further along, so the headstock base must meet it.
+  const fanOffset = trebleFanOffset(neckParams);
+  if (fanOffset === 0) return outline;
+  return outline.map((p) => (p.x === 0 && p.y < 0 ? { ...p, x: fanOffset } : p));
+}
+
+function computeOutlineShape(
+  type: HeadstockType,
+  L: number,
+  nutHalf: number,
+  tipHalf: number,
+  ear: number,
+): Point[] | null {
+  switch (type) {
     case 'paddle':
       return [
         { x: 0, y: nutHalf },

@@ -13,15 +13,32 @@ import {
   LEGACY_HEADLESS_SETTINGS,
   type HeadstockSettings,
 } from '../geometry/headstock';
-import { neckJoinPoint } from '../geometry/scaleLock';
-import type { BodyAnchor } from '../geometry/types';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  DEFAULT_PICKUP_SETTINGS,
+  defaultPickupPositions,
+  defaultSelectorPosition,
+  type ControlSettings,
+  type PickupSettings,
+} from '../geometry/pickups';
+import { layoutSaddlesFromScale, neckJoinPoint } from '../geometry/scaleLock';
+import type { BodyAnchor, HardwarePosition } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
-import type { HardwareState } from '../state/hardwareDefaults';
-import { relayoutHardwareToScale } from '../state/scaleLockSync';
 
 /** Current design-document schema version. Bump when the shape changes. */
-export const DESIGN_DOCUMENT_VERSION = 5;
+export const DESIGN_DOCUMENT_VERSION = 6;
+
+/** Pre-v6 hardware shape (single fixed pickup + volume knob). */
+interface LegacyHardware {
+  bridgeHumbucker?: HardwarePosition;
+  volumeKnob?: HardwarePosition;
+  pickups?: HardwarePosition[];
+  controls?: HardwarePosition[];
+  selector?: HardwarePosition;
+  saddles?: HardwarePosition[];
+  neckBolts?: HardwarePosition[];
+}
 
 export function migrateDesignDocument(parsed: Record<string, unknown>): Record<string, unknown> {
   let version = typeof parsed.version === 'number' ? parsed.version : 1;
@@ -30,6 +47,9 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   if (version < 2) {
     throw new Error(`Design format v${version} is no longer supported (pre-template topology).`);
   }
+
+  const anchors = parsed.bodyAnchors as BodyAnchor[] | undefined;
+  const neckParams = parsed.neckParams as NeckParams | undefined;
 
   // v2 → v3: add bridge/nut settings + strings layer.
   if (version === 2) {
@@ -46,12 +66,15 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
 
   // v3 → v4: snap bridge saddles to nut + scale length(s) at the neck joint.
   if (version === 3) {
-    const anchors = parsed.bodyAnchors as BodyAnchor[] | undefined;
-    const neckParams = parsed.neckParams as NeckParams | undefined;
     const bridgeSettings = (parsed.bridgeSettings as BridgeSettings | undefined) ?? DEFAULT_BRIDGE_SETTINGS;
-    const hardware = parsed.hardware as HardwareState | undefined;
+    const hardware = parsed.hardware as LegacyHardware | undefined;
     if (anchors && neckParams && hardware?.saddles) {
-      parsed.hardware = relayoutHardwareToScale(hardware, neckParams, bridgeSettings, neckJoinPoint(anchors));
+      hardware.saddles = layoutSaddlesFromScale(
+        neckParams,
+        bridgeSettings,
+        { joinPoint: neckJoinPoint(anchors) },
+        hardware.saddles,
+      );
     }
     version = 4;
     parsed.version = 4;
@@ -67,6 +90,44 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     parsed.version = 5;
   }
 
+  // v5 → v6: pickup slots + control knobs + selector replace the fixed
+  // bridgeHumbucker/volumeKnob pair. Legacy docs keep their bridge pickup and
+  // single volume knob exactly where they were.
+  if (version === 5) {
+    const hardware = parsed.hardware as LegacyHardware | undefined;
+    if (hardware && !hardware.pickups && anchors && neckParams) {
+      const placement = { joinPoint: neckJoinPoint(anchors) };
+      const defaults = defaultPickupPositions(neckParams, placement);
+      const mk = (p: { x: number; y: number }, visible: boolean): HardwarePosition => ({
+        x: p.x,
+        y: p.y,
+        rotation: 0,
+        visible,
+        locked: false,
+      });
+      const sel = defaultSelectorPosition('blade-3', neckParams, placement);
+      parsed.hardware = {
+        pickups: [
+          mk(defaults[0], false),
+          mk(defaults[1], false),
+          hardware.bridgeHumbucker ?? mk(defaults[2], true),
+        ],
+        controls: hardware.volumeKnob ? [hardware.volumeKnob] : [],
+        selector: { ...mk(sel.position, false), rotation: sel.rotation },
+        saddles: hardware.saddles ?? [],
+        neckBolts: hardware.neckBolts ?? [],
+      };
+      parsed.pickupSettings = { neck: 'none', middle: 'none', bridge: 'humbucker' } satisfies PickupSettings;
+      parsed.controlSettings = {
+        volumes: hardware.volumeKnob ? 1 : 0,
+        tones: 0,
+        selector: 'none',
+      } satisfies ControlSettings;
+    }
+    version = 6;
+    parsed.version = 6;
+  }
+
   if (version !== DESIGN_DOCUMENT_VERSION) {
     throw new Error(
       `This file was saved with design format v${version}, but this build expects v${DESIGN_DOCUMENT_VERSION}.`,
@@ -77,6 +138,8 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   if (!parsed.bridgeSettings) parsed.bridgeSettings = { ...DEFAULT_BRIDGE_SETTINGS };
   if (!parsed.nutSettings) parsed.nutSettings = { ...DEFAULT_NUT_SETTINGS };
   if (!parsed.headstockSettings) parsed.headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
+  if (!parsed.pickupSettings) parsed.pickupSettings = { ...DEFAULT_PICKUP_SETTINGS };
+  if (!parsed.controlSettings) parsed.controlSettings = { ...DEFAULT_CONTROL_SETTINGS };
   const layers = (parsed.layers as Record<LayerId, LayerState> | undefined) ?? defaultLayers();
   if (!layers.strings) layers.strings = { visible: false, locked: false };
   parsed.layers = layers;

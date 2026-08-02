@@ -111,6 +111,5 @@ export const TELE_TEMPLATE: BodyTemplate = {
   defaultHardware: buildHardwareDefaults({
     joinX: DEFAULT_PARAMS.bodyLength * 0.06,
     neckParams: { ...DEFAULT_NECK_PARAMS },
-    volumeOffsetY: 51,
   }),
 };

@@ -1,6 +1,6 @@
 import { useDesignStore } from '../../state/store';
-import type { HardwareState } from '../../state/hardwareDefaults';
 import type { HardwarePosition } from '../../geometry/types';
+import { PICKUP_SLOTS, PICKUP_SLOT_LABELS, controlKnobLabel } from '../../geometry/pickups';
 
 function Row({ label, item, onMove, onLock, onVisibility }: {
   label: string;
@@ -36,28 +36,48 @@ function Row({ label, item, onMove, onLock, onVisibility }: {
 
 export function HardwareControls() {
   const hardware = useDesignStore((s) => s.hardware);
+  const pickupSettings = useDesignStore((s) => s.pickupSettings);
+  const controlSettings = useDesignStore((s) => s.controlSettings);
   const move = useDesignStore((s) => s.moveHardware);
   const lock = useDesignStore((s) => s.toggleHardwareLock);
   const visibility = useDesignStore((s) => s.toggleHardwareVisibility);
 
-  const named: { key: keyof HardwareState; label: string }[] = [
-    { key: 'bridgeHumbucker', label: 'Bridge humbucker' },
-    { key: 'volumeKnob', label: 'Volume knob' },
-  ];
-
   return (
     <section className="sidebar-section">
-      <h3>Hardware</h3>
-      {named.map(({ key, label }) => (
+      <h3>Hardware positions</h3>
+      {hardware.pickups.map((p, i) => {
+        const slot = PICKUP_SLOTS[i];
+        if (pickupSettings[slot] === 'none') return null;
+        return (
+          <Row
+            key={`pickup-${i}`}
+            label={`${PICKUP_SLOT_LABELS[slot]} pickup`}
+            item={p}
+            onMove={(x, y) => move('pickups', { x, y }, i)}
+            onLock={() => lock('pickups', i)}
+            onVisibility={() => visibility('pickups', i)}
+          />
+        );
+      })}
+      {hardware.controls.map((c, i) => (
         <Row
-          key={key}
-          label={label}
-          item={hardware[key] as HardwarePosition}
-          onMove={(x, y) => move(key, { x, y })}
-          onLock={() => lock(key)}
-          onVisibility={() => visibility(key)}
+          key={`control-${i}`}
+          label={controlKnobLabel(controlSettings, i)}
+          item={c}
+          onMove={(x, y) => move('controls', { x, y }, i)}
+          onLock={() => lock('controls', i)}
+          onVisibility={() => visibility('controls', i)}
         />
       ))}
+      {controlSettings.selector !== 'none' && (
+        <Row
+          label="Selector"
+          item={hardware.selector}
+          onMove={(x, y) => move('selector', { x, y })}
+          onLock={() => lock('selector')}
+          onVisibility={() => visibility('selector')}
+        />
+      )}
       <div className="hardware-group-label">Saddles</div>
       {hardware.saddles.map((s, i) => (
         <Row

@@ -46,6 +46,18 @@ import {
   type HeadstockType,
   type TunerLayout,
 } from '../geometry/headstock';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  DEFAULT_PICKUP_SETTINGS,
+  PICKUP_SLOTS,
+  defaultPickupPositions,
+  defaultSelectorPosition,
+  layoutControlKnobs,
+  type ControlSettings,
+  type PickupSettings,
+  type PickupSlot,
+  type PickupSlotValue,
+} from '../geometry/pickups';
 import { layoutSaddlesFromScale, isScaleLockNeckKey, neckJoinPoint } from '../geometry/scaleLock';
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
@@ -90,6 +102,8 @@ export interface DesignDocument {
   bridgeSettings: BridgeSettings;
   nutSettings: NutSettings;
   headstockSettings: HeadstockSettings;
+  pickupSettings: PickupSettings;
+  controlSettings: ControlSettings;
   settings: EditorSettings;
   layers: Record<LayerId, LayerState>;
 }
@@ -106,13 +120,15 @@ function defaultDocument(): DesignDocument {
     bridgeSettings: { ...DEFAULT_BRIDGE_SETTINGS },
     nutSettings: { ...DEFAULT_NUT_SETTINGS },
     headstockSettings: { ...DEFAULT_HEADSTOCK_SETTINGS },
+    pickupSettings: { ...DEFAULT_PICKUP_SETTINGS },
+    controlSettings: { ...DEFAULT_CONTROL_SETTINGS },
     settings: { ...DEFAULT_SETTINGS },
     layers: defaultLayers(),
   };
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v6';
+const AUTOSAVE_KEY = 'fretforge-autosave-v7';
 
 interface HistoryEntry {
   templateId: string;
@@ -123,6 +139,8 @@ interface HistoryEntry {
   bridgeSettings: BridgeSettings;
   nutSettings: NutSettings;
   headstockSettings: HeadstockSettings;
+  pickupSettings: PickupSettings;
+  controlSettings: ControlSettings;
 }
 
 function snapshotOf(doc: DesignDocument): HistoryEntry {
@@ -135,6 +153,8 @@ function snapshotOf(doc: DesignDocument): HistoryEntry {
     bridgeSettings: { ...doc.bridgeSettings },
     nutSettings: { ...doc.nutSettings },
     headstockSettings: { ...doc.headstockSettings },
+    pickupSettings: { ...doc.pickupSettings },
+    controlSettings: { ...doc.controlSettings },
   };
 }
 
@@ -183,6 +203,10 @@ interface StoreState extends DesignDocument {
   setHeadstockType: (type: HeadstockType) => void;
   setHeadstockSetting: <K extends keyof HeadstockSettings>(key: K, value: HeadstockSettings[K]) => void;
   setTunerLayout: (layout: TunerLayout) => void;
+
+  // --- pickups / controls ---
+  setPickupType: (slot: PickupSlot, type: PickupSlotValue) => void;
+  setControlSetting: <K extends keyof ControlSettings>(key: K, value: ControlSettings[K]) => void;
 
   // --- hardware ---
   moveHardware: (name: keyof HardwareState, point: Point, index?: number) => void;
@@ -515,15 +539,73 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     get().autosave();
   },
 
+  setPickupType: (slot, type) => {
+    const before = snapshotOf(get());
+    const idx = PICKUP_SLOTS.indexOf(slot);
+    const wasNone = get().pickupSettings[slot] === 'none';
+    const pickupSettings: PickupSettings = { ...get().pickupSettings, [slot]: type };
+    const pickups = [...get().hardware.pickups];
+    const prev = pickups[idx];
+    if (type === 'none') {
+      pickups[idx] = { ...prev, visible: false };
+    } else {
+      // Re-seat the pickup at its slot default when it was previously empty,
+      // so it doesn't reappear wherever it was last dragged for another config.
+      const placement = { joinPoint: neckJoinPoint(get().bodyAnchors) };
+      const pos = wasNone ? defaultPickupPositions(get().neckParams, placement)[idx] : prev;
+      pickups[idx] = { ...prev, x: pos.x, y: pos.y, visible: true };
+    }
+    set({
+      pickupSettings,
+      hardware: { ...get().hardware, pickups },
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
+  },
+
+  setControlSetting: (key, value) => {
+    const before = snapshotOf(get());
+    const controlSettings: ControlSettings = { ...get().controlSettings, [key]: value };
+    const placement = { joinPoint: neckJoinPoint(get().bodyAnchors) };
+    let hardware = get().hardware;
+    if (key === 'volumes' || key === 'tones') {
+      const controls = layoutControlKnobs(get().neckParams, placement, controlSettings, hardware.controls);
+      hardware = { ...hardware, controls };
+    } else if (key === 'selector') {
+      const selectorType = value as ControlSettings['selector'];
+      const prevType = get().controlSettings.selector;
+      let selector = hardware.selector;
+      if (selectorType === 'none') {
+        selector = { ...selector, visible: false };
+      } else {
+        const family = (t: string) => (t === 'toggle' ? 'toggle' : 'blade');
+        const reseat = prevType === 'none' || family(prevType) !== family(selectorType);
+        if (reseat) {
+          const def = defaultSelectorPosition(selectorType, get().neckParams, placement);
+          selector = { ...selector, x: def.position.x, y: def.position.y, rotation: def.rotation, visible: true };
+        } else {
+          selector = { ...selector, visible: true };
+        }
+      }
+      hardware = { ...hardware, selector };
+    }
+    set({ controlSettings, hardware, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
   moveHardware: (name, point, index) => {
     const before = snapshotOf(get());
     const hardware = { ...get().hardware };
-    if (name === 'saddles' || name === 'neckBolts') {
-      const arr = [...hardware[name]];
-      if (index !== undefined && !arr[index].locked) arr[index] = { ...arr[index], x: point.x, y: point.y };
-      hardware[name] = arr;
+    const field = hardware[name];
+    if (Array.isArray(field)) {
+      const arr = [...field];
+      if (index !== undefined && arr[index] && !arr[index].locked) {
+        arr[index] = { ...arr[index], x: point.x, y: point.y };
+      }
+      hardware[name] = arr as never;
     } else {
-      const item = hardware[name] as HardwarePosition;
+      const item = field as HardwarePosition;
       if (!item.locked) hardware[name] = { ...item, x: point.x, y: point.y } as never;
     }
     set({ hardware, past: pushPast(get().past, before), future: [] });
@@ -532,12 +614,13 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   toggleHardwareLock: (name, index) => {
     const hardware = { ...get().hardware };
-    if (name === 'saddles' || name === 'neckBolts') {
-      const arr = [...hardware[name]];
-      if (index !== undefined) arr[index] = { ...arr[index], locked: !arr[index].locked };
-      hardware[name] = arr;
+    const field = hardware[name];
+    if (Array.isArray(field)) {
+      const arr = [...field];
+      if (index !== undefined && arr[index]) arr[index] = { ...arr[index], locked: !arr[index].locked };
+      hardware[name] = arr as never;
     } else {
-      const item = hardware[name] as HardwarePosition;
+      const item = field as HardwarePosition;
       hardware[name] = { ...item, locked: !item.locked } as never;
     }
     set({ hardware });
@@ -546,12 +629,13 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   toggleHardwareVisibility: (name, index) => {
     const hardware = { ...get().hardware };
-    if (name === 'saddles' || name === 'neckBolts') {
-      const arr = [...hardware[name]];
-      if (index !== undefined) arr[index] = { ...arr[index], visible: !arr[index].visible };
-      hardware[name] = arr;
+    const field = hardware[name];
+    if (Array.isArray(field)) {
+      const arr = [...field];
+      if (index !== undefined && arr[index]) arr[index] = { ...arr[index], visible: !arr[index].visible };
+      hardware[name] = arr as never;
     } else {
-      const item = hardware[name] as HardwarePosition;
+      const item = field as HardwarePosition;
       hardware[name] = { ...item, visible: !item.visible } as never;
     }
     set({ hardware });
@@ -633,6 +717,8 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       bridgeSettings: s.bridgeSettings,
       nutSettings: s.nutSettings,
       headstockSettings: s.headstockSettings,
+      pickupSettings: s.pickupSettings,
+      controlSettings: s.controlSettings,
       settings: s.settings,
       layers: s.layers,
     };

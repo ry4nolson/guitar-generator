@@ -5,7 +5,7 @@
 //   - fabrication:   clean, guaranteed 1:1 physical mm sizing, minimal styling
 
 import { anchorsToPathD } from '../geometry/svgPath';
-import { computeFanFrets } from '../geometry/frets';
+import { computeFanFrets, computeInlayDots, computeNeckOutlineLocal, trebleFanOffset } from '../geometry/frets';
 import { neckToBodySpace } from '../geometry/neckPlacement';
 import { computeDesignBounds } from '../geometry/bounds';
 import {
@@ -18,6 +18,13 @@ import {
   computeTunerPositions,
   DEFAULT_HEADSTOCK_SETTINGS,
 } from '../geometry/headstock';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  DEFAULT_PICKUP_SETTINGS,
+  PICKUP_DIMENSIONS,
+  PICKUP_SLOTS,
+  type PickupType,
+} from '../geometry/pickups';
 import type { DesignDocument } from '../state/store';
 
 export type ExportFlavor = 'clean' | 'blueprint' | 'fabrication';
@@ -35,18 +42,15 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     bridgeSettings,
     nutSettings,
     headstockSettings = DEFAULT_HEADSTOCK_SETTINGS,
+    pickupSettings = DEFAULT_PICKUP_SETTINGS,
+    controlSettings = DEFAULT_CONTROL_SETTINGS,
     layers,
   } = doc;
   const margin = 40;
 
   const joinPoint = { x: bodyAnchors.find((a) => a.id === 'neckJoint')!.position.x, y: 0 };
   const placement = { joinPoint };
-  const neckOutlinePts = [
-    { x: 0, y: neckParams.nutWidth / 2 },
-    { x: neckParams.neckLength, y: neckParams.heelWidth / 2 },
-    { x: neckParams.neckLength, y: -neckParams.heelWidth / 2 },
-    { x: 0, y: -neckParams.nutWidth / 2 },
-  ].map((p) => neckToBodySpace(p, neckParams, placement));
+  const neckOutlinePts = computeNeckOutlineLocal(neckParams).map((p) => neckToBodySpace(p, neckParams, placement));
 
   const headstockPts = computeHeadstockOutlineBody(neckParams, headstockSettings, placement);
   const tunerPts = computeTunerPositions(neckParams, headstockSettings, placement, hardware.saddles);
@@ -81,6 +85,15 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
   }
 
+  const inlayDots =
+    flavor === 'fabrication'
+      ? ''
+      : computeInlayDots(neckParams)
+          .map((d) => {
+            const c = neckToBodySpace({ x: d.x, y: d.y }, neckParams, placement);
+            return `<circle cx="${pad(c.x)}" cy="${pad(c.y)}" r="${pad(d.radius)}" fill="#e8e0ca" stroke="#555" stroke-width="0.3"/>`;
+          })
+          .join('');
   const fretLines = frets
     .slice(1)
     .map((f) => {
@@ -89,7 +102,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
       return `<line x1="${pad(b.x)}" y1="${pad(b.y)}" x2="${pad(t.x)}" y2="${pad(t.y)}" stroke="#333" stroke-width="0.6"/>`;
     })
     .join('');
-  const fretsGroup = `<g id="frets" transform="${transform}">${fretLines}</g>`;
+  const fretsGroup = `<g id="frets" transform="${transform}">${inlayDots}${fretLines}</g>`;
 
   const showStrings = layers?.strings?.visible && flavor !== 'fabrication';
   let stringsGroup = '<g id="strings"></g>';
@@ -111,8 +124,30 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     if (!p.visible) return;
     hw.push(`<circle cx="${pad(p.x)}" cy="${pad(p.y)}" r="${r}" fill="${fill}" stroke="#111" stroke-width="0.8"/>`);
   };
-  drawCircle(hardware.bridgeHumbucker, 14, '#222');
-  drawCircle(hardware.volumeKnob, 9, '#555');
+  hardware.pickups.forEach((p, i) => {
+    const type = pickupSettings[PICKUP_SLOTS[i]];
+    if (type === 'none' || !p.visible) return;
+    const dims = PICKUP_DIMENSIONS[type as PickupType];
+    const fill = type === 'single-coil' ? '#e8e2d2' : '#1a1a1a';
+    hw.push(
+      `<rect x="${pad(p.x - dims.along / 2)}" y="${pad(p.y - dims.across / 2)}" width="${pad(dims.along)}" height="${pad(
+        dims.across,
+      )}" rx="${dims.radius}" fill="${flavor === 'fabrication' ? 'none' : fill}" stroke="#111" stroke-width="0.8"/>`,
+    );
+  });
+  for (const c of hardware.controls) drawCircle(c, 9.5, '#333');
+  if (controlSettings.selector !== 'none' && hardware.selector.visible) {
+    const s = hardware.selector;
+    if (controlSettings.selector === 'toggle') {
+      drawCircle(s, 8, '#c9b98d');
+    } else {
+      hw.push(
+        `<rect x="${pad(s.x - 7)}" y="${pad(s.y - 26)}" width="14" height="52" rx="4" fill="${
+          flavor === 'fabrication' ? 'none' : '#1c1c1c'
+        }" stroke="#111" stroke-width="0.8" transform="rotate(${s.rotation}, ${pad(s.x)}, ${pad(s.y)})"/>`,
+      );
+    }
+  }
   for (const s of hardware.saddles) drawCircle(s, 3, '#888');
   if (flavor !== 'fabrication') {
     for (const b of hardware.neckBolts) drawCircle(b, 3.5, '#777');
@@ -129,7 +164,11 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   let constructionGroup = '<g id="construction"></g>';
   if (flavor === 'blueprint') {
     const nutB = neckToBodySpace({ x: 0, y: neckParams.nutWidth / 2 }, neckParams, placement);
-    const nutT = neckToBodySpace({ x: 0, y: -neckParams.nutWidth / 2 }, neckParams, placement);
+    const nutT = neckToBodySpace(
+      { x: trebleFanOffset(neckParams), y: -neckParams.nutWidth / 2 },
+      neckParams,
+      placement,
+    );
     const bridgeB = neckToBodySpace({ x: neckParams.bassScale, y: 20 }, neckParams, placement);
     const bridgeT = neckToBodySpace(
       { x: neckParams.bassScale - (neckParams.bassScale - neckParams.trebleScale), y: -20 },
@@ -152,6 +191,8 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     bridgeSettings,
     nutSettings,
     headstockSettings,
+    pickupSettings,
+    controlSettings,
     exportedAt: new Date().toISOString(),
     unit: 'mm',
   }).replace(/-->/g, '')} -->`;

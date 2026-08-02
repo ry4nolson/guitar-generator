@@ -1,15 +1,24 @@
+import { useMemo } from 'react';
 import { useDesignStore } from '../../state/store';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
+import { trebleFanOffset } from '../../geometry/frets';
 import { neckToBodySpace } from '../../geometry/neckPlacement';
+import { saddleClusterCenter } from '../../geometry/strings';
 
 /** Nut / bridge / neutral-fret / scale-length reference lines (layer: "construction"). */
 export function ReferenceLines() {
-  const bridge = useDesignStore((s) => s.hardware.bridgeHumbucker);
+  const saddles = useDesignStore((s) => s.hardware.saddles);
+  const bridge = useMemo(() => saddleClusterCenter(saddles), [saddles]);
   const { neckParams, joinPoint, placedFrets, bridgeX } = useNeckGeometry();
 
   const neutral = placedFrets.find((f) => f.fretNumber === neckParams.neutralFret)!;
   const nutB = neckToBodySpace({ x: 0, y: neckParams.nutWidth / 2 }, neckParams, { joinPoint });
-  const nutT = neckToBodySpace({ x: 0, y: -neckParams.nutWidth / 2 }, neckParams, { joinPoint });
+  // Treble nut corner sits on the fanned fret-0 line, not at x=0.
+  const nutT = neckToBodySpace(
+    { x: trebleFanOffset(neckParams), y: -neckParams.nutWidth / 2 },
+    neckParams,
+    { joinPoint },
+  );
   const bassScaleEnd = neckToBodySpace({ x: bridgeX.bassBridgeX, y: neckParams.nutWidth / 2 }, neckParams, {
     joinPoint,
   });

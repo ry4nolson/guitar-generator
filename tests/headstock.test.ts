@@ -7,6 +7,7 @@ import {
   LEGACY_HEADLESS_SETTINGS,
 } from '../src/geometry/headstock';
 import { DEFAULT_NECK_PARAMS } from '../src/geometry/neckParams';
+import { trebleFanOffset } from '../src/geometry/frets';
 import { useDesignStore } from '../src/state/store';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../src/export/migrateDocument';
 import { getBodyTemplate } from '../src/geometry/templates';
@@ -19,10 +20,14 @@ describe('headstock geometry', () => {
     expect(computeHeadstockOutlineLocal(DEFAULT_NECK_PARAMS, LEGACY_HEADLESS_SETTINGS)).toBeNull();
   });
 
-  it('builds a closed paddle outline past the nut (−x)', () => {
+  it('builds a closed paddle outline behind the (possibly fanned) nut line', () => {
     const local = computeHeadstockOutlineLocal(DEFAULT_NECK_PARAMS, DEFAULT_HEADSTOCK_SETTINGS)!;
     expect(local.length).toBeGreaterThanOrEqual(6);
-    expect(local.every((p) => p.x <= 0)).toBe(true);
+    // No point may extend past the nut line; the treble base corner sits ON it.
+    const nutLineMax = Math.max(0, trebleFanOffset(DEFAULT_NECK_PARAMS));
+    expect(local.every((p) => p.x <= nutLineMax + 1e-9)).toBe(true);
+    const trebleBase = local[local.length - 1];
+    expect(trebleBase.x).toBeCloseTo(trebleFanOffset(DEFAULT_NECK_PARAMS), 9);
     const body = computeHeadstockOutlineBody(DEFAULT_NECK_PARAMS, DEFAULT_HEADSTOCK_SETTINGS, {
       joinPoint: { x: 30, y: 0 },
     });

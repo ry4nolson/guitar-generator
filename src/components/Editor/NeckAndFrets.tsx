@@ -12,11 +12,22 @@ export const NeckOutline = memo(function NeckOutline() {
   );
 });
 
-/** True fanned frets only (layer: "frets"), placed into body-local space via neckAngle/join point. */
+/** True fanned frets + dot inlays (layer: "frets"), placed into body-local space via neckAngle/join point. */
 export const FretLines = memo(function FretLines() {
-  const { placedFrets, neckParams } = useNeckGeometry();
+  const { placedFrets, placedInlays, neckParams } = useNeckGeometry();
   return (
     <g id="frets">
+      {placedInlays.map((d, i) => (
+        <circle
+          key={`inlay-${d.fret}-${i}`}
+          cx={d.center.x}
+          cy={d.center.y}
+          r={d.radius}
+          fill="#e8e0ca"
+          stroke="#00000033"
+          strokeWidth={0.4}
+        />
+      ))}
       {placedFrets.map((f) => {
         const isNut = f.fretNumber === 0;
         const isNeutral = f.fretNumber === neckParams.neutralFret;
