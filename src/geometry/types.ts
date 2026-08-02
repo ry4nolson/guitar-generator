@@ -1,15 +1,33 @@
 // Shared geometry types used across the app.
 // All linear units are millimeters (mm) internally, regardless of display unit.
 
+import type { BodyFeatureId } from './bodyFeatures';
+
 export interface Point {
   x: number;
   y: number;
 }
 
+/** How a Bezier anchor's two handles relate to each other and to its neighbors. */
+export type ContinuityMode =
+  /** Independent in/out tangent directions — a genuine corner/kink (e.g. Flying V wing tips). */
+  | 'corner'
+  /** In/out handles are collinear (tangent continuous, "C1"), with independently authored lengths. */
+  | 'tangent'
+  /** Collinear handles with direction auto-derived from neighboring anchors (Catmull-Rom-style), approximating curvature continuity ("C2-like"). */
+  | 'smooth';
+
+/** Stable per-template anchor identifier, e.g. "upperHornTip". Anchor sets differ between templates. */
+export type BodyAnchorId = string;
+
 /** A single named anchor on the body outline, with independent in/out Bezier handles. */
 export interface BodyAnchor {
-  /** Stable identifier, e.g. "upperBoutApex". Order matters: anchors form a closed loop. */
+  /** Stable identifier within the active template, e.g. "upperHornTip". Order matters: anchors form a closed loop. */
   id: BodyAnchorId;
+  /** Which semantic feature owns this anchor (drives sidebar grouping, click-to-select, and per-feature reset). */
+  featureId: BodyFeatureId;
+  /** The continuity mode this anchor was authored with (kept for the debug overlay + informational display). */
+  continuity: ContinuityMode;
   /** Absolute position in mm, body-local coordinate space. */
   position: Point;
   /** Incoming control handle (absolute position in mm) — controls the curve arriving at this anchor. */
@@ -20,38 +38,9 @@ export interface BodyAnchor {
   manuallyEdited: boolean;
   /** If true, the point cannot be dragged in the editor. */
   locked: boolean;
-  /** If true (default), dragging one handle mirrors the opposite handle to preserve tangency ("smooth point"). */
+  /** If true, dragging one handle mirrors the opposite handle to preserve tangency ("smooth point" editing behavior). Defaults from continuity !== 'corner'. */
   mirrorHandles: boolean;
 }
-
-/**
- * The 8 anchors that define the closed body outline. Anchors are listed in
- * winding order; the segment between consecutive anchors (wrapping at the end)
- * carries the "named region" label used throughout the UI and exports.
- */
-export const BODY_ANCHOR_IDS = [
-  'neckJoint',
-  'hornShoulder',
-  'upperBoutApex',
-  'waistPoint',
-  'lowerBoutBassApex',
-  'lowerBoutTrebleApex',
-  'hipCutoutPoint',
-  'lowerHornShoulder',
-] as const;
-export type BodyAnchorId = (typeof BODY_ANCHOR_IDS)[number];
-
-/** Named region for the segment that starts at the anchor with the same array index. */
-export const BODY_SEGMENT_NAMES: Record<BodyAnchorId, string> = {
-  neckJoint: 'upper horn',
-  hornShoulder: 'upper bout',
-  upperBoutApex: 'rear upper bout',
-  waistPoint: 'rear waist',
-  lowerBoutBassApex: 'lower rear bout',
-  lowerBoutTrebleApex: 'hip cutout',
-  hipCutoutPoint: 'lower horn',
-  lowerHornShoulder: 'neck-side cutaway',
-};
 
 export interface FretPoint {
   fretNumber: number;

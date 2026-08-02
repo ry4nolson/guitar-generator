@@ -1,95 +1,43 @@
-// Semantic feature grouping over the 8 raw body anchors.
-//
-// The anchors themselves (geometry/types.ts) already carry semantic ids
-// (`upperBoutApex`, `waistPoint`, ...) rather than anonymous indices — that
-// part of the "semantic features, not anonymous points" requirement was
-// already true of the underlying model. What was missing was a *feature*
-// grouping above the anchor level so the UI can present "Upper Horn" /
-// "Waist" / etc. as single selectable, editable units that each own one or
-// more anchors and a matching subset of BodyParams sliders — this module is
-// that grouping layer.
-
-import type { BodyAnchorId } from './types';
-import type { BodyParams } from './bodyParams';
+// The fixed set of semantic body-feature ids used by every template. A
+// template's anchors each declare which feature they belong to; the anchor
+// SET, topology, and count are template-specific, but the feature vocabulary
+// (and therefore the sidebar/debug-overlay grouping) stays stable across
+// templates. Not every template has to use every feature (e.g. the Flying V
+// template has no rearWaist/hipContour anchors).
 
 export type BodyFeatureId =
   | 'global'
+  | 'neckTransition'
   | 'upperHorn'
   | 'upperBout'
-  | 'waist'
-  | 'lowerBout'
+  | 'rearWaist'
+  | 'lowerBassBout'
+  | 'lowerTrebleBout'
   | 'hipContour'
-  | 'neckTransition';
+  | 'lowerHornCutaway'
+  | 'tail';
 
-export interface BodyFeatureMeta {
-  id: BodyFeatureId;
-  label: string;
-  /** Anchors this feature owns/controls directly (for selection highlighting + filtered point overlay). */
-  anchorIds: BodyAnchorId[];
-  /** Which outline segments (by starting anchor id) visually belong to this feature, for click-to-select hit testing. */
-  segmentStartIds: BodyAnchorId[];
-  /** BodyParams sliders exposed when this feature is selected. */
-  paramKeys: (keyof BodyParams)[];
-}
-
-export const BODY_FEATURES: BodyFeatureMeta[] = [
-  {
-    id: 'upperHorn',
-    label: 'Upper Horn',
-    anchorIds: ['neckJoint', 'hornShoulder'],
-    segmentStartIds: ['neckJoint'],
-    paramKeys: ['upperHornReach', 'upperHornRadius'],
-  },
-  {
-    id: 'upperBout',
-    label: 'Upper Bout',
-    anchorIds: ['hornShoulder', 'upperBoutApex'],
-    segmentStartIds: ['hornShoulder', 'upperBoutApex'],
-    paramKeys: ['upperBoutRadius'],
-  },
-  {
-    id: 'waist',
-    label: 'Waist',
-    anchorIds: ['waistPoint'],
-    segmentStartIds: ['waistPoint'],
-    paramKeys: ['waistDepth', 'waistPosition'],
-  },
-  {
-    id: 'lowerBout',
-    label: 'Lower Bout',
-    anchorIds: ['lowerBoutBassApex', 'lowerBoutTrebleApex'],
-    segmentStartIds: ['lowerBoutBassApex'],
-    paramKeys: ['lowerBoutFullness'],
-  },
-  {
-    id: 'hipContour',
-    label: 'Hip Contour',
-    anchorIds: ['hipCutoutPoint'],
-    segmentStartIds: ['lowerBoutTrebleApex', 'hipCutoutPoint'],
-    paramKeys: ['hipCutoutDepth', 'hipCutoutWidth', 'hipCutoutRadius'],
-  },
-  {
-    id: 'neckTransition',
-    label: 'Neck Transition',
-    anchorIds: ['lowerHornShoulder'],
-    segmentStartIds: ['lowerHornShoulder'],
-    paramKeys: [],
-  },
+export const BODY_FEATURE_IDS: Exclude<BodyFeatureId, 'global'>[] = [
+  'neckTransition',
+  'upperHorn',
+  'upperBout',
+  'rearWaist',
+  'lowerBassBout',
+  'lowerTrebleBout',
+  'hipContour',
+  'lowerHornCutaway',
+  'tail',
 ];
 
-export const GLOBAL_FEATURE: BodyFeatureMeta = {
-  id: 'global',
-  label: 'Global',
-  anchorIds: [],
-  segmentStartIds: [],
-  paramKeys: ['bodyLength', 'bodyWidth', 'forwardLean'],
+export const BODY_FEATURE_LABELS: Record<BodyFeatureId, string> = {
+  global: 'Global',
+  neckTransition: 'Neck Transition',
+  upperHorn: 'Upper Horn',
+  upperBout: 'Upper Bout',
+  rearWaist: 'Rear Waist',
+  lowerBassBout: 'Lower Bass Bout',
+  lowerTrebleBout: 'Lower Treble Bout',
+  hipContour: 'Hip Contour',
+  lowerHornCutaway: 'Lower Horn / Cutaway',
+  tail: 'Tail',
 };
-
-export function featureForSegmentStart(anchorId: BodyAnchorId): BodyFeatureMeta | undefined {
-  return BODY_FEATURES.find((f) => f.segmentStartIds.includes(anchorId));
-}
-
-export function featureById(id: BodyFeatureId): BodyFeatureMeta {
-  if (id === 'global') return GLOBAL_FEATURE;
-  return BODY_FEATURES.find((f) => f.id === id)!;
-}

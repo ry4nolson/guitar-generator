@@ -1,8 +1,10 @@
-// Converts the 8-anchor body outline into an SVG path `d` string using real
-// cubic Bezier commands (C), so exported SVGs are genuine vector paths.
+// Converts a closed-loop body anchor array into an SVG path `d` string using
+// real cubic Bezier commands (C), so exported SVGs are genuine vector paths.
+// Generic over anchor count/order — templates can use anywhere from ~8 to
+// 16+ anchors; nothing here assumes a fixed topology.
 
 import type { BodyAnchor, BodyAnchorId } from './types';
-import { BODY_ANCHOR_IDS } from './types';
+import type { BodyFeatureId } from './bodyFeatures';
 
 export function anchorsToPathD(anchors: BodyAnchor[]): string {
   if (anchors.length === 0) return '';
@@ -20,21 +22,20 @@ export function anchorsToPathD(anchors: BodyAnchor[]): string {
 }
 
 /**
- * Builds an open path covering just the segment(s) that start at the given
- * anchor ids (in the fixed BODY_ANCHOR_IDS winding order). Used for
- * click-to-select hit regions and highlight overlays scoped to one body
- * feature, without duplicating the whole-outline fill path.
+ * Builds an open path covering just the segment(s) whose STARTING anchor
+ * belongs to the given feature (in the anchors array's own winding order —
+ * generic over anchor count/topology, unlike the old version which relied on
+ * a fixed 8-anchor id list). Used for click-to-select hit regions and
+ * highlight overlays scoped to one body feature, without duplicating the
+ * whole-outline fill path.
  */
-export function featureSegmentsPathD(anchors: BodyAnchor[], segmentStartIds: BodyAnchorId[]): string {
-  const order = BODY_ANCHOR_IDS;
-  const n = order.length;
-  const byId = new Map(anchors.map((a) => [a.id, a] as const));
+export function featureSegmentsPathD(anchors: BodyAnchor[], featureId: BodyFeatureId): string {
+  const n = anchors.length;
   let d = '';
-  for (const startId of segmentStartIds) {
-    const i = order.indexOf(startId);
-    const cur = byId.get(order[i]);
-    const next = byId.get(order[(i + 1) % n]);
-    if (!cur || !next) continue;
+  for (let i = 0; i < n; i++) {
+    if (anchors[i].featureId !== featureId) continue;
+    const cur = anchors[i];
+    const next = anchors[(i + 1) % n];
     d += `M ${cur.position.x.toFixed(3)} ${cur.position.y.toFixed(3)} `;
     d += `C ${cur.handleOut.x.toFixed(3)} ${cur.handleOut.y.toFixed(3)}, `;
     d += `${next.handleIn.x.toFixed(3)} ${next.handleIn.y.toFixed(3)}, `;
@@ -42,3 +43,18 @@ export function featureSegmentsPathD(anchors: BodyAnchor[], segmentStartIds: Bod
   }
   return d.trim();
 }
+
+/** All distinct feature ids present in the current anchor set, in first-appearance order. */
+export function distinctFeatureIds(anchors: BodyAnchor[]): BodyFeatureId[] {
+  const seen = new Set<BodyFeatureId>();
+  const order: BodyFeatureId[] = [];
+  for (const a of anchors) {
+    if (!seen.has(a.featureId)) {
+      seen.add(a.featureId);
+      order.push(a.featureId);
+    }
+  }
+  return order;
+}
+
+export type { BodyAnchorId };
