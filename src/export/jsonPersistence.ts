@@ -8,7 +8,7 @@ export function serializeDocument(doc: DesignDocument): string {
 
 export function deserializeDocument(json: string): DesignDocument {
   const parsed = JSON.parse(json);
-  if (!parsed.bodyParams || !parsed.bodyAnchors || !parsed.neckParams || !parsed.hardware) {
+  if (!parsed.bodyParams || !parsed.bodyAnchors || !parsed.neckParams || !parsed.hardware || !parsed.templateId) {
     throw new Error('Invalid design file: missing required sections.');
   }
   if (parsed.version === undefined) parsed.version = DESIGN_DOCUMENT_VERSION;
@@ -18,6 +18,7 @@ export function deserializeDocument(json: string): DesignDocument {
     );
   }
   if (!parsed.layers) parsed.layers = defaultLayers();
+  if (parsed.settings && parsed.settings.showDebugOverlay === undefined) parsed.settings.showDebugOverlay = false;
   return parsed as DesignDocument;
 }
 

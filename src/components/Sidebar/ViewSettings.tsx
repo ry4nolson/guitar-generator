@@ -6,6 +6,7 @@ export function ViewSettings() {
   const setGridSize = useDesignStore((s) => s.setGridSize);
   const toggleGridSnap = useDesignStore((s) => s.toggleGridSnap);
   const toggleShowPoints = useDesignStore((s) => s.toggleShowPoints);
+  const toggleDebugOverlay = useDesignStore((s) => s.toggleDebugOverlay);
   const setCanvasPadding = useDesignStore((s) => s.setCanvasPadding);
 
   return (
@@ -49,6 +50,10 @@ export function ViewSettings() {
       <label className="row-inline checkbox">
         <span>Show points &amp; handles</span>
         <input type="checkbox" checked={settings.showPointsAndHandles} onChange={toggleShowPoints} />
+      </label>
+      <label className="row-inline checkbox">
+        <span>Debug overlay (names / tangents / continuity)</span>
+        <input type="checkbox" checked={settings.showDebugOverlay} onChange={toggleDebugOverlay} />
       </label>
       <p className="muted">Scroll = zoom · middle-click or space+drag = pan · double-click = fit to screen.</p>
     </section>

@@ -4,6 +4,7 @@ import { evaluateConstraints } from '../../geometry/constraints';
 
 /** Live, advisory constraint violations (not blocking) — see geometry/constraints.ts. */
 export function ConstraintsPanel() {
+  const templateId = useDesignStore((s) => s.templateId);
   const bodyParams = useDesignStore((s) => s.bodyParams);
   const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
   const neckParams = useDesignStore((s) => s.neckParams);
@@ -13,8 +14,8 @@ export function ConstraintsPanel() {
   const version = useDesignStore((s) => s.version);
 
   const violations = useMemo(
-    () => evaluateConstraints({ version, bodyParams, bodyAnchors, neckParams, hardware, settings, layers }),
-    [version, bodyParams, bodyAnchors, neckParams, hardware, settings, layers],
+    () => evaluateConstraints({ version, templateId, bodyParams, bodyAnchors, neckParams, hardware, settings, layers }),
+    [version, templateId, bodyParams, bodyAnchors, neckParams, hardware, settings, layers],
   );
 
   return (

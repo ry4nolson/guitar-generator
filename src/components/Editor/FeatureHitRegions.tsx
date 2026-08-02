@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useDesignStore } from '../../state/store';
-import { BODY_FEATURES } from '../../geometry/bodyFeatures';
-import { featureSegmentsPathD } from '../../geometry/svgPath';
+import { BODY_FEATURE_LABELS } from '../../geometry/bodyFeatures';
+import { distinctFeatureIds, featureSegmentsPathD } from '../../geometry/svgPath';
 import { clientToLocalPoint } from '../../hooks/useSvgDrag';
 
 /**
@@ -10,6 +10,10 @@ import { clientToLocalPoint } from '../../hooks/useSvgDrag';
  * selected. This is what makes "clicking a body region selects that
  * feature" work without splitting the single filled body-outline path into
  * per-segment fills (which would risk seams).
+ *
+ * Fully generic over the active template's anchor set: which features exist
+ * and which anchors/segments they own is read directly off the current
+ * anchors' own `featureId`, not a hardcoded per-template table.
  *
  * A plain click selects the feature; a drag moves every anchor the feature
  * owns together (whole-feature editing), via `moveFeatureAnchors`.
@@ -21,18 +25,22 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
   const moveFeatureAnchors = useDesignStore((s) => s.moveFeatureAnchors);
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
 
-  const paths = useMemo(
-    () => BODY_FEATURES.map((f) => ({ feature: f, d: featureSegmentsPathD(anchors, f.segmentStartIds) })),
-    [anchors],
-  );
+  const featurePaths = useMemo(() => {
+    const ids = distinctFeatureIds(anchors);
+    return ids.map((featureId) => ({
+      featureId,
+      d: featureSegmentsPathD(anchors, featureId),
+      anchorIds: anchors.filter((a) => a.featureId === featureId).map((a) => a.id),
+    }));
+  }, [anchors]);
 
   return (
     <g id="feature-hit-regions">
-      {paths.map(({ feature, d }) => {
-        const isSelected = selected?.kind === 'feature' && selected.id === feature.id;
+      {featurePaths.map(({ featureId, d, anchorIds }) => {
+        const isSelected = selected?.kind === 'feature' && selected.id === featureId;
         return (
           <path
-            key={feature.id}
+            key={featureId}
             d={d}
             fill="none"
             stroke={isSelected ? '#ff8844' : 'transparent'}
@@ -40,7 +48,7 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
             style={{ cursor: 'grab', pointerEvents: 'stroke' }}
             onPointerDown={(e) => {
               e.stopPropagation();
-              select({ kind: 'feature', id: feature.id });
+              select({ kind: 'feature', id: featureId });
               const group = stageRef.current;
               if (!group) return;
               const startLocal = clientToLocalPoint(e.nativeEvent, group);
@@ -54,7 +62,7 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
                 const dy = p.y - dragOrigin.current.y;
                 if (dx === 0 && dy === 0) return;
                 dragOrigin.current = p;
-                moveFeatureAnchors(feature.anchorIds, dx, dy);
+                moveFeatureAnchors(anchorIds, dx, dy);
               };
               const handleUp = () => {
                 dragOrigin.current = null;
@@ -65,7 +73,7 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
               window.addEventListener('pointerup', handleUp);
             }}
           >
-            <title>{feature.label}</title>
+            <title>{BODY_FEATURE_LABELS[featureId]}</title>
           </path>
         );
       })}

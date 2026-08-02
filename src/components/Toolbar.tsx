@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useDesignStore, type DesignDocument } from '../state/store';
 import { downloadJson, deserializeDocument } from '../export/jsonPersistence';
 import { buildSvgDocument, downloadSvg } from '../export/svgExport';
+import { BODY_TEMPLATES } from '../geometry/templates';
 import type { ViewMode } from '../geometry/types';
 
 const VIEWS: { key: ViewMode; label: string }[] = [
@@ -18,15 +19,20 @@ export function Toolbar() {
   const undo = useDesignStore((s) => s.undo);
   const redo = useDesignStore((s) => s.redo);
   const resetToDefaults = useDesignStore((s) => s.resetToDefaults);
+  const resetBodyToTemplate = useDesignStore((s) => s.resetBodyToTemplate);
   const loadDocument = useDesignStore((s) => s.loadDocument);
   const past = useDesignStore((s) => s.past);
   const future = useDesignStore((s) => s.future);
+  const templateId = useDesignStore((s) => s.templateId);
+  const setTemplate = useDesignStore((s) => s.setTemplate);
+  const isBodyDirty = useDesignStore((s) => s.isBodyDirty);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentDocument = (): DesignDocument => {
     const s = useDesignStore.getState();
     return {
       version: s.version,
+      templateId: s.templateId,
       bodyParams: s.bodyParams,
       bodyAnchors: s.bodyAnchors,
       neckParams: s.neckParams,
@@ -58,10 +64,37 @@ export function Toolbar() {
     downloadSvg(svg, `guitar-design-${flavor}.svg`);
   };
 
+  const handleTemplateChange = (id: string) => {
+    if (id === templateId) return;
+    if (isBodyDirty()) {
+      const ok = confirm('Switching templates replaces the current body shape. Discard your manual edits?');
+      if (!ok) return;
+    }
+    setTemplate(id);
+  };
+
   return (
     <header className="toolbar">
       <div className="toolbar-group">
         <span className="brand">Headless Guitar Designer</span>
+      </div>
+
+      <div className="toolbar-group">
+        <span className="muted" style={{ fontSize: 11 }}>
+          Template
+        </span>
+        <div className="segmented">
+          {BODY_TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              className={templateId === t.id ? 'active' : ''}
+              title={t.description}
+              onClick={() => handleTemplateChange(t.id)}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="toolbar-group">
@@ -79,7 +112,15 @@ export function Toolbar() {
         <button onClick={redo} disabled={future.length === 0} title="Redo">
           ↷ Redo
         </button>
-        <button onClick={() => confirm('Reset the whole design to defaults?') && resetToDefaults()}>Reset</button>
+        <button
+          onClick={() => confirm('Reset the body to the current template defaults?') && resetBodyToTemplate()}
+          title="Reset body shape/params to the active template's defaults; leaves neck/hardware/settings alone"
+        >
+          Reset body
+        </button>
+        <button onClick={() => confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') && resetToDefaults()}>
+          Reset all
+        </button>
       </div>
 
       <div className="toolbar-group">

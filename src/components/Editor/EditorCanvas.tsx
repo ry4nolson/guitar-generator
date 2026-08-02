@@ -12,7 +12,7 @@ import { Hardware } from './Hardware';
 import { BackView } from './BackView';
 import { ConstructionView } from './ConstructionView';
 import { LayerGroup } from './LayerGroup';
-import { featureById } from '../../geometry/bodyFeatures';
+import { DebugOverlay } from './DebugOverlay';
 
 /**
  * Top-level SVG stage. The viewBox + stage transform are derived from the
@@ -38,6 +38,7 @@ export function EditorCanvas() {
   const view = useDesignStore((s) => s.settings.view);
   const gridSize = useDesignStore((s) => s.settings.gridSize);
   const canvasPadding = useDesignStore((s) => s.settings.canvasPadding);
+  const showDebugOverlay = useDesignStore((s) => s.settings.showDebugOverlay);
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const { outlinePoints } = useNeckGeometry();
@@ -67,9 +68,12 @@ export function EditorCanvas() {
   const stageTx = canvasPadding + bounds.maxX;
   const stageTy = canvasPadding + bounds.maxY;
 
+  // Which anchors are owned by the selected feature — read directly off the
+  // current anchor set's own featureId rather than a static per-template
+  // table, so this works for any template's anchor topology.
   const onlyFeatureAnchorIds = useMemo(
-    () => (selected?.kind === 'feature' ? featureById(selected.id).anchorIds : undefined),
-    [selected],
+    () => (selected?.kind === 'feature' ? bodyAnchors.filter((a) => a.featureId === selected.id).map((a) => a.id) : undefined),
+    [selected, bodyAnchors],
   );
 
   // A fixed on-screen nudge distance (in viewBox units, scaled by the current
@@ -120,10 +124,16 @@ export function EditorCanvas() {
               </LayerGroup>
               <FeatureHitRegions stageRef={stageRef} />
               <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />
+              {showDebugOverlay && <DebugOverlay />}
             </>
           )}
           {view === 'back' && <BackView stageRef={stageRef} />}
-          {view === 'construction' && <ConstructionView stageRef={stageRef} />}
+          {view === 'construction' && (
+            <>
+              <ConstructionView stageRef={stageRef} />
+              {showDebugOverlay && <DebugOverlay />}
+            </>
+          )}
         </g>
       </g>
       <FitButtonPortal onFit={fit} />

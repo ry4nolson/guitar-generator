@@ -1,13 +1,17 @@
 // Central Zustand store. This is the single source of truth for the entire
-// design: body params + persisted anchor geometry, neck params, hardware
-// layout, layer visibility/lock, view/unit/theme prefs, and undo/redo
-// history.
+// design: active template id + its params + persisted anchor geometry, neck
+// params, hardware layout, layer visibility/lock, view/unit/theme prefs, and
+// undo/redo history.
 //
 // IMPORTANT product rule: controls never regenerate the design from scratch.
 // Body anchors are persisted state (`bodyAnchors`); changing a body param
 // recomputes only the anchors the user hasn't manually overridden
 // (see geometry/bodyModel.ts). Dragging an anchor sets `manuallyEdited` so
-// future param changes leave it alone until the user resets it.
+// future param changes leave it alone until the user resets it. Switching
+// templates is the one deliberate exception — it fully replaces the body
+// (params, anchors, hardware), since a different template has a different
+// anchor topology entirely; callers are expected to confirm with the user
+// first if there are unsaved manual edits (see `isBodyDirty`).
 //
 // NOTE on what's deliberately NOT here: pan/zoom (camera) state lives in the
 // `useViewport` hook, not in this store — it's transient view/interaction
@@ -15,10 +19,15 @@
 
 import { create } from 'zustand';
 import type { BodyAnchor, BodyAnchorId, HardwarePosition, Point, Theme, Unit, ViewMode } from '../geometry/types';
-import { DEFAULT_BODY_PARAMS, type BodyParams } from '../geometry/bodyParams';
-import { computeParametricAnchors, recomputeAnchorsPreservingEdits, resetAnchor } from '../geometry/bodyModel';
-import { DEFAULT_NECK_PARAMS, type NeckParams } from '../geometry/neckParams';
-import { DEFAULT_HARDWARE, type HardwareState } from './hardwareDefaults';
+import {
+  computeParametricAnchors,
+  recomputeAnchorsPreservingEdits,
+  resetAnchor,
+  resetFeature,
+} from '../geometry/bodyModel';
+import { getBodyTemplate, TELE_TEMPLATE } from '../geometry/templates';
+import type { NeckParams } from '../geometry/neckParams';
+import type { HardwareState } from './hardwareDefaults';
 import { LAYER_IDS, defaultLayers, type LayerId, type LayerState } from './layers';
 import type { BodyFeatureId } from '../geometry/bodyFeatures';
 
@@ -29,6 +38,8 @@ export interface EditorSettings {
   gridSize: number;
   gridSnapEnabled: boolean;
   showPointsAndHandles: boolean;
+  /** Debug overlay: anchor names, feature ownership, tangent vectors, continuity mode. */
+  showDebugOverlay: boolean;
   /** Padding (mm) kept around the design's bounding box when fitting the canvas to the viewport. */
   canvasPadding: number;
 }
@@ -40,16 +51,18 @@ const DEFAULT_SETTINGS: EditorSettings = {
   gridSize: 5,
   gridSnapEnabled: false,
   showPointsAndHandles: true,
+  showDebugOverlay: false,
   canvasPadding: 40,
 };
 
 /** Bump this whenever DesignDocument's shape changes in a way old files can't be read as-is. */
-export const DESIGN_DOCUMENT_VERSION = 1;
+export const DESIGN_DOCUMENT_VERSION = 2;
 
 /** Everything that should be saved to JSON / localStorage / undo history. */
 export interface DesignDocument {
   version: number;
-  bodyParams: BodyParams;
+  templateId: string;
+  bodyParams: Record<string, number>;
   bodyAnchors: BodyAnchor[];
   neckParams: NeckParams;
   hardware: HardwareState;
@@ -58,22 +71,25 @@ export interface DesignDocument {
 }
 
 function defaultDocument(): DesignDocument {
+  const template = TELE_TEMPLATE;
   return {
     version: DESIGN_DOCUMENT_VERSION,
-    bodyParams: { ...DEFAULT_BODY_PARAMS },
-    bodyAnchors: computeParametricAnchors(DEFAULT_BODY_PARAMS),
-    neckParams: { ...DEFAULT_NECK_PARAMS },
-    hardware: structuredClone(DEFAULT_HARDWARE),
+    templateId: template.id,
+    bodyParams: { ...template.defaultParams },
+    bodyAnchors: computeParametricAnchors(template, template.defaultParams),
+    neckParams: { ...template.defaultNeckParams },
+    hardware: structuredClone(template.defaultHardware),
     settings: { ...DEFAULT_SETTINGS },
     layers: defaultLayers(),
   };
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'guitar-designer-autosave-v1';
+const AUTOSAVE_KEY = 'guitar-designer-autosave-v2';
 
 interface HistoryEntry {
-  bodyParams: BodyParams;
+  templateId: string;
+  bodyParams: Record<string, number>;
   bodyAnchors: BodyAnchor[];
   neckParams: NeckParams;
   hardware: HardwareState;
@@ -81,6 +97,7 @@ interface HistoryEntry {
 
 function snapshotOf(doc: DesignDocument): HistoryEntry {
   return {
+    templateId: doc.templateId,
     bodyParams: { ...doc.bodyParams },
     bodyAnchors: structuredClone(doc.bodyAnchors),
     neckParams: { ...doc.neckParams },
@@ -99,8 +116,15 @@ interface StoreState extends DesignDocument {
   future: HistoryEntry[];
   selected: SelectedPoint;
 
+  // --- template ---
+  /** True if any body anchor has been manually dragged/edited — callers should confirm with the user before switching templates. */
+  isBodyDirty: () => boolean;
+  setTemplate: (templateId: string) => void;
+  resetBodyToTemplate: () => void;
+  resetFeature: (featureId: BodyFeatureId) => void;
+
   // --- body params ---
-  setBodyParam: (key: keyof BodyParams, value: number) => void;
+  setBodyParam: (key: string, value: number) => void;
 
   // --- anchor editing ---
   moveAnchorPoint: (id: BodyAnchorId, part: 'position' | 'handleIn' | 'handleOut', point: Point) => void;
@@ -130,6 +154,7 @@ interface StoreState extends DesignDocument {
   setGridSize: (size: number) => void;
   toggleGridSnap: () => void;
   toggleShowPoints: () => void;
+  toggleDebugOverlay: () => void;
   setCanvasPadding: (mm: number) => void;
 
   // --- history / persistence ---
@@ -146,12 +171,14 @@ function loadAutosave(): DesignDocument | null {
     const raw = localStorage.getItem(AUTOSAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed.bodyParams || !parsed.bodyAnchors) return null;
-    // No migrations exist yet (schema has only ever been v1); a mismatched
-    // version means it's from a future/incompatible build, so fall back to
-    // defaults instead of risking a corrupt render.
+    if (!parsed.bodyParams || !parsed.bodyAnchors || !parsed.templateId) return null;
+    // No migrations exist yet; a mismatched version means it's from an
+    // incompatible build, so fall back to defaults instead of risking a
+    // corrupt render (this deliberately also invalidates pre-template-system
+    // v1 saves, since their anchor topology no longer matches any template).
     if (parsed.version !== DESIGN_DOCUMENT_VERSION) return null;
     if (!parsed.layers) parsed.layers = defaultLayers();
+    if (parsed.settings && parsed.settings.showDebugOverlay === undefined) parsed.settings.showDebugOverlay = false;
     return parsed as DesignDocument;
   } catch {
     return null;
@@ -164,10 +191,49 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   future: [],
   selected: null,
 
+  isBodyDirty: () => get().bodyAnchors.some((a) => a.manuallyEdited),
+
+  setTemplate: (templateId) => {
+    const before = snapshotOf(get());
+    const template = getBodyTemplate(templateId);
+    set({
+      templateId: template.id,
+      bodyParams: { ...template.defaultParams },
+      bodyAnchors: computeParametricAnchors(template, template.defaultParams),
+      neckParams: { ...template.defaultNeckParams },
+      hardware: structuredClone(template.defaultHardware),
+      selected: null,
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
+  },
+
+  resetBodyToTemplate: () => {
+    const before = snapshotOf(get());
+    const template = getBodyTemplate(get().templateId);
+    set({
+      bodyParams: { ...template.defaultParams },
+      bodyAnchors: computeParametricAnchors(template, template.defaultParams),
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
+  },
+
+  resetFeature: (featureId) => {
+    const before = snapshotOf(get());
+    const template = getBodyTemplate(get().templateId);
+    const bodyAnchors = resetFeature(featureId, template, get().bodyParams, get().bodyAnchors);
+    set({ bodyAnchors, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
   setBodyParam: (key, value) => {
     const before = snapshotOf(get());
+    const template = getBodyTemplate(get().templateId);
     const bodyParams = { ...get().bodyParams, [key]: value };
-    const bodyAnchors = recomputeAnchorsPreservingEdits(bodyParams, get().bodyAnchors);
+    const bodyAnchors = recomputeAnchorsPreservingEdits(template, bodyParams, get().bodyAnchors);
     set({ bodyParams, bodyAnchors, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
@@ -238,7 +304,8 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   resetAnchorPoint: (id) => {
     const before = snapshotOf(get());
-    const bodyAnchors = resetAnchor(id, get().bodyParams, get().bodyAnchors);
+    const template = getBodyTemplate(get().templateId);
+    const bodyAnchors = resetAnchor(id, template, get().bodyParams, get().bodyAnchors);
     set({ bodyAnchors, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
@@ -311,6 +378,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),
   toggleShowPoints: () =>
     set((s) => ({ settings: { ...s.settings, showPointsAndHandles: !s.settings.showPointsAndHandles } })),
+  toggleDebugOverlay: () => set((s) => ({ settings: { ...s.settings, showDebugOverlay: !s.settings.showDebugOverlay } })),
   setCanvasPadding: (mm) => set((s) => ({ settings: { ...s.settings, canvasPadding: mm } })),
 
   commitHistory: () => {
@@ -365,6 +433,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const s = get();
     const doc: DesignDocument = {
       version: s.version,
+      templateId: s.templateId,
       bodyParams: s.bodyParams,
       bodyAnchors: s.bodyAnchors,
       neckParams: s.neckParams,
