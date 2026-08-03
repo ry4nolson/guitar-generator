@@ -7,6 +7,8 @@ import {
 } from '../../geometry/pickups';
 import type { SelectorType } from '../../geometry/pickups';
 
+const isBlade = (t: SelectorType) => t === 'blade-3' || t === 'blade-5';
+
 function CountStepper({ label, value, min, max, onChange }: {
   label: string;
   value: number;
@@ -32,8 +34,10 @@ function CountStepper({ label, value, min, max, onChange }: {
 export function PickupControls() {
   const pickupSettings = useDesignStore((s) => s.pickupSettings);
   const controlSettings = useDesignStore((s) => s.controlSettings);
+  const selector = useDesignStore((s) => s.hardware.selector);
   const setPickupType = useDesignStore((s) => s.setPickupType);
   const setControlSetting = useDesignStore((s) => s.setControlSetting);
+  const rotateHardware = useDesignStore((s) => s.rotateHardware);
 
   return (
     <section className="sidebar-section">
@@ -86,6 +90,34 @@ export function PickupControls() {
         ))}
       </div>
       <p className="muted">{SELECTOR_TYPE_META.find((t) => t.id === controlSettings.selector)?.description}</p>
+      {isBlade(controlSettings.selector) && (
+        <div className="row-inline" style={{ marginTop: 8 }}>
+          <span>Switch angle</span>
+          <input
+            type="range"
+            min={-180}
+            max={180}
+            step={1}
+            value={selector.rotation}
+            disabled={selector.locked}
+            onChange={(e) => rotateHardware('selector', parseFloat(e.target.value))}
+            title="Blade switch rotation (degrees)"
+            style={{ flex: 1 }}
+          />
+          <input
+            type="number"
+            min={-180}
+            max={180}
+            step={1}
+            value={Math.round(selector.rotation)}
+            disabled={selector.locked}
+            onChange={(e) => rotateHardware('selector', parseFloat(e.target.value) || 0)}
+            style={{ width: 56 }}
+            title="Degrees"
+          />
+          <span className="muted">°</span>
+        </div>
+      )}
     </section>
   );
 }

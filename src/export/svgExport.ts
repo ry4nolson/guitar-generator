@@ -7,11 +7,14 @@
 import { anchorsToPathD } from '../geometry/svgPath';
 import { computeFanFrets, computeInlayDots, computeNeckOutlineLocal, trebleFanOffset } from '../geometry/frets';
 import { neckToBodySpace } from '../geometry/neckPlacement';
+import { neckJoinPoint } from '../geometry/scaleLock';
 import { computeDesignBounds } from '../geometry/bounds';
 import {
   computeBridgeStringPoints,
   computeNutStringPoints,
   computeStringSegments,
+  STRING_STROKE_COLOR,
+  STRING_STROKE_MM,
 } from '../geometry/strings';
 import {
   computeHeadstockOutlineBody,
@@ -26,6 +29,7 @@ import {
   type PickupType,
 } from '../geometry/pickups';
 import type { DesignDocument } from '../state/store';
+import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR } from '../state/store';
 
 export type ExportFlavor = 'clean' | 'blueprint' | 'fabrication';
 
@@ -44,11 +48,14 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     headstockSettings = DEFAULT_HEADSTOCK_SETTINGS,
     pickupSettings = DEFAULT_PICKUP_SETTINGS,
     controlSettings = DEFAULT_CONTROL_SETTINGS,
+    settings,
     layers,
   } = doc;
   const margin = 40;
+  const bodyColor = settings?.bodyColor || DEFAULT_BODY_COLOR;
+  const fretboardColor = settings?.fretboardColor || DEFAULT_FRETBOARD_COLOR;
 
-  const joinPoint = { x: bodyAnchors.find((a) => a.id === 'neckJoint')!.position.x, y: 0 };
+  const joinPoint = neckJoinPoint(bodyAnchors, neckParams);
   const placement = { joinPoint };
   const neckOutlinePts = computeNeckOutlineLocal(neckParams).map((p) => neckToBodySpace(p, neckParams, placement));
 
@@ -69,19 +76,19 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const bodyPathD = anchorsToPathD(bodyAnchors);
 
   const bodyGroup = `<g id="body-outline"><path d="${bodyPathD}" fill="${
-    flavor === 'fabrication' ? 'none' : '#d9c9a8'
+    flavor === 'fabrication' ? 'none' : bodyColor
   }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
 
   const neckPathD = `M ${neckOutlinePts.map((p) => `${pad(p.x)} ${pad(p.y)}`).join(' L ')} Z`;
   const neckGroup = `<g id="neck"><path d="${neckPathD}" fill="${
-    flavor === 'fabrication' ? 'none' : '#caa46a'
+    flavor === 'fabrication' ? 'none' : fretboardColor
   }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
 
   let headstockGroup = '<g id="headstock"></g>';
   if (headstockPts.length >= 3) {
     const hsPath = `M ${headstockPts.map((p) => `${pad(p.x)} ${pad(p.y)}`).join(' L ')} Z`;
     headstockGroup = `<g id="headstock"><path d="${hsPath}" fill="${
-      flavor === 'fabrication' ? 'none' : '#caa46a'
+      flavor === 'fabrication' ? 'none' : fretboardColor
     }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
   }
 
@@ -110,11 +117,10 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     const nutPts = computeNutStringPoints(neckParams, nutSettings, placement);
     const bridgePts = computeBridgeStringPoints(hardware.saddles);
     const segs = computeStringSegments(nutPts, bridgePts);
-    const gauges = [0.9, 0.75, 0.6, 0.5, 0.4, 0.35];
     stringsGroup = `<g id="strings" transform="${transform}">${segs
       .map(
         (s) =>
-          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="#aaa" stroke-width="${gauges[s.index] ?? 0.45}" stroke-linecap="round"/>`,
+          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${STRING_STROKE_MM[s.index] ?? 1}" stroke-linecap="round"/>`,
       )
       .join('')}</g>`;
   }

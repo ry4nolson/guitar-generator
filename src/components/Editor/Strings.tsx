@@ -5,9 +5,9 @@ import {
   computeBridgeStringPoints,
   computeNutStringPoints,
   computeStringSegments,
+  STRING_STROKE_COLOR,
+  STRING_STROKE_MM,
 } from '../../geometry/strings';
-
-const STRING_GAUGE = [0.9, 0.75, 0.6, 0.5, 0.4, 0.35];
 
 /** Six strings from nut slots to bridge saddles. Gated by the "strings" layer. */
 export function Strings() {
@@ -30,10 +30,9 @@ export function Strings() {
           y1={s.nut.y}
           x2={s.bridge.x}
           y2={s.bridge.y}
-          stroke="#c8c8c8"
-          strokeWidth={STRING_GAUGE[s.index] ?? 0.45}
+          stroke={STRING_STROKE_COLOR}
+          strokeWidth={STRING_STROKE_MM[s.index] ?? 1}
           strokeLinecap="round"
-          opacity={0.85}
         />
       ))}
     </g>

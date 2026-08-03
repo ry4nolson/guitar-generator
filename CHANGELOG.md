@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.2 — Strings, switch angle, finish colors
+
+### Fixed
+
+- Strings are darker and thicker, with treble→bass gauges matching a typical
+  .010–.046" set (high E thinnest, low E thickest) so they read on cream bodies.
+- Blade pickup selector default rotation is now along the strings (65°) instead
+  of across the body (−25°). Legacy docs still at −25° are rotated +90° on load.
+
+### Added
+
+- Adjustable blade switch angle (−180°…180°) in the Pickups sidebar.
+- Body and fretboard color pickers under Appearance (saved with the design;
+  SVG export uses the chosen fills).
+
+## 0.5.1 — Neck pocket inset
+
+### Fixed
+
+- The `neckJoint` body anchor no longer sits at the very end of the neck: it
+  now marks the pocket MOUTH on the body outline, and the heel sets a
+  configurable `Neck pocket inset` (default 55 mm, 0–90) deeper into the body —
+  so the fretboard end lands inside the body like a real set/bolt-on neck.
+- Changing the inset slides the whole nut–bridge assembly while the scale
+  lock keeps nut→saddle distances intact; neck bolts ride along with the heel.
+- The neck-pocket route now spans the full pocket depth (mouth → just past the
+  heel) instead of a fixed 36 mm stub.
+- Legacy documents load with inset 0 so their existing layouts don't shift.
+
 ## 0.5.0 — Pickups & controls overhaul
 
 Replaced the fixed "bridge humbucker + volume knob" pair with a configurable

@@ -58,6 +58,6 @@ export function relayoutHardwareToAnchors(
   bridgeSettings: BridgeSettings,
   anchors: BodyAnchor[],
 ): HardwareState {
-  const { joinPoint } = neckPlacementFromAnchors(anchors);
+  const { joinPoint } = neckPlacementFromAnchors(anchors, neckParams);
   return relayoutHardwareToScale(hw, neckParams, bridgeSettings, joinPoint);
 }

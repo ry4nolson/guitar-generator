@@ -19,12 +19,14 @@ export function RoutesOverlay() {
   const { neckParams, joinPoint } = useNeckGeometry();
 
   // Pocket edges follow the fret fan so they stay parallel to the (angled)
-  // heel end of the fretboard on multiscale necks.
+  // heel end of the fretboard on multiscale necks. The pocket runs from the
+  // body's front edge (pocket mouth = heel − neckInset) to just past the heel.
+  const pocketDepth = Math.max(30, neckParams.neckInset ?? 0);
   const pocketPts = [
-    { x: neckParams.neckLength - 30, y: neckParams.heelWidth / 2 + 3 },
+    { x: neckParams.neckLength - pocketDepth, y: neckParams.heelWidth / 2 + 3 },
     { x: neckParams.neckLength + 6, y: neckParams.heelWidth / 2 + 3 },
     { x: fanTrebleX(neckParams, neckParams.neckLength + 6), y: -neckParams.heelWidth / 2 - 3 },
-    { x: fanTrebleX(neckParams, neckParams.neckLength - 30), y: -neckParams.heelWidth / 2 - 3 },
+    { x: fanTrebleX(neckParams, neckParams.neckLength - pocketDepth), y: -neckParams.heelWidth / 2 - 3 },
   ].map((p) => neckToBodySpace(p, neckParams, { joinPoint }));
   const pocketD = `M ${pocketPts.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')} Z`;
 

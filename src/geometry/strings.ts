@@ -16,6 +16,16 @@ export interface StringSegment {
   bridge: Point;
 }
 
+/**
+ * Canvas stroke widths (mm) for a typical .010–.046" electric set, treble→bass.
+ * Real gauges in mm are ~0.25–1.17; we scale ~2.8× so they read on a body fill
+ * without looking cartoonishly thick. Index 0 = high E (treble / −y).
+ */
+export const STRING_STROKE_MM = [0.7, 0.9, 1.15, 1.7, 2.3, 2.9] as const;
+
+/** Dark nickel/steel tone — readable on cream/maple body fills. */
+export const STRING_STROKE_COLOR = '#2c2c2c';
+
 /** Six nut-slot positions in body space, spaced by nutSettings.stringSpacing. */
 export function computeNutStringPoints(
   neckParams: NeckParams,

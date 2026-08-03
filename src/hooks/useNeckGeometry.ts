@@ -15,7 +15,7 @@ export function useNeckGeometry() {
   const headstockSettings = useDesignStore((s) => s.headstockSettings);
   const saddles = useDesignStore((s) => s.hardware.saddles);
 
-  const joinPoint = useMemo<Point>(() => neckJoinPoint(bodyAnchors), [bodyAnchors]);
+  const joinPoint = useMemo<Point>(() => neckJoinPoint(bodyAnchors, neckParams), [bodyAnchors, neckParams]);
   const frets = useMemo(() => computeFanFrets(neckParams), [neckParams]);
   const bridgeX = useMemo(() => computeBridgeX(neckParams), [neckParams]);
 

@@ -12,14 +12,23 @@ import { stringSlotOffsets } from './bridgeTypes';
 import { computeBridgeX } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 
-/** Neck placement join: heel x from the neckJoint anchor, y on the body centerline. */
-export function neckJoinPoint(anchors: BodyAnchor[]): Point {
+/**
+ * Neck placement join: where the HEEL sits in body space. The neckJoint body
+ * anchor marks the pocket MOUTH on the outline; the heel sets `neckInset` mm
+ * deeper into the body along the neck axis (real bolt-on pockets are
+ * ~40–75 mm deep — the heel is never flush with the body's front edge).
+ */
+export function neckJoinPoint(anchors: BodyAnchor[], neckParams: NeckParams): Point {
   const joint = anchors.find((a) => a.id === 'neckJoint');
-  return { x: joint?.position.x ?? 0, y: 0 };
+  const base = { x: joint?.position.x ?? 0, y: 0 };
+  const inset = neckParams.neckInset ?? 0;
+  if (!inset) return base;
+  const rad = ((neckParams.neckAngle ?? 0) * Math.PI) / 180;
+  return { x: base.x + inset * Math.cos(rad), y: base.y + inset * Math.sin(rad) };
 }
 
-export function neckPlacementFromAnchors(anchors: BodyAnchor[]): NeckPlacement {
-  return { joinPoint: neckJoinPoint(anchors) };
+export function neckPlacementFromAnchors(anchors: BodyAnchor[], neckParams: NeckParams): NeckPlacement {
+  return { joinPoint: neckJoinPoint(anchors, neckParams) };
 }
 
 /**
@@ -63,6 +72,7 @@ export const SCALE_LOCK_NECK_KEYS: ReadonlyArray<keyof NeckParams> = [
   'neckLength',
   'neckAngle',
   'neutralFret',
+  'neckInset',
 ];
 
 export function isScaleLockNeckKey(key: keyof NeckParams): boolean {

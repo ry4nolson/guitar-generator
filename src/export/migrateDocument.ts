@@ -27,7 +27,7 @@ import type { NeckParams } from '../geometry/neckParams';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
 
 /** Current design-document schema version. Bump when the shape changes. */
-export const DESIGN_DOCUMENT_VERSION = 6;
+export const DESIGN_DOCUMENT_VERSION = 7;
 
 /** Pre-v6 hardware shape (single fixed pickup + volume knob). */
 interface LegacyHardware {
@@ -51,6 +51,13 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   const anchors = parsed.bodyAnchors as BodyAnchor[] | undefined;
   const neckParams = parsed.neckParams as NeckParams | undefined;
 
+  // Docs saved before the neck-pocket inset existed placed the heel exactly at
+  // the neckJoint anchor. Fill 0 (not the new default) so their layout is
+  // untouched; new designs get the template default inset.
+  if (neckParams && neckParams.neckInset === undefined) {
+    neckParams.neckInset = 0;
+  }
+
   // v2 → v3: add bridge/nut settings + strings layer.
   if (version === 2) {
     parsed.bridgeSettings = { ...DEFAULT_BRIDGE_SETTINGS, ...(parsed.bridgeSettings as BridgeSettings | undefined) };
@@ -72,7 +79,7 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
       hardware.saddles = layoutSaddlesFromScale(
         neckParams,
         bridgeSettings,
-        { joinPoint: neckJoinPoint(anchors) },
+        { joinPoint: neckJoinPoint(anchors, neckParams) },
         hardware.saddles,
       );
     }
@@ -96,7 +103,7 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   if (version === 5) {
     const hardware = parsed.hardware as LegacyHardware | undefined;
     if (hardware && !hardware.pickups && anchors && neckParams) {
-      const placement = { joinPoint: neckJoinPoint(anchors) };
+      const placement = { joinPoint: neckJoinPoint(anchors, neckParams) };
       const defaults = defaultPickupPositions(neckParams, placement);
       const mk = (p: { x: number; y: number }, visible: boolean): HardwarePosition => ({
         x: p.x,
@@ -128,6 +135,22 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     parsed.version = 6;
   }
 
+  // v6 → v7: blade switch default was −25° (across-body); correct default is
+  // 65° (along-strings). Rotate any still-at-legacy-default blade by +90°.
+  // Appearance colors are soft-filled below for older docs.
+  if (version === 6) {
+    const controlSettings = parsed.controlSettings as ControlSettings | undefined;
+    const hardware = parsed.hardware as LegacyHardware | undefined;
+    const sel = hardware?.selector;
+    const blade =
+      controlSettings?.selector === 'blade-3' || controlSettings?.selector === 'blade-5';
+    if (blade && sel && Math.abs(sel.rotation - -25) < 0.01) {
+      sel.rotation = 65;
+    }
+    version = 7;
+    parsed.version = 7;
+  }
+
   if (version !== DESIGN_DOCUMENT_VERSION) {
     throw new Error(
       `This file was saved with design format v${version}, but this build expects v${DESIGN_DOCUMENT_VERSION}.`,
@@ -143,6 +166,10 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   const layers = (parsed.layers as Record<LayerId, LayerState> | undefined) ?? defaultLayers();
   if (!layers.strings) layers.strings = { visible: false, locked: false };
   parsed.layers = layers;
+  const settings = (parsed.settings as Record<string, unknown> | undefined) ?? {};
+  if (typeof settings.bodyColor !== 'string') settings.bodyColor = '#d9c9a8';
+  if (typeof settings.fretboardColor !== 'string') settings.fretboardColor = '#caa46a';
+  parsed.settings = settings;
 
   return parsed;
 }

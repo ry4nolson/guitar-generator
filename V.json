@@ -1,0 +1,347 @@
+{
+  "version": 6,
+  "templateId": "flying-v",
+  "bodyParams": {
+    "bodyLength": 450,
+    "bodyWidth": 338,
+    "anchorCount": 6,
+    "forwardLean": 0,
+    "wingSpread": 0.95,
+    "wingLength": 0.97,
+    "wingRootWidth": 0.2,
+    "notchDepth": 0.7
+  },
+  "bodyAnchors": [
+    {
+      "id": "neckJoint",
+      "featureId": "neckTransition",
+      "continuity": "corner",
+      "position": {
+        "x": 20.25,
+        "y": 0
+      },
+      "handleIn": {
+        "x": 27,
+        "y": -11.26666666666667
+      },
+      "handleOut": {
+        "x": 27,
+        "y": 11.26666666666667
+      },
+      "manuallyEdited": false,
+      "locked": false,
+      "mirrorHandles": false
+    },
+    {
+      "id": "upperWingRoot",
+      "featureId": "upperHorn",
+      "continuity": "corner",
+      "position": {
+        "x": 40.5,
+        "y": 33.800000000000004
+      },
+      "handleIn": {
+        "x": 33.75,
+        "y": 22.53333333333334
+      },
+      "handleOut": {
+        "x": 172.5,
+        "y": 76.04999999999998
+      },
+      "manuallyEdited": false,
+      "locked": false,
+      "mirrorHandles": false
+    },
+    {
+      "id": "upperWingTip",
+      "featureId": "upperHorn",
+      "continuity": "corner",
+      "position": {
+        "x": 436.5,
+        "y": 160.54999999999998
+      },
+      "handleIn": {
+        "x": 304.5,
+        "y": 118.29999999999998
+      },
+      "handleOut": {
+        "x": 396,
+        "y": 107.03333333333332
+      },
+      "manuallyEdited": false,
+      "locked": false,
+      "mirrorHandles": false
+    },
+    {
+      "id": "rearNotch",
+      "featureId": "tail",
+      "continuity": "corner",
+      "position": {
+        "x": 315,
+        "y": 0
+      },
+      "handleIn": {
+        "x": 355.5,
+        "y": 53.51666666666666
+      },
+      "handleOut": {
+        "x": 355.5,
+        "y": -53.51666666666666
+      },
+      "manuallyEdited": false,
+      "locked": false,
+      "mirrorHandles": false
+    },
+    {
+      "id": "lowerWingTip",
+      "featureId": "lowerHornCutaway",
+      "continuity": "corner",
+      "position": {
+        "x": 436.5,
+        "y": -160.54999999999998
+      },
+      "handleIn": {
+        "x": 435.6900329589844,
+        "y": -163.5991668701172
+      },
+      "handleOut": {
+        "x": 434.312255859375,
+        "y": -161.82814025878906
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": false
+    },
+    {
+      "id": "lowerWingRoot",
+      "featureId": "lowerHornCutaway",
+      "continuity": "corner",
+      "position": {
+        "x": 40.5,
+        "y": -33.800000000000004
+      },
+      "handleIn": {
+        "x": 172.5,
+        "y": -76.04999999999998
+      },
+      "handleOut": {
+        "x": 33.75,
+        "y": -22.53333333333334
+      },
+      "manuallyEdited": false,
+      "locked": false,
+      "mirrorHandles": false
+    }
+  ],
+  "neckParams": {
+    "bassScale": 647.7,
+    "trebleScale": 628.65,
+    "neutralFret": 8,
+    "fretCount": 24,
+    "nutWidth": 43,
+    "heelWidth": 56,
+    "neckLength": 480,
+    "neckAngle": 0,
+    "neckInset": 55
+  },
+  "hardware": {
+    "pickups": [
+      {
+        "x": 105.25,
+        "y": 0,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 151.60000000000002,
+        "y": 0,
+        "rotation": 0,
+        "visible": false,
+        "locked": false
+      },
+      {
+        "x": 197.95000000000005,
+        "y": 0,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "controls": [
+      {
+        "x": 207.49173736572266,
+        "y": -74.479248046875,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 251.58020782470703,
+        "y": -77.68355560302734,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "selector": {
+      "x": 130.59281158447266,
+      "y": -57.18624496459961,
+      "rotation": -25,
+      "visible": true,
+      "locked": false
+    },
+    "saddles": [
+      {
+        "x": 232.1492519997514,
+        "y": -26.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 233.94940159980115,
+        "y": -15.75,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 235.74955119985088,
+        "y": -5.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 238.5497007999005,
+        "y": 5.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 241.44985039995026,
+        "y": 15.75,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 244.45000000000005,
+        "y": 26.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "neckBolts": [
+      {
+        "x": 70.25,
+        "y": 16,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 70.25,
+        "y": -16,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 112.25,
+        "y": 16,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 112.25,
+        "y": -16,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ]
+  },
+  "bridgeSettings": {
+    "type": "hardtail",
+    "stringSpacing": 52.5,
+    "saddleTravel": 18,
+    "stopbarOffset": 28,
+    "postSpacing": 74
+  },
+  "nutSettings": {
+    "type": "locking",
+    "stringSpacing": 35,
+    "thickness": 5
+  },
+  "headstockSettings": {
+    "type": "headless",
+    "length": 175,
+    "tipWidth": 68,
+    "earWidth": 30,
+    "showTuners": false,
+    "tunerLayout": "headless"
+  },
+  "pickupSettings": {
+    "neck": "single-coil",
+    "middle": "none",
+    "bridge": "humbucker"
+  },
+  "controlSettings": {
+    "volumes": 1,
+    "tones": 1,
+    "selector": "blade-3"
+  },
+  "settings": {
+    "unit": "mm",
+    "theme": "dark",
+    "view": "top",
+    "gridSize": 5,
+    "gridSnapEnabled": false,
+    "showPointsAndHandles": true,
+    "showDebugOverlay": false,
+    "canvasPadding": 40
+  },
+  "layers": {
+    "body": {
+      "visible": true,
+      "locked": false
+    },
+    "neck": {
+      "visible": true,
+      "locked": false
+    },
+    "frets": {
+      "visible": true,
+      "locked": false
+    },
+    "strings": {
+      "visible": true,
+      "locked": false
+    },
+    "hardware": {
+      "visible": true,
+      "locked": false
+    },
+    "construction": {
+      "visible": true,
+      "locked": false
+    },
+    "dimensions": {
+      "visible": true,
+      "locked": false
+    },
+    "routes": {
+      "visible": true,
+      "locked": false
+    },
+    "centerlines": {
+      "visible": true,
+      "locked": false
+    }
+  }
+}

@@ -1,17 +1,48 @@
-import { useDesignStore } from '../../state/store';
+import { useDesignStore, DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR } from '../../state/store';
 
 export function ViewSettings() {
   const settings = useDesignStore((s) => s.settings);
   const setUnit = useDesignStore((s) => s.setUnit);
   const setGridSize = useDesignStore((s) => s.setGridSize);
+  const setBodyColor = useDesignStore((s) => s.setBodyColor);
+  const setFretboardColor = useDesignStore((s) => s.setFretboardColor);
   const toggleGridSnap = useDesignStore((s) => s.toggleGridSnap);
   const toggleShowPoints = useDesignStore((s) => s.toggleShowPoints);
   const toggleDebugOverlay = useDesignStore((s) => s.toggleDebugOverlay);
   const setCanvasPadding = useDesignStore((s) => s.setCanvasPadding);
 
+  const bodyColor = settings.bodyColor || DEFAULT_BODY_COLOR;
+  const fretboardColor = settings.fretboardColor || DEFAULT_FRETBOARD_COLOR;
+
   return (
     <section className="sidebar-section">
-      <h3>Editor settings</h3>
+      <h3>Appearance</h3>
+      <label className="row-inline color-row">
+        <span>Body</span>
+        <input
+          type="color"
+          value={bodyColor}
+          onChange={(e) => setBodyColor(e.target.value)}
+          title="Body color"
+        />
+        <button type="button" className="text-btn" onClick={() => setBodyColor(DEFAULT_BODY_COLOR)}>
+          Reset
+        </button>
+      </label>
+      <label className="row-inline color-row">
+        <span>Fretboard</span>
+        <input
+          type="color"
+          value={fretboardColor}
+          onChange={(e) => setFretboardColor(e.target.value)}
+          title="Fretboard color"
+        />
+        <button type="button" className="text-btn" onClick={() => setFretboardColor(DEFAULT_FRETBOARD_COLOR)}>
+          Reset
+        </button>
+      </label>
+
+      <h3 style={{ marginTop: 14 }}>Editor settings</h3>
       <div className="row-inline">
         <span>Units</span>
         <div className="segmented">

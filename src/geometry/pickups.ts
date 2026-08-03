@@ -130,8 +130,9 @@ export function defaultSelectorPosition(
     };
   }
   // Blade: treble side between the middle/bridge pickups and the knobs.
+  // Long axis roughly parallel to the strings (Strat-style), slight rake.
   return {
     position: neckToBodySpace({ x: neckParams.bassScale - 70, y: -78 }, neckParams, placement),
-    rotation: -25,
+    rotation: 65,
   };
 }

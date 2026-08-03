@@ -11,6 +11,7 @@ import {
   computeStringSegments,
   layoutSaddles,
   saddleClusterCenter,
+  STRING_STROKE_MM,
 } from '../src/geometry/strings';
 import { DEFAULT_NECK_PARAMS } from '../src/geometry/neckParams';
 import { useDesignStore } from '../src/state/store';
@@ -26,6 +27,15 @@ describe('stringSlotOffsets', () => {
     expect(ys).toHaveLength(6);
     expect(ys[5] - ys[0]).toBeCloseTo(52.5, 6);
     expect(ys[0]).toBeCloseTo(-ys[5], 6);
+  });
+});
+
+describe('string gauges', () => {
+  it('thickens from treble (high E) to bass (low E)', () => {
+    expect(STRING_STROKE_MM).toHaveLength(6);
+    for (let i = 1; i < STRING_STROKE_MM.length; i++) {
+      expect(STRING_STROKE_MM[i]).toBeGreaterThan(STRING_STROKE_MM[i - 1]);
+    }
   });
 });
 

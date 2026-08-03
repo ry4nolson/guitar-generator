@@ -87,6 +87,8 @@ describe('control knob layout', () => {
     const blade = defaultSelectorPosition('blade-5', neck, { joinPoint: join });
     expect(toggle.position.y).toBeGreaterThan(0);
     expect(blade.position.y).toBeLessThan(0);
+    // Blade long axis roughly parallel to the strings (not across-body).
+    expect(blade.rotation).toBe(65);
   });
 });
 
@@ -104,6 +106,14 @@ describe('pickup/control store actions', () => {
     expect(s.hardware.controls).toHaveLength(2);
     expect(s.controlSettings.selector).toBe('blade-3');
     expect(s.hardware.selector.visible).toBe(true);
+    expect(s.hardware.selector.rotation).toBe(65);
+  });
+
+  it('rotateHardware adjusts the selector angle', () => {
+    useDesignStore.getState().rotateHardware('selector', 90);
+    expect(useDesignStore.getState().hardware.selector.rotation).toBe(90);
+    useDesignStore.getState().rotateHardware('selector', -200);
+    expect(useDesignStore.getState().hardware.selector.rotation).toBe(160);
   });
 
   it('setPickupType toggles slot visibility and seats new pickups at slot defaults', () => {
@@ -111,7 +121,7 @@ describe('pickup/control store actions', () => {
     let s = useDesignStore.getState();
     expect(s.hardware.pickups[1].visible).toBe(true);
     const [, expectedMiddle] = defaultPickupPositions(s.neckParams, {
-      joinPoint: neckJoinPoint(s.bodyAnchors),
+      joinPoint: neckJoinPoint(s.bodyAnchors, s.neckParams),
     });
     expect(s.hardware.pickups[1].x).toBeCloseTo(expectedMiddle.x, 5);
 

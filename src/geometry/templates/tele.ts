@@ -132,7 +132,8 @@ export const TELE_TEMPLATE: BodyTemplate = {
   buildAnchorSpecs,
   defaultNeckParams: { ...DEFAULT_NECK_PARAMS },
   defaultHardware: buildHardwareDefaults({
-    joinX: DEFAULT_PARAMS.bodyLength * 0.06,
+    // Heel position: pocket-mouth anchor + how deep the neck sets into the body.
+    joinX: DEFAULT_PARAMS.bodyLength * 0.06 + DEFAULT_NECK_PARAMS.neckInset,
     neckParams: { ...DEFAULT_NECK_PARAMS },
   }),
 };

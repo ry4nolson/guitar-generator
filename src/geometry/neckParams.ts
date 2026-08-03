@@ -15,6 +15,8 @@ export interface NeckParams {
   neckLength: number;
   /** Angle of the neck centerline relative to the body centerline, degrees. */
   neckAngle: number;
+  /** How far the heel sets into the body past the neckJoint (pocket mouth) anchor, mm. */
+  neckInset: number;
 }
 
 export const DEFAULT_NECK_PARAMS: NeckParams = {
@@ -26,6 +28,7 @@ export const DEFAULT_NECK_PARAMS: NeckParams = {
   heelWidth: 56,
   neckLength: 460,
   neckAngle: 0,
+  neckInset: 55,
 };
 
 export interface NeckParamMeta {
@@ -46,4 +49,5 @@ export const NECK_PARAM_META: NeckParamMeta[] = [
   { key: 'heelWidth', label: 'Heel width', min: 50, max: 64, step: 0.5, unit: 'mm' },
   { key: 'neckLength', label: 'Neck length', min: 400, max: 500, step: 1, unit: 'mm' },
   { key: 'neckAngle', label: 'Neck angle', min: -5, max: 5, step: 0.1, unit: 'deg' },
+  { key: 'neckInset', label: 'Neck pocket inset', min: 0, max: 90, step: 1, unit: 'mm' },
 ];

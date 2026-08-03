@@ -74,7 +74,7 @@ describe('scale lock in the store', () => {
 
   it('changing bass scale relocates saddles to the new scale length', () => {
     const before = useDesignStore.getState();
-    const joinX = neckJoinPoint(before.bodyAnchors).x;
+    const joinX = neckJoinPoint(before.bodyAnchors, before.neckParams).x;
     const nutX = joinX - before.neckParams.neckLength;
     const newScale = before.neckParams.bassScale + 20;
     useDesignStore.getState().setNeckParam('bassScale', newScale);
@@ -89,12 +89,57 @@ describe('scale lock in the store', () => {
   });
 });
 
+describe('neck pocket inset', () => {
+  it('offsets the heel into the body past the neckJoint (pocket mouth) anchor', () => {
+    const tele = getBodyTemplate('tele');
+    const anchors = computeParametricAnchors(tele, tele.defaultParams);
+    const anchorX = anchors.find((a) => a.id === 'neckJoint')!.position.x;
+    const neck = { ...tele.defaultNeckParams };
+    expect(neck.neckInset).toBeGreaterThan(0);
+    expect(neckJoinPoint(anchors, neck).x).toBeCloseTo(anchorX + neck.neckInset, 5);
+    expect(neckJoinPoint(anchors, { ...neck, neckInset: 0 }).x).toBeCloseTo(anchorX, 5);
+  });
+
+  it('template default hardware places the bridge at nut + scale from the inset heel', () => {
+    const tele = getBodyTemplate('tele');
+    const anchors = computeParametricAnchors(tele, tele.defaultParams);
+    const neck = tele.defaultNeckParams;
+    const heelX = neckJoinPoint(anchors, neck).x;
+    const nutX = heelX - neck.neckLength;
+    const bass = tele.defaultHardware.saddles.reduce((a, b) => (a.y > b.y ? a : b));
+    expect(bass.x - nutX).toBeCloseTo(neck.bassScale + 1.5, 4);
+  });
+
+  it('changing neckInset shifts the neck assembly while keeping nut→bridge locked', () => {
+    useDesignStore.getState().resetToDefaults();
+    const before = useDesignStore.getState();
+    const heelBefore = neckJoinPoint(before.bodyAnchors, before.neckParams).x;
+    const centerBefore = saddleClusterCenter(before.hardware.saddles);
+    const boltBefore = before.hardware.neckBolts[0];
+    const scaleBefore = centerBefore.x - (heelBefore - before.neckParams.neckLength);
+
+    useDesignStore.getState().setNeckParam('neckInset', before.neckParams.neckInset + 20);
+
+    const after = useDesignStore.getState();
+    const heelAfter = neckJoinPoint(after.bodyAnchors, after.neckParams).x;
+    const centerAfter = saddleClusterCenter(after.hardware.saddles);
+    expect(heelAfter - heelBefore).toBeCloseTo(20, 5);
+    expect(centerAfter.x - (heelAfter - after.neckParams.neckLength)).toBeCloseTo(scaleBefore, 5);
+    // Bolts are heel-relative: they ride along with the deeper-set heel.
+    expect(after.hardware.neckBolts[0].x - boltBefore.x).toBeCloseTo(20, 5);
+  });
+
+  it('marks neckInset as a scale-lock key', () => {
+    expect(isScaleLockNeckKey('neckInset')).toBe(true);
+  });
+});
+
 describe('v3 → v4 migration snaps bridge to scale', () => {
   it('relayouts saddles onto the scale length at the neck joint', () => {
     const tele = getBodyTemplate('tele');
     const anchors = computeParametricAnchors(tele, tele.defaultParams);
-    const joinX = neckJoinPoint(anchors).x;
     const neck = { ...tele.defaultNeckParams };
+    const joinX = neckJoinPoint(anchors, neck).x;
     const hardware = structuredClone(tele.defaultHardware);
     hardware.saddles = hardware.saddles.map((s) => ({ ...s, x: joinX + 500 }));
 
@@ -126,5 +171,35 @@ describe('v3 → v4 migration snaps bridge to scale', () => {
     const nutX = joinX - neck.neckLength;
     const bass = hw.saddles.reduce((a, b) => (a.y > b.y ? a : b));
     expect(bass.x - nutX).toBeCloseTo(neck.bassScale + 1.5, 4);
+  });
+
+  it('fills neckInset = 0 for docs saved before the pocket inset existed', () => {
+    const tele = getBodyTemplate('tele');
+    const anchors = computeParametricAnchors(tele, tele.defaultParams);
+    const anchorX = anchors.find((a) => a.id === 'neckJoint')!.position.x;
+    // Legacy neck params: no neckInset — the heel used to sit AT the anchor.
+    const neck = { ...tele.defaultNeckParams } as Record<string, unknown>;
+    delete neck.neckInset;
+    const hardware = structuredClone(tele.defaultHardware);
+
+    const v3 = {
+      version: 3,
+      templateId: tele.id,
+      bodyParams: { ...tele.defaultParams },
+      bodyAnchors: anchors,
+      neckParams: neck,
+      hardware,
+      bridgeSettings: { ...DEFAULT_BRIDGE_SETTINGS },
+      nutSettings: { type: 'standard', stringSpacing: 35, thickness: 5 },
+      layers: defaultLayers(),
+    };
+
+    const migrated = migrateDesignDocument(v3 as unknown as Record<string, unknown>);
+    const migratedNeck = migrated.neckParams as { neckInset: number; neckLength: number; bassScale: number };
+    expect(migratedNeck.neckInset).toBe(0);
+    // Saddles snap to scale from the anchor itself (heel-at-anchor, inset 0).
+    const hw = migrated.hardware as typeof hardware;
+    const bass = hw.saddles.reduce((a, b) => (a.y > b.y ? a : b));
+    expect(bass.x - (anchorX - migratedNeck.neckLength)).toBeCloseTo(migratedNeck.bassScale + 1.5, 4);
   });
 });

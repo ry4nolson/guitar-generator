@@ -9,6 +9,7 @@
 
 import type { DesignDocument } from '../state/store';
 import { saddleClusterCenter } from './strings';
+import { neckJoinPoint } from './scaleLock';
 import { PICKUP_DIMENSIONS, PICKUP_SLOTS, PICKUP_SLOT_LABELS, controlKnobLabel } from './pickups';
 import type { PickupType } from './pickups';
 
@@ -54,16 +55,14 @@ function bridgeOnCenterline(doc: DesignDocument): ConstraintViolation[] {
   return [];
 }
 
-// Must match RoutesOverlay's pocket rectangle: the neck heel sits at the
-// body's neckJoint anchor (see geometry/neckPlacement.ts — the neck extends
-// in -x, AWAY from the body, from that point), and the pocket route is drawn
-// a small overhang beyond it, not a full neckLength beyond it.
+// Must match RoutesOverlay's pocket rectangle: the neck heel sits neckInset mm
+// past the body's neckJoint (pocket mouth) anchor (see geometry/scaleLock.ts),
+// and the pocket route is drawn a small overhang beyond the heel.
 const NECK_POCKET_OVERHANG_MM = 6;
 
 /** Approximates the neck pocket's edge nearest the pickups, in body-local x. */
 function neckPocketRightEdge(doc: DesignDocument): number {
-  const joinX = doc.bodyAnchors.find((a) => a.id === 'neckJoint')?.position.x ?? 0;
-  return joinX + NECK_POCKET_OVERHANG_MM;
+  return neckJoinPoint(doc.bodyAnchors, doc.neckParams).x + NECK_POCKET_OVERHANG_MM;
 }
 
 function minimumWoodAroundNeckPocket(doc: DesignDocument): ConstraintViolation[] {

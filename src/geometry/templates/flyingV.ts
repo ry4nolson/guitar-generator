@@ -130,7 +130,8 @@ export const FLYING_V_TEMPLATE: BodyTemplate = {
   buildAnchorSpecs,
   defaultNeckParams: { ...DEFAULT_NECK_PARAMS, neckLength: 480 },
   defaultHardware: buildHardwareDefaults({
-    joinX: DEFAULT_PARAMS.bodyLength * 0.045,
+    // Heel position: pocket-mouth anchor + how deep the neck sets into the body.
+    joinX: DEFAULT_PARAMS.bodyLength * 0.045 + DEFAULT_NECK_PARAMS.neckInset,
     neckParams: { ...DEFAULT_NECK_PARAMS, neckLength: 480 },
     neckBoltSpanX: 42,
     neckBoltSpanY: 16,

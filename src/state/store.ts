@@ -75,7 +75,14 @@ export interface EditorSettings {
   showDebugOverlay: boolean;
   /** Padding (mm) kept around the design's bounding box when fitting the canvas to the viewport. */
   canvasPadding: number;
+  /** Top-view body fill (CSS hex). */
+  bodyColor: string;
+  /** Fretboard / headstock fill (CSS hex). */
+  fretboardColor: string;
 }
+
+export const DEFAULT_BODY_COLOR = '#d9c9a8';
+export const DEFAULT_FRETBOARD_COLOR = '#caa46a';
 
 const DEFAULT_SETTINGS: EditorSettings = {
   unit: 'mm',
@@ -86,6 +93,8 @@ const DEFAULT_SETTINGS: EditorSettings = {
   showPointsAndHandles: true,
   showDebugOverlay: false,
   canvasPadding: 40,
+  bodyColor: DEFAULT_BODY_COLOR,
+  fretboardColor: DEFAULT_FRETBOARD_COLOR,
 };
 
 /** Bump this whenever DesignDocument's shape changes in a way old files can't be read as-is. */
@@ -128,7 +137,7 @@ function defaultDocument(): DesignDocument {
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v7';
+const AUTOSAVE_KEY = 'fretforge-autosave-v9';
 
 interface HistoryEntry {
   templateId: string;
@@ -210,6 +219,7 @@ interface StoreState extends DesignDocument {
 
   // --- hardware ---
   moveHardware: (name: keyof HardwareState, point: Point, index?: number) => void;
+  rotateHardware: (name: keyof HardwareState, rotation: number, index?: number) => void;
   toggleHardwareLock: (name: keyof HardwareState, index?: number) => void;
   toggleHardwareVisibility: (name: keyof HardwareState, index?: number) => void;
 
@@ -222,6 +232,8 @@ interface StoreState extends DesignDocument {
   setTheme: (theme: Theme) => void;
   setView: (view: ViewMode) => void;
   setGridSize: (size: number) => void;
+  setBodyColor: (color: string) => void;
+  setFretboardColor: (color: string) => void;
   toggleGridSnap: () => void;
   toggleShowPoints: () => void;
   toggleDebugOverlay: () => void;
@@ -276,7 +288,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       structuredClone(template.defaultHardware),
       neckParams,
       get().bridgeSettings,
-      neckJoinPoint(bodyAnchors),
+      neckJoinPoint(bodyAnchors, neckParams),
     );
     set({
       templateId: template.id,
@@ -294,9 +306,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   resetBodyToTemplate: () => {
     const before = snapshotOf(get());
     const template = getBodyTemplate(get().templateId);
-    const oldJoinX = neckJoinPoint(get().bodyAnchors).x;
+    const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = computeParametricAnchors(template, template.defaultParams);
-    const dx = neckJoinPoint(bodyAnchors).x - oldJoinX;
+    const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX;
     const hardware = translateHardware(get().hardware, dx, 0);
     set({
       bodyParams: { ...template.defaultParams },
@@ -311,9 +323,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   resetFeature: (featureId) => {
     const before = snapshotOf(get());
     const template = getBodyTemplate(get().templateId);
-    const oldJoinX = neckJoinPoint(get().bodyAnchors).x;
+    const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = resetFeature(featureId, template, get().bodyParams, get().bodyAnchors);
-    const dx = neckJoinPoint(bodyAnchors).x - oldJoinX;
+    const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX;
     const hardware = dx !== 0 ? translateHardware(get().hardware, dx, 0) : get().hardware;
     set({ bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
@@ -323,9 +335,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const before = snapshotOf(get());
     const template = getBodyTemplate(get().templateId);
     const bodyParams = { ...get().bodyParams, [key]: value };
-    const oldJoinX = neckJoinPoint(get().bodyAnchors).x;
+    const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = recomputeAnchorsPreservingEdits(template, bodyParams, get().bodyAnchors);
-    const dx = neckJoinPoint(bodyAnchors).x - oldJoinX;
+    const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX;
     const hardware = dx !== 0 ? translateHardware(get().hardware, dx, 0) : get().hardware;
     // Lowering anchorCount can remove the currently selected anchor.
     const sel = get().selected;
@@ -336,7 +348,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   moveAnchorPoint: (id, part, point) => {
     const before = snapshotOf(get());
-    const prevJointX = neckJoinPoint(get().bodyAnchors).x;
+    const prevJointX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = get().bodyAnchors.map((a) => {
       if (a.id !== id || a.locked) return a;
       if (part === 'position') {
@@ -364,7 +376,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     // by translating hardware with the joint (y only reshapes the body pocket).
     let hardware = get().hardware;
     if (id === 'neckJoint' && part === 'position') {
-      const dx = neckJoinPoint(bodyAnchors).x - prevJointX;
+      const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - prevJointX;
       if (dx !== 0) hardware = translateHardware(hardware, dx, 0);
     }
     set({ bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
@@ -411,9 +423,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   resetAnchorPoint: (id) => {
     const before = snapshotOf(get());
     const template = getBodyTemplate(get().templateId);
-    const oldJoinX = neckJoinPoint(get().bodyAnchors).x;
+    const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = resetAnchor(id, template, get().bodyParams, get().bodyAnchors);
-    const dx = id === 'neckJoint' ? neckJoinPoint(bodyAnchors).x - oldJoinX : 0;
+    const dx = id === 'neckJoint' ? neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX : 0;
     const hardware = dx !== 0 ? translateHardware(get().hardware, dx, 0) : get().hardware;
     set({ bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
@@ -426,12 +438,20 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const neckParams = { ...get().neckParams, [key]: value };
     let hardware = get().hardware;
     if (isScaleLockNeckKey(key)) {
-      hardware = relayoutHardwareToScale(
-        hardware,
-        neckParams,
-        get().bridgeSettings,
-        neckJoinPoint(get().bodyAnchors),
-      );
+      const oldJoin = neckJoinPoint(get().bodyAnchors, get().neckParams);
+      // Note: the NEW neck params — neckInset/neckAngle move the heel itself.
+      const newJoin = neckJoinPoint(get().bodyAnchors, neckParams);
+      hardware = relayoutHardwareToScale(hardware, neckParams, get().bridgeSettings, newJoin);
+      // Neck bolts are heel-relative: when the heel itself moved (pocket inset
+      // or neck angle), carry them along; scale-only changes leave them put.
+      const dx = newJoin.x - oldJoin.x;
+      const dy = newJoin.y - oldJoin.y;
+      if (dx !== 0 || dy !== 0) {
+        hardware = {
+          ...hardware,
+          neckBolts: hardware.neckBolts.map((b) => (b.locked ? b : { ...b, x: b.x + dx, y: b.y + dy })),
+        };
+      }
     }
     set({ neckParams, hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
@@ -448,7 +468,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const saddles = layoutSaddlesFromScale(
       get().neckParams,
       bridgeSettings,
-      { joinPoint: neckJoinPoint(get().bodyAnchors) },
+      { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) },
       get().hardware.saddles,
     );
     // Floyd locking nut pairs naturally with a locking nut type.
@@ -476,7 +496,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         saddles: layoutSaddlesFromScale(
           get().neckParams,
           bridgeSettings,
-          { joinPoint: neckJoinPoint(get().bodyAnchors) },
+          { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) },
           hardware.saddles,
         ),
       };
@@ -554,7 +574,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     } else {
       // Re-seat the pickup at its slot default when it was previously empty,
       // so it doesn't reappear wherever it was last dragged for another config.
-      const placement = { joinPoint: neckJoinPoint(get().bodyAnchors) };
+      const placement = { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) };
       const pos = wasNone ? defaultPickupPositions(get().neckParams, placement)[idx] : prev;
       pickups[idx] = { ...prev, x: pos.x, y: pos.y, visible: true };
     }
@@ -570,7 +590,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setControlSetting: (key, value) => {
     const before = snapshotOf(get());
     const controlSettings: ControlSettings = { ...get().controlSettings, [key]: value };
-    const placement = { joinPoint: neckJoinPoint(get().bodyAnchors) };
+    const placement = { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) };
     let hardware = get().hardware;
     if (key === 'volumes' || key === 'tones') {
       const controls = layoutControlKnobs(get().neckParams, placement, controlSettings, hardware.controls);
@@ -610,6 +630,27 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     } else {
       const item = field as HardwarePosition;
       if (!item.locked) hardware[name] = { ...item, x: point.x, y: point.y } as never;
+    }
+    set({ hardware, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
+  rotateHardware: (name, rotation, index) => {
+    const before = snapshotOf(get());
+    const hardware = { ...get().hardware };
+    const field = hardware[name];
+    // Normalize to (−180, 180] for tidy sidebar display.
+    let deg = ((rotation % 360) + 360) % 360;
+    if (deg > 180) deg -= 360;
+    if (Array.isArray(field)) {
+      const arr = [...field];
+      if (index !== undefined && arr[index] && !arr[index].locked) {
+        arr[index] = { ...arr[index], rotation: deg };
+      }
+      hardware[name] = arr as never;
+    } else {
+      const item = field as HardwarePosition;
+      if (!item.locked) hardware[name] = { ...item, rotation: deg } as never;
     }
     set({ hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
@@ -658,6 +699,14 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setTheme: (theme) => set((s) => ({ settings: { ...s.settings, theme } })),
   setView: (view) => set((s) => ({ settings: { ...s.settings, view } })),
   setGridSize: (gridSize) => set((s) => ({ settings: { ...s.settings, gridSize } })),
+  setBodyColor: (bodyColor) => {
+    set((s) => ({ settings: { ...s.settings, bodyColor } }));
+    get().autosave();
+  },
+  setFretboardColor: (fretboardColor) => {
+    set((s) => ({ settings: { ...s.settings, fretboardColor } }));
+    get().autosave();
+  },
   toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),
   toggleShowPoints: () =>
     set((s) => ({ settings: { ...s.settings, showPointsAndHandles: !s.settings.showPointsAndHandles } })),
