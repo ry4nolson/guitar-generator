@@ -11,7 +11,7 @@ export function PointInspector() {
 
   if (!selected) {
     return (
-      <section className="sidebar-section">
+      <section className="sidebar-section" id="sidebar-inspector">
         <h3>Selected point</h3>
         <p className="muted">Click an anchor, handle, or body region to inspect it.</p>
       </section>
@@ -22,7 +22,7 @@ export function PointInspector() {
     const anchor = anchors.find((a) => a.id === selected.id)!;
     const point = anchor[selected.part];
     return (
-      <section className="sidebar-section">
+      <section className="sidebar-section" id="sidebar-inspector">
         <h3>Selected point</h3>
         <p>
           <strong>{anchor.id}</strong> · {selected.part}
@@ -64,7 +64,7 @@ export function PointInspector() {
 
   if (selected.kind === 'feature') {
     return (
-      <section className="sidebar-section">
+      <section className="sidebar-section" id="sidebar-inspector">
         <h3>Selected point</h3>
         <p>
           <strong>Feature:</strong> {selected.id}
@@ -75,7 +75,7 @@ export function PointInspector() {
   }
 
   return (
-    <section className="sidebar-section">
+    <section className="sidebar-section" id="sidebar-inspector">
       <h3>Selected point</h3>
       <p>
         <strong>{String(selected.name)}</strong>

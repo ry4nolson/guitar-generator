@@ -40,10 +40,10 @@ export function PickupControls() {
   const rotateHardware = useDesignStore((s) => s.rotateHardware);
 
   return (
-    <section className="sidebar-section">
+    <section className="sidebar-section" id="sidebar-pickups">
       <h3>Pickups</h3>
       {PICKUP_SLOTS.map((slot) => (
-        <div key={slot} className="pickup-slot-row">
+        <div key={slot} className="pickup-slot-row" id={`sidebar-pickup-${slot}`}>
           <span className="hardware-label">{PICKUP_SLOT_LABELS[slot]}</span>
           <div className="pickup-slot-buttons">
             {PICKUP_TYPE_META.map((t) => (
@@ -61,7 +61,9 @@ export function PickupControls() {
         </div>
       ))}
 
-      <h3 style={{ marginTop: 14 }}>Controls</h3>
+      <h3 id="sidebar-controls" style={{ marginTop: 14 }}>
+        Controls
+      </h3>
       <CountStepper
         label="Volume knobs"
         value={controlSettings.volumes}

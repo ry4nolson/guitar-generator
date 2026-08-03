@@ -334,6 +334,34 @@
   align-items: center;
   gap: 4px;
   margin-bottom: 6px;
+  border-radius: 4px;
+  padding: 2px 0;
+}
+
+.hardware-row-selected {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  padding: 2px 4px;
+  margin-left: -4px;
+  margin-right: -4px;
+}
+
+.sidebar-scroll-flash {
+  animation: sidebar-flash 0.9s ease-out;
+}
+
+.pickup-slot-row.sidebar-scroll-flash,
+.hardware-row.sidebar-scroll-flash {
+  border-radius: 4px;
+}
+
+@keyframes sidebar-flash {
+  0% {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 .hardware-label {
