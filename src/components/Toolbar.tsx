@@ -40,6 +40,7 @@ export function Toolbar() {
       bridgeSettings: s.bridgeSettings,
       nutSettings: s.nutSettings,
       headstockSettings: s.headstockSettings,
+      headstockAnchors: s.headstockAnchors,
       pickupSettings: s.pickupSettings,
       controlSettings: s.controlSettings,
       settings: s.settings,

@@ -4,6 +4,7 @@ import { useDesignStore } from '../../state/store';
 export function PointInspector() {
   const selected = useDesignStore((s) => s.selected);
   const anchors = useDesignStore((s) => s.bodyAnchors);
+  const headstockAnchors = useDesignStore((s) => s.headstockAnchors);
   const toggleLock = useDesignStore((s) => s.toggleAnchorLock);
   const toggleMirror = useDesignStore((s) => s.toggleMirrorHandles);
   const reset = useDesignStore((s) => s.resetAnchorPoint);
@@ -58,6 +59,25 @@ export function PointInspector() {
           <input type="checkbox" checked={anchor.mirrorHandles} onChange={() => toggleMirror(anchor.id)} />
         </label>
         <p className="muted">Arrow keys nudge the anchor position (Shift = 10x step).</p>
+      </section>
+    );
+  }
+
+  if (selected.kind === 'headstock') {
+    const anchor = headstockAnchors.find((a) => a.id === selected.id);
+    if (!anchor) return null;
+    return (
+      <section className="sidebar-section" id="sidebar-inspector">
+        <h3>Headstock point</h3>
+        <p>
+          <strong>{anchor.id}</strong>
+          {anchor.locked ? ' · locked to nut' : ` · ${selected.part}`}
+        </p>
+        <p className="muted">
+          {anchor.locked
+            ? 'Nut corners stay fixed to the nut face.'
+            : 'Drag on the canvas, or use arrow keys (Shift = 10×).'}
+        </p>
       </section>
     );
   }

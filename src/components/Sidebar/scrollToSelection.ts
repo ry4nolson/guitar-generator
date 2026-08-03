@@ -7,6 +7,7 @@ import type { SelectedPoint } from '../../state/store';
 /** DOM id of the sidebar target for a selection, or null if none. */
 export function sidebarTargetId(selected: SelectedPoint): string | null {
   if (!selected) return null;
+  if (selected.kind === 'headstock') return 'sidebar-headstock';
   if (selected.kind === 'anchor' || selected.kind === 'feature') return 'sidebar-inspector';
   if (selected.kind !== 'hardware') return null;
 

@@ -11,7 +11,9 @@ import {
 import {
   DEFAULT_HEADSTOCK_SETTINGS,
   LEGACY_HEADLESS_SETTINGS,
+  seedHeadstockAnchors,
   type HeadstockSettings,
+  type HeadstockAnchor,
 } from '../geometry/headstock';
 import {
   DEFAULT_CONTROL_SETTINGS,
@@ -27,7 +29,7 @@ import type { NeckParams } from '../geometry/neckParams';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
 
 /** Current design-document schema version. Bump when the shape changes. */
-export const DESIGN_DOCUMENT_VERSION = 8;
+export const DESIGN_DOCUMENT_VERSION = 9;
 
 /** Pre-v6 hardware shape (single fixed pickup + volume knob). */
 interface LegacyHardware {
@@ -169,6 +171,20 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     parsed.version = 8;
   }
 
+  // v8 → v9: editable headstock outline anchors (seeded from the current preset).
+  if (version === 8) {
+    if (!Array.isArray(parsed.headstockAnchors)) {
+      const hs = (parsed.headstockSettings as HeadstockSettings | undefined) ?? DEFAULT_HEADSTOCK_SETTINGS;
+      const neck = (parsed.neckParams as NeckParams | undefined) ?? undefined;
+      const count = (parsed.bridgeSettings as BridgeSettings | undefined)?.stringCount ?? 6;
+      parsed.headstockAnchors = neck
+        ? (seedHeadstockAnchors(neck, hs, count) as HeadstockAnchor[])
+        : [];
+    }
+    version = 9;
+    parsed.version = 9;
+  }
+
   if (version !== DESIGN_DOCUMENT_VERSION) {
     throw new Error(
       `This file was saved with design format v${version}, but this build expects v${DESIGN_DOCUMENT_VERSION}.`,
@@ -183,6 +199,12 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   }
   if (!parsed.nutSettings) parsed.nutSettings = { ...DEFAULT_NUT_SETTINGS };
   if (!parsed.headstockSettings) parsed.headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
+  if (!Array.isArray(parsed.headstockAnchors)) {
+    const hs = parsed.headstockSettings as HeadstockSettings;
+    const neck = parsed.neckParams as NeckParams | undefined;
+    const count = (parsed.bridgeSettings as BridgeSettings | undefined)?.stringCount ?? 6;
+    parsed.headstockAnchors = neck ? seedHeadstockAnchors(neck, hs, count) : [];
+  }
   if (!parsed.pickupSettings) parsed.pickupSettings = { ...DEFAULT_PICKUP_SETTINGS };
   if (!parsed.controlSettings) {
     parsed.controlSettings = { ...DEFAULT_CONTROL_SETTINGS };

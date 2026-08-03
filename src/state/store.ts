@@ -46,10 +46,15 @@ import {
 import {
   DEFAULT_HEADSTOCK_SETTINGS,
   headstockTypeMeta,
+  seedHeadstockAnchors,
+  syncHeadstockNutCorners,
+  isHeadstockDirty,
   type HeadstockSettings,
   type HeadstockType,
+  type HeadstockAnchor,
   type TunerLayout,
 } from '../geometry/headstock';
+import { bodyToNeckSpace, neckToBodySpace } from '../geometry/neckPlacement';
 import {
   DEFAULT_CONTROL_SETTINGS,
   DEFAULT_PICKUP_SETTINGS,
@@ -125,6 +130,8 @@ export interface DesignDocument {
   bridgeSettings: BridgeSettings;
   nutSettings: NutSettings;
   headstockSettings: HeadstockSettings;
+  /** Editable headstock outline (neck-local). Empty when headless. */
+  headstockAnchors: HeadstockAnchor[];
   pickupSettings: PickupSettings;
   controlSettings: ControlSettings;
   settings: EditorSettings;
@@ -133,16 +140,19 @@ export interface DesignDocument {
 
 function defaultDocument(): DesignDocument {
   const template = TELE_TEMPLATE;
+  const neckParams = { ...template.defaultNeckParams };
+  const headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
   return {
     version: DESIGN_DOCUMENT_VERSION,
     templateId: template.id,
     bodyParams: { ...template.defaultParams },
     bodyAnchors: computeParametricAnchors(template, template.defaultParams),
-    neckParams: { ...template.defaultNeckParams },
+    neckParams,
     hardware: structuredClone(template.defaultHardware),
     bridgeSettings: { ...DEFAULT_BRIDGE_SETTINGS },
     nutSettings: { ...DEFAULT_NUT_SETTINGS },
-    headstockSettings: { ...DEFAULT_HEADSTOCK_SETTINGS },
+    headstockSettings,
+    headstockAnchors: seedHeadstockAnchors(neckParams, headstockSettings, DEFAULT_BRIDGE_SETTINGS.stringCount),
     pickupSettings: { ...DEFAULT_PICKUP_SETTINGS },
     controlSettings: { ...DEFAULT_CONTROL_SETTINGS },
     settings: { ...DEFAULT_SETTINGS },
@@ -151,7 +161,7 @@ function defaultDocument(): DesignDocument {
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v11';
+const AUTOSAVE_KEY = 'fretforge-autosave-v12';
 
 interface HistoryEntry {
   templateId: string;
@@ -162,6 +172,7 @@ interface HistoryEntry {
   bridgeSettings: BridgeSettings;
   nutSettings: NutSettings;
   headstockSettings: HeadstockSettings;
+  headstockAnchors: HeadstockAnchor[];
   pickupSettings: PickupSettings;
   controlSettings: ControlSettings;
 }
@@ -176,6 +187,7 @@ function snapshotOf(doc: DesignDocument): HistoryEntry {
     bridgeSettings: { ...doc.bridgeSettings },
     nutSettings: { ...doc.nutSettings },
     headstockSettings: { ...doc.headstockSettings },
+    headstockAnchors: structuredClone(doc.headstockAnchors),
     pickupSettings: { ...doc.pickupSettings },
     controlSettings: { ...doc.controlSettings },
   };
@@ -183,6 +195,7 @@ function snapshotOf(doc: DesignDocument): HistoryEntry {
 
 export type SelectedPoint =
   | { kind: 'anchor'; id: BodyAnchorId; part: 'position' | 'handleIn' | 'handleOut' }
+  | { kind: 'headstock'; id: string; part: 'position' | 'handleIn' | 'handleOut' }
   | { kind: 'hardware'; name: keyof HardwareState; index?: number }
   | { kind: 'feature'; id: BodyFeatureId }
   | null;
@@ -228,6 +241,9 @@ interface StoreState extends DesignDocument {
   setHeadstockType: (type: HeadstockType) => void;
   setHeadstockSetting: <K extends keyof HeadstockSettings>(key: K, value: HeadstockSettings[K]) => void;
   setTunerLayout: (layout: TunerLayout) => void;
+  resetHeadstockShape: () => void;
+  moveHeadstockAnchor: (id: string, part: 'position' | 'handleIn' | 'handleOut', bodyPoint: Point) => void;
+  nudgeHeadstockAnchor: (id: string, dx: number, dy: number) => void;
 
   // --- pickups / controls ---
   setPickupType: (slot: PickupSlot, type: PickupSlotValue) => void;
@@ -469,7 +485,8 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         };
       }
     }
-    set({ neckParams, hardware, past: pushPast(get().past, before), future: [] });
+    const headstockAnchors = syncHeadstockNutCorners(get().headstockAnchors, neckParams);
+    set({ neckParams, hardware, headstockAnchors, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
 
@@ -568,11 +585,16 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       // Don't reuse prior saddles when the count changes — rebuild cleanly.
       undefined,
     );
+    let headstockAnchors = syncHeadstockNutCorners(get().headstockAnchors, neckParams);
+    if (!isHeadstockDirty(headstockAnchors)) {
+      headstockAnchors = seedHeadstockAnchors(neckParams, get().headstockSettings, stringCount);
+    }
     set({
       bridgeSettings,
       nutSettings,
       neckParams,
       hardware: { ...get().hardware, saddles },
+      headstockAnchors,
       past: pushPast(get().past, before),
       future: [],
     });
@@ -592,14 +614,30 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       type,
       tunerLayout: meta.defaultTunerLayout,
     };
-    set({ headstockSettings, past: pushPast(get().past, before), future: [] });
+    const headstockAnchors = seedHeadstockAnchors(
+      get().neckParams,
+      headstockSettings,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set({ headstockSettings, headstockAnchors, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
 
   setHeadstockSetting: (key, value) => {
     const before = snapshotOf(get());
+    const headstockSettings = { ...get().headstockSettings, [key]: value };
+    let headstockAnchors = get().headstockAnchors;
+    // Dimensional knobs re-seed unless the user has already sculpted the outline.
+    if ((key === 'length' || key === 'tipWidth' || key === 'earWidth') && !isHeadstockDirty(headstockAnchors)) {
+      headstockAnchors = seedHeadstockAnchors(
+        get().neckParams,
+        headstockSettings,
+        get().bridgeSettings.stringCount ?? 6,
+      );
+    }
     set({
-      headstockSettings: { ...get().headstockSettings, [key]: value },
+      headstockSettings,
+      headstockAnchors,
       past: pushPast(get().past, before),
       future: [],
     });
@@ -614,6 +652,53 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       future: [],
     });
     get().autosave();
+  },
+
+  resetHeadstockShape: () => {
+    const before = snapshotOf(get());
+    const headstockAnchors = seedHeadstockAnchors(
+      get().neckParams,
+      get().headstockSettings,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set({ headstockAnchors, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
+  moveHeadstockAnchor: (id, part, bodyPoint) => {
+    const before = snapshotOf(get());
+    const joinPoint = neckJoinPoint(get().bodyAnchors, get().neckParams);
+    const localPoint = bodyToNeckSpace(bodyPoint, get().neckParams, { joinPoint });
+    const headstockAnchors = get().headstockAnchors.map((a) => {
+      if (a.id !== id || a.locked) return a;
+      if (part === 'position') {
+        const dx = localPoint.x - a.position.x;
+        const dy = localPoint.y - a.position.y;
+        return {
+          ...a,
+          position: localPoint,
+          handleIn: { x: a.handleIn.x + dx, y: a.handleIn.y + dy },
+          handleOut: { x: a.handleOut.x + dx, y: a.handleOut.y + dy },
+          manuallyEdited: true,
+        };
+      }
+      if (a.mirrorHandles) {
+        const opposite = part === 'handleIn' ? 'handleOut' : 'handleIn';
+        const mirrored = { x: 2 * a.position.x - localPoint.x, y: 2 * a.position.y - localPoint.y };
+        return { ...a, [part]: localPoint, [opposite]: mirrored, manuallyEdited: true };
+      }
+      return { ...a, [part]: localPoint, manuallyEdited: true };
+    });
+    set({ headstockAnchors, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
+  nudgeHeadstockAnchor: (id, dx, dy) => {
+    const a = get().headstockAnchors.find((h) => h.id === id);
+    if (!a || a.locked) return;
+    const joinPoint = neckJoinPoint(get().bodyAnchors, get().neckParams);
+    const bodyPos = neckToBodySpace(a.position, get().neckParams, { joinPoint });
+    get().moveHeadstockAnchor(id, 'position', { x: bodyPos.x + dx, y: bodyPos.y + dy });
   },
 
   setPickupType: (slot, type) => {
@@ -828,6 +913,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       bridgeSettings: s.bridgeSettings,
       nutSettings: s.nutSettings,
       headstockSettings: s.headstockSettings,
+      headstockAnchors: s.headstockAnchors,
       pickupSettings: s.pickupSettings,
       controlSettings: s.controlSettings,
       settings: s.settings,

@@ -18,6 +18,7 @@ import { ReferenceImageOverlay, ReferenceOverlayManipulator } from './ReferenceI
 import { Strings } from './Strings';
 import { NutHardware } from './NutHardware';
 import { HeadstockOutline, Tuners } from './Headstock';
+import { HeadstockAnchors } from './HeadstockAnchors';
 
 /**
  * Top-level SVG stage. The viewBox + stage transform are derived from the
@@ -138,6 +139,7 @@ export function EditorCanvas() {
               <ReferenceOverlayManipulator stageRef={stageRef} />
               <FeatureHitRegions stageRef={stageRef} />
               <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />
+              <HeadstockAnchors stageRef={stageRef} />
               {showDebugOverlay && <DebugOverlay />}
             </>
           )}
@@ -151,6 +153,7 @@ export function EditorCanvas() {
             <>
               <ReferenceOverlayManipulator stageRef={stageRef} />
               <ConstructionView stageRef={stageRef} />
+              <HeadstockAnchors stageRef={stageRef} />
               {showDebugOverlay && <DebugOverlay />}
             </>
           )}

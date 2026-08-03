@@ -7,13 +7,15 @@ const BASE_STEP_MM = 0.5;
 
 export function useKeyboardNudge() {
   const selected = useDesignStore((s) => s.selected);
-  const nudge = useDesignStore((s) => s.nudgeAnchorPoint);
+  const nudgeBody = useDesignStore((s) => s.nudgeAnchorPoint);
+  const nudgeHeadstock = useDesignStore((s) => s.nudgeHeadstockAnchor);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (!selected || selected.kind !== 'anchor' || selected.part !== 'position') return;
+      if (!selected || (selected.kind !== 'anchor' && selected.kind !== 'headstock')) return;
+      if (selected.part !== 'position') return;
 
       const step = (e.shiftKey ? 10 : 1) * BASE_STEP_MM;
       let dx = 0;
@@ -25,9 +27,10 @@ export function useKeyboardNudge() {
       else return;
 
       e.preventDefault();
-      nudge(selected.id, dx, dy);
+      if (selected.kind === 'anchor') nudgeBody(selected.id, dx, dy);
+      else nudgeHeadstock(selected.id, dx, dy);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selected, nudge]);
+  }, [selected, nudgeBody, nudgeHeadstock]);
 }

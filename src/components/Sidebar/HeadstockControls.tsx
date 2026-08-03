@@ -9,11 +9,12 @@ export function HeadstockControls() {
   const setType = useDesignStore((s) => s.setHeadstockType);
   const setSetting = useDesignStore((s) => s.setHeadstockSetting);
   const setTunerLayout = useDesignStore((s) => s.setTunerLayout);
+  const resetShape = useDesignStore((s) => s.resetHeadstockShape);
   const unit = useDesignStore((s) => s.settings.unit);
   const headed = hs.type !== 'headless';
 
   return (
-    <section className="sidebar-section">
+    <section className="sidebar-section" id="sidebar-headstock">
       <h3>Headstock</h3>
       <div className="bridge-type-grid">
         {HEADSTOCK_TYPE_META.map((t) => (
@@ -29,6 +30,11 @@ export function HeadstockControls() {
         ))}
       </div>
       <p className="muted">{HEADSTOCK_TYPE_META.find((t) => t.id === hs.type)?.description}</p>
+      {headed && (
+        <p className="muted">
+          Purple points drag freely; grey nut corners stay locked. Select a point to edit Bézier handles.
+        </p>
+      )}
 
       {headed && (
         <>
@@ -64,6 +70,9 @@ export function HeadstockControls() {
               onChange={(v) => setSetting('earWidth', v)}
             />
           )}
+          <button type="button" onClick={resetShape}>
+            Reset shape to preset
+          </button>
         </>
       )}
 
@@ -92,6 +101,7 @@ export function HeadstockControls() {
             ))}
           </div>
           <p className="muted">{TUNER_LAYOUT_META.find((t) => t.id === hs.tunerLayout)?.description}</p>
+          <p className="muted">Tuner count follows Strings under Bridge &amp; nut (6–12).</p>
         </>
       )}
     </section>

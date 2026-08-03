@@ -17,9 +17,10 @@ import {
   stringStrokeWidths,
 } from '../geometry/strings';
 import {
-  computeHeadstockOutlineBody,
   computeTunerPositions,
   DEFAULT_HEADSTOCK_SETTINGS,
+  headstockAnchorsToBody,
+  headstockAnchorsToPathD,
 } from '../geometry/headstock';
 import {
   DEFAULT_CONTROL_SETTINGS,
@@ -46,6 +47,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     bridgeSettings,
     nutSettings,
     headstockSettings = DEFAULT_HEADSTOCK_SETTINGS,
+    headstockAnchors = [],
     pickupSettings = DEFAULT_PICKUP_SETTINGS,
     controlSettings = DEFAULT_CONTROL_SETTINGS,
     settings,
@@ -59,13 +61,15 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const placement = { joinPoint };
   const neckOutlinePts = computeNeckOutlineLocal(neckParams).map((p) => neckToBodySpace(p, neckParams, placement));
 
-  const headstockPts = computeHeadstockOutlineBody(neckParams, headstockSettings, placement);
+  const hsBody = headstockAnchorsToBody(headstockAnchors, neckParams, placement);
+  const headstockPts = hsBody.map((a) => a.position);
   const tunerPts = computeTunerPositions(
     neckParams,
     headstockSettings,
     placement,
     hardware.saddles,
     bridgeSettings?.stringCount ?? 6,
+    headstockAnchors,
   );
 
   const bounds = computeDesignBounds(bodyAnchors, neckOutlinePts, hardware, {}, [
@@ -91,8 +95,8 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
 
   let headstockGroup = '<g id="headstock"></g>';
-  if (headstockPts.length >= 3) {
-    const hsPath = `M ${headstockPts.map((p) => `${pad(p.x)} ${pad(p.y)}`).join(' L ')} Z`;
+  if (hsBody.length >= 3) {
+    const hsPath = headstockAnchorsToPathD(hsBody);
     headstockGroup = `<g id="headstock"><path d="${hsPath}" fill="${
       flavor === 'fabrication' ? 'none' : fretboardColor
     }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;

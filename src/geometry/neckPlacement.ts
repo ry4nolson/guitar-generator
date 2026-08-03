@@ -21,3 +21,13 @@ export function neckToBodySpace(p: Point, params: NeckParams, placement: NeckPla
   };
   return { x: placement.joinPoint.x + rotated.x, y: placement.joinPoint.y + rotated.y };
 }
+
+/** Inverse of neckToBodySpace — body-local mm → neck-local mm. */
+export function bodyToNeckSpace(p: Point, params: NeckParams, placement: NeckPlacement): Point {
+  const rad = (params.neckAngle * Math.PI) / 180;
+  const dx = p.x - placement.joinPoint.x;
+  const dy = p.y - placement.joinPoint.y;
+  const localX = dx * Math.cos(rad) + dy * Math.sin(rad);
+  const localY = -dx * Math.sin(rad) + dy * Math.cos(rad);
+  return { x: localX + params.neckLength, y: localY };
+}

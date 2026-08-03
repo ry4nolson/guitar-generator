@@ -14,6 +14,7 @@ export function ConstraintsPanel() {
   const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
   const nutSettings = useDesignStore((s) => s.nutSettings);
   const headstockSettings = useDesignStore((s) => s.headstockSettings);
+  const headstockAnchors = useDesignStore((s) => s.headstockAnchors);
   const pickupSettings = useDesignStore((s) => s.pickupSettings);
   const controlSettings = useDesignStore((s) => s.controlSettings);
   const version = useDesignStore((s) => s.version);
@@ -30,6 +31,7 @@ export function ConstraintsPanel() {
         bridgeSettings,
         nutSettings,
         headstockSettings,
+        headstockAnchors,
         pickupSettings,
         controlSettings,
         settings,
@@ -45,6 +47,7 @@ export function ConstraintsPanel() {
       bridgeSettings,
       nutSettings,
       headstockSettings,
+      headstockAnchors,
       pickupSettings,
       controlSettings,
       settings,
