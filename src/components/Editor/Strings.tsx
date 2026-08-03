@@ -6,20 +6,23 @@ import {
   computeNutStringPoints,
   computeStringSegments,
   STRING_STROKE_COLOR,
-  STRING_STROKE_MM,
+  stringStrokeWidths,
 } from '../../geometry/strings';
 
-/** Six strings from nut slots to bridge saddles. Gated by the "strings" layer. */
+/** Strings from nut slots to bridge saddles. Gated by the "strings" layer. */
 export function Strings() {
   const nutSettings = useDesignStore((s) => s.nutSettings);
+  const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
   const saddles = useDesignStore((s) => s.hardware.saddles);
   const { neckParams, joinPoint } = useNeckGeometry();
 
   const segments = useMemo(() => {
-    const nutPts = computeNutStringPoints(neckParams, nutSettings, { joinPoint });
+    const nutPts = computeNutStringPoints(neckParams, nutSettings, { joinPoint }, stringCount);
     const bridgePts = computeBridgeStringPoints(saddles);
     return computeStringSegments(nutPts, bridgePts);
-  }, [neckParams, nutSettings, joinPoint, saddles]);
+  }, [neckParams, nutSettings, joinPoint, saddles, stringCount]);
+
+  const gauges = useMemo(() => stringStrokeWidths(stringCount), [stringCount]);
 
   return (
     <g id="strings" style={{ pointerEvents: 'none' }}>
@@ -31,7 +34,7 @@ export function Strings() {
           x2={s.bridge.x}
           y2={s.bridge.y}
           stroke={STRING_STROKE_COLOR}
-          strokeWidth={STRING_STROKE_MM[s.index] ?? 1}
+          strokeWidth={gauges[s.index] ?? 1}
           strokeLinecap="round"
         />
       ))}

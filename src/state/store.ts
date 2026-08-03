@@ -33,7 +33,11 @@ import type { BodyFeatureId } from '../geometry/bodyFeatures';
 import {
   DEFAULT_BRIDGE_SETTINGS,
   DEFAULT_NUT_SETTINGS,
+  MAX_STRING_COUNT,
+  MIN_STRING_COUNT,
   bridgeTypeMeta,
+  suggestedBridgeSpacing,
+  suggestedNutSpacing,
   type BridgeSettings,
   type BridgeType,
   type NutSettings,
@@ -137,7 +141,7 @@ function defaultDocument(): DesignDocument {
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v9';
+const AUTOSAVE_KEY = 'fretforge-autosave-v10';
 
 interface HistoryEntry {
   templateId: string;
@@ -203,6 +207,8 @@ interface StoreState extends DesignDocument {
   // --- bridge / nut ---
   setBridgeType: (type: BridgeType) => void;
   setBridgeSetting: <K extends keyof BridgeSettings>(key: K, value: BridgeSettings[K]) => void;
+  /** Change string count (6–12); relayouts saddles and suggests nut/bridge spacing. */
+  setStringCount: (count: number) => void;
   setNutType: (type: NutType) => void;
   setNutSetting: <K extends keyof NutSettings>(key: K, value: NutSettings[K]) => void;
   /** Convenience: toggle the strings layer visibility. */
@@ -460,10 +466,12 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setBridgeType: (type) => {
     const before = snapshotOf(get());
     const meta = bridgeTypeMeta(type);
+    const count = get().bridgeSettings.stringCount ?? 6;
     const bridgeSettings: BridgeSettings = {
       ...get().bridgeSettings,
       type,
-      stringSpacing: meta.defaultSpacing,
+      // Keep multi-string outer spacing; only snap to type default for 6-string.
+      stringSpacing: count === 6 ? meta.defaultSpacing : get().bridgeSettings.stringSpacing,
     };
     const saddles = layoutSaddlesFromScale(
       get().neckParams,
@@ -490,7 +498,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const before = snapshotOf(get());
     const bridgeSettings = { ...get().bridgeSettings, [key]: value };
     let hardware = get().hardware;
-    if (key === 'stringSpacing') {
+    if (key === 'stringSpacing' || key === 'stringCount') {
       hardware = {
         ...hardware,
         saddles: layoutSaddlesFromScale(
@@ -519,6 +527,42 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const before = snapshotOf(get());
     set({
       nutSettings: { ...get().nutSettings, [key]: value },
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
+  },
+
+  setStringCount: (count) => {
+    const before = snapshotOf(get());
+    const stringCount = Math.min(MAX_STRING_COUNT, Math.max(MIN_STRING_COUNT, Math.round(count)));
+    const bridgeSettings: BridgeSettings = {
+      ...get().bridgeSettings,
+      stringCount,
+      stringSpacing: suggestedBridgeSpacing(stringCount),
+    };
+    const nutSettings: NutSettings = {
+      ...get().nutSettings,
+      stringSpacing: suggestedNutSpacing(stringCount),
+    };
+    // Wider nut for multi-string so slots still sit inside the board.
+    const neckParams: NeckParams = {
+      ...get().neckParams,
+      nutWidth: Math.max(get().neckParams.nutWidth, Math.round(nutSettings.stringSpacing + 8)),
+      heelWidth: Math.max(get().neckParams.heelWidth, Math.round(bridgeSettings.stringSpacing + 4)),
+    };
+    const saddles = layoutSaddlesFromScale(
+      neckParams,
+      bridgeSettings,
+      { joinPoint: neckJoinPoint(get().bodyAnchors, neckParams) },
+      // Don't reuse prior saddles when the count changes — rebuild cleanly.
+      undefined,
+    );
+    set({
+      bridgeSettings,
+      nutSettings,
+      neckParams,
+      hardware: { ...get().hardware, saddles },
       past: pushPast(get().past, before),
       future: [],
     });

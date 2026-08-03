@@ -44,6 +44,17 @@ describe('headstock geometry', () => {
     expect(tuners).toHaveLength(6);
   });
 
+  it('places N inline tuners when stringCount is higher', () => {
+    const tuners = computeTunerPositions(
+      DEFAULT_NECK_PARAMS,
+      DEFAULT_HEADSTOCK_SETTINGS,
+      { joinPoint: { x: 25, y: 0 } },
+      [],
+      8,
+    );
+    expect(tuners).toHaveLength(8);
+  });
+
   it('places 6 bridge-end tuners for headless layout', () => {
     const tuners = computeTunerPositions(
       DEFAULT_NECK_PARAMS,

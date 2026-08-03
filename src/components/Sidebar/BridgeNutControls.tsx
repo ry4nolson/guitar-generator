@@ -1,23 +1,53 @@
 import { useDesignStore } from '../../state/store';
-import { BRIDGE_TYPE_META, NUT_TYPE_META } from '../../geometry/bridgeTypes';
+import {
+  BRIDGE_TYPE_META,
+  MAX_STRING_COUNT,
+  MIN_STRING_COUNT,
+  NUT_TYPE_META,
+} from '../../geometry/bridgeTypes';
 import { ParamSlider } from './ParamSlider';
 import type { BridgeType, NutType } from '../../geometry/bridgeTypes';
 
-/** Bridge type picker, bridge/nut spacing settings, and show-strings toggle. */
+/** Bridge type picker, string count, bridge/nut spacing, and show-strings toggle. */
 export function BridgeNutControls() {
   const bridge = useDesignStore((s) => s.bridgeSettings);
   const nut = useDesignStore((s) => s.nutSettings);
   const setBridgeType = useDesignStore((s) => s.setBridgeType);
   const setBridgeSetting = useDesignStore((s) => s.setBridgeSetting);
+  const setStringCount = useDesignStore((s) => s.setStringCount);
   const setNutType = useDesignStore((s) => s.setNutType);
   const setNutSetting = useDesignStore((s) => s.setNutSetting);
   const showStrings = useDesignStore((s) => s.layers.strings?.visible ?? false);
   const setShowStrings = useDesignStore((s) => s.setShowStrings);
   const unit = useDesignStore((s) => s.settings.unit);
+  const stringCount = bridge.stringCount ?? 6;
 
   return (
     <section className="sidebar-section">
-      <h3>Bridge</h3>
+      <h3>Strings</h3>
+      <div className="count-stepper">
+        <span className="hardware-label">String count</span>
+        <button
+          type="button"
+          disabled={stringCount <= MIN_STRING_COUNT}
+          onClick={() => setStringCount(stringCount - 1)}
+        >
+          −
+        </button>
+        <span className="count-value">{stringCount}</span>
+        <button
+          type="button"
+          disabled={stringCount >= MAX_STRING_COUNT}
+          onClick={() => setStringCount(stringCount + 1)}
+        >
+          +
+        </button>
+      </div>
+      <p className="muted">
+        6–12 strings. Changing count rebuilds saddles and suggests nut/bridge spacing.
+      </p>
+
+      <h3 style={{ marginTop: 14 }}>Bridge</h3>
       <div className="bridge-type-grid">
         {BRIDGE_TYPE_META.map((t) => (
           <button
@@ -36,7 +66,7 @@ export function BridgeNutControls() {
         label="Bridge string spacing"
         value={bridge.stringSpacing}
         min={48}
-        max={56}
+        max={120}
         step={0.1}
         unit="mm"
         displayUnit={unit}
@@ -68,7 +98,7 @@ export function BridgeNutControls() {
             label="TOM post spacing"
             value={bridge.postSpacing}
             min={68}
-            max={82}
+            max={100}
             step={0.5}
             unit="mm"
             displayUnit={unit}
@@ -96,7 +126,7 @@ export function BridgeNutControls() {
         label="Nut string spacing"
         value={nut.stringSpacing}
         min={32}
-        max={40}
+        max={80}
         step={0.1}
         unit="mm"
         displayUnit={unit}

@@ -199,7 +199,8 @@ export interface TunerMark {
 }
 
 /**
- * Six tuner post centers in body space. Empty when showTuners is false or layout is none.
+ * Tuner post centers in body space for `stringCount` strings.
+ * Empty when showTuners is false or layout is none.
  * Headless layout parks posts past the bridge cluster toward the tail.
  */
 export function computeTunerPositions(
@@ -207,8 +208,10 @@ export function computeTunerPositions(
   settings: HeadstockSettings,
   placement: NeckPlacement,
   saddles: HardwarePosition[],
+  stringCount = 6,
 ): TunerMark[] {
   if (!settings.showTuners || settings.tunerLayout === 'none') return [];
+  const n = Math.max(1, stringCount);
 
   if (settings.tunerLayout === 'headless') {
     const center = saddleClusterCenter(saddles);
@@ -221,9 +224,9 @@ export function computeTunerPositions(
     // Prefer scale-derived x, fall back to saddle cluster if something is off.
     const originX = Number.isFinite(base.x) ? base.x : center.x + 28;
     const originY = center.y;
-    const span = 48;
-    return Array.from({ length: 6 }, (_, i) => {
-      const t = i / 5;
+    const span = Math.max(48, 8 * (n - 1));
+    return Array.from({ length: n }, (_, i) => {
+      const t = n <= 1 ? 0.5 : i / (n - 1);
       return {
         index: i,
         position: { x: originX + (i % 2) * 7, y: originY - span / 2 + t * span },
@@ -236,12 +239,12 @@ export function computeTunerPositions(
   const nutHalf = neckParams.nutWidth / 2;
 
   if (settings.tunerLayout === '6-inline') {
-    // Single row on the bass (+y) side of the headstock.
+    // Single row on the bass (+y) side of the headstock — works for any count.
     const x0 = -L * 0.18;
     const x1 = -L * 0.88;
     const y = nutHalf * 0.55 + 10;
-    return Array.from({ length: 6 }, (_, i) => {
-      const t = i / 5;
+    return Array.from({ length: n }, (_, i) => {
+      const t = n <= 1 ? 0.5 : i / (n - 1);
       const local = { x: x0 + t * (x1 - x0), y };
       return {
         index: i,
@@ -251,22 +254,24 @@ export function computeTunerPositions(
     });
   }
 
-  // 3×3 — three bass, three treble.
-  const xs = [-L * 0.28, -L * 0.52, -L * 0.76];
+  // Split layout: ceil(n/2) bass side, floor(n/2) treble side.
+  const bassCount = Math.ceil(n / 2);
+  const trebleCount = Math.floor(n / 2);
   const yBass = nutHalf * 0.35 + settings.earWidth * 0.55;
   const yTreble = -yBass;
   const marks: TunerMark[] = [];
-  xs.forEach((x, i) => {
-    marks.push({
-      index: i,
-      position: neckToBodySpace({ x, y: yBass }, neckParams, placement),
-      radius: 4.2,
-    });
-    marks.push({
-      index: i + 3,
-      position: neckToBodySpace({ x, y: yTreble }, neckParams, placement),
-      radius: 4.2,
-    });
-  });
+  const placeRow = (count: number, y: number, startIndex: number) => {
+    for (let i = 0; i < count; i++) {
+      const t = count <= 1 ? 0.5 : i / (count - 1);
+      const x = -L * (0.22 + t * 0.58);
+      marks.push({
+        index: startIndex + i,
+        position: neckToBodySpace({ x, y }, neckParams, placement),
+        radius: 4.2,
+      });
+    }
+  };
+  placeRow(bassCount, yBass, 0);
+  placeRow(trebleCount, yTreble, bassCount);
   return marks;
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.3 — Multi-string + string layering
+
+### Fixed
+
+- Strings now draw above pickups/hardware so they sit on the pole pieces.
+- Bass-side string strokes are thinner (outer bass ≈1.75 mm canvas width).
+
+### Added
+
+- Configurable string count (6–12) under Bridge → Strings. Changing count
+  rebuilds saddles, suggests nut/bridge outer spacing, and widens nut/heel
+  when needed. Tuners, nut slots, pickup poles, and Floyd/Strat plates follow.
+
 ## 0.5.2 — Strings, switch angle, finish colors
 
 ### Fixed

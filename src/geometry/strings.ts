@@ -5,7 +5,7 @@
 import type { Point } from './types';
 import type { NeckParams } from './neckParams';
 import type { NutSettings, BridgeSettings } from './bridgeTypes';
-import { stringSlotOffsets } from './bridgeTypes';
+import { intonationStagger, stringSlotOffsets } from './bridgeTypes';
 import { fanLineX } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 import type { HardwarePosition } from './types';
@@ -16,31 +16,43 @@ export interface StringSegment {
   bridge: Point;
 }
 
-/**
- * Canvas stroke widths (mm) for a typical .010–.046" electric set, treble→bass.
- * Real gauges in mm are ~0.25–1.17; we scale ~2.8× so they read on a body fill
- * without looking cartoonishly thick. Index 0 = high E (treble / −y).
- */
-export const STRING_STROKE_MM = [0.7, 0.9, 1.15, 1.7, 2.3, 2.9] as const;
-
 /** Dark nickel/steel tone — readable on cream/maple body fills. */
 export const STRING_STROKE_COLOR = '#2c2c2c';
 
-/** Six nut-slot positions in body space, spaced by nutSettings.stringSpacing. */
+/**
+ * Canvas stroke widths (mm), treble→bass. Scaled from a typical light electric
+ * set so they read on body fills without a cartoon bass string. Index 0 = high E.
+ */
+export function stringStrokeWidths(count: number): number[] {
+  const n = Math.max(1, count);
+  const thin = 0.6;
+  const thick = 1.75; // outer bass — visible but not a rope
+  return Array.from({ length: n }, (_, i) => {
+    const t = n <= 1 ? 0 : i / (n - 1);
+    // Ease so extra low strings on 7–9 sets don't balloon past `thick`.
+    const eased = t * t * 0.3 + t * 0.7;
+    return Math.round((thin + (thick - thin) * eased) * 100) / 100;
+  });
+}
+
+/** @deprecated Prefer stringStrokeWidths(count). Kept for 6-string call sites. */
+export const STRING_STROKE_MM = stringStrokeWidths(6);
+
+/** Nut-slot positions in body space for `stringCount` strings. */
 export function computeNutStringPoints(
   neckParams: NeckParams,
   nutSettings: NutSettings,
   placement: NeckPlacement,
+  stringCount = 6,
 ): Point[] {
-  const offsets = stringSlotOffsets(nutSettings.stringSpacing, 6);
-  // Compensated nut: tiny stagger along x (toward the bridge) on the G/B strings.
+  const offsets = stringSlotOffsets(nutSettings.stringSpacing, stringCount);
+  // Compensated nut: tiny stagger along x (toward the bridge) peaking mid-set.
   return offsets.map((y, i) => {
     // Each string starts on the fanned fret-0 (nut) line, not at a flat x=0.
     let x = fanLineX(neckParams, 0, y, neckParams.nutWidth / 2);
     if (nutSettings.type === 'compensated') {
-      // Mild visual compensation — not a full Buzz Feiten table.
-      const stagger = [0, 0.2, 0.4, 0.8, 0.5, 0.15][i] ?? 0;
-      x += stagger;
+      const t = stringCount <= 1 ? 0 : i / (stringCount - 1);
+      x += Math.sin(t * Math.PI) * 0.7;
     }
     return neckToBodySpace({ x, y }, neckParams, placement);
   });
@@ -64,7 +76,7 @@ export function computeStringSegments(
 }
 
 /**
- * Lay out six saddle positions around a bridge center using the active
+ * Lay out N saddle positions around a bridge center using the active
  * bridge string spacing. Preserves lock/visibility from any prior saddles.
  */
 export function layoutSaddles(
@@ -72,9 +84,9 @@ export function layoutSaddles(
   bridgeSettings: BridgeSettings,
   prior?: HardwarePosition[],
 ): HardwarePosition[] {
-  const offsets = stringSlotOffsets(bridgeSettings.stringSpacing, 6);
-  // Slight intonation stagger so saddles aren't a perfectly flat line.
-  const intonation = [1.2, 0.6, 0, 0.4, 0.9, 1.5];
+  const count = bridgeSettings.stringCount ?? 6;
+  const offsets = stringSlotOffsets(bridgeSettings.stringSpacing, count);
+  const intonation = intonationStagger(count);
   return offsets.map((y, i) => {
     const prev = prior?.[i];
     return {

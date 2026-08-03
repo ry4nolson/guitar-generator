@@ -8,7 +8,7 @@
 import type { BodyAnchor, HardwarePosition, Point } from './types';
 import type { NeckParams } from './neckParams';
 import type { BridgeSettings } from './bridgeTypes';
-import { stringSlotOffsets } from './bridgeTypes';
+import { intonationStagger, stringSlotOffsets } from './bridgeTypes';
 import { computeBridgeX } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 
@@ -43,9 +43,9 @@ export function layoutSaddlesFromScale(
   prior?: HardwarePosition[],
 ): HardwarePosition[] {
   const { bassBridgeX, trebleBridgeX } = computeBridgeX(neckParams);
-  const offsets = stringSlotOffsets(bridgeSettings.stringSpacing, 6);
-  // Small intonation stagger past the nominal scale (toward the tail).
-  const intonation = [1.2, 0.6, 0, 0.4, 0.9, 1.5];
+  const count = bridgeSettings.stringCount ?? 6;
+  const offsets = stringSlotOffsets(bridgeSettings.stringSpacing, count);
+  const intonation = intonationStagger(count);
 
   return offsets.map((y, i) => {
     const prev = prior?.[i];

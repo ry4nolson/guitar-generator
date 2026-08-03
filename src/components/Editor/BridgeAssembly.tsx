@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDesignStore } from '../../state/store';
 import { saddleClusterCenter } from '../../geometry/strings';
+import { stringSlotOffsets } from '../../geometry/bridgeTypes';
 import type { BridgeSettings } from '../../geometry/bridgeTypes';
 
 /** Non-interactive plate / posts drawn under the saddles for the active bridge type. */
@@ -35,11 +36,9 @@ function TomAssembly({ settings }: { settings: BridgeSettings }) {
   const halfBridge = settings.stringSpacing / 2 + 4;
   return (
     <g>
-      {/* Bridge bar */}
       <rect x={-5} y={-halfBridge} width={10} height={halfBridge * 2} rx={2} fill="#c8c8c8" stroke="#333" strokeWidth={0.7} />
       <circle cx={0} cy={-halfPost} r={3.5} fill="#888" stroke="#222" strokeWidth={0.6} />
       <circle cx={0} cy={halfPost} r={3.5} fill="#888" stroke="#222" strokeWidth={0.6} />
-      {/* Stopbar behind the bridge (toward the tail = +x in body space) */}
       <rect
         x={settings.stopbarOffset - 4}
         y={-halfBridge + 2}
@@ -57,16 +56,16 @@ function TomAssembly({ settings }: { settings: BridgeSettings }) {
 }
 
 function FloydPlate({ settings }: { settings: BridgeSettings }) {
+  const count = settings.stringCount ?? 6;
   const half = settings.stringSpacing / 2 + 8;
   const depth = settings.saddleTravel + 14;
+  const ys = stringSlotOffsets(settings.stringSpacing * 0.85, count);
   return (
     <g>
       <rect x={-10} y={-half} width={depth} height={half * 2} rx={1.5} fill="#1f1f1f" stroke="#000" strokeWidth={0.9} />
-      {/* Fine-tuner row toward the tail */}
-      {[-2, -1, 0, 1, 2, 3].map((i) => (
-        <circle key={i} cx={depth - 14} cy={(i - 0.5) * (settings.stringSpacing / 5)} r={2.2} fill="#555" stroke="#111" strokeWidth={0.4} />
+      {ys.map((y, i) => (
+        <circle key={i} cx={depth - 14} cy={y} r={2.2} fill="#555" stroke="#111" strokeWidth={0.4} />
       ))}
-      {/* Pivot posts */}
       <circle cx={-6} cy={-half + 4} r={2} fill="#666" />
       <circle cx={-6} cy={half - 4} r={2} fill="#666" />
     </g>
@@ -74,14 +73,15 @@ function FloydPlate({ settings }: { settings: BridgeSettings }) {
 }
 
 function StratTremPlate({ settings }: { settings: BridgeSettings }) {
+  const count = settings.stringCount ?? 6;
   const half = settings.stringSpacing / 2 + 7;
   const depth = settings.saddleTravel + 10;
+  const ys = stringSlotOffsets(settings.stringSpacing * 0.9, count);
   return (
     <g>
       <rect x={-6} y={-half} width={depth} height={half * 2} rx={1} fill="#d8d8d8" stroke="#444" strokeWidth={0.7} />
-      {/* Six mounting screws along the front (nut-facing) edge */}
-      {[-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map((i) => (
-        <circle key={i} cx={-3} cy={i * (settings.stringSpacing / 5)} r={1.6} fill="#666" stroke="#222" strokeWidth={0.35} />
+      {ys.map((y, i) => (
+        <circle key={i} cx={-3} cy={y} r={1.6} fill="#666" stroke="#222" strokeWidth={0.35} />
       ))}
     </g>
   );

@@ -14,7 +14,7 @@ import {
   computeNutStringPoints,
   computeStringSegments,
   STRING_STROKE_COLOR,
-  STRING_STROKE_MM,
+  stringStrokeWidths,
 } from '../geometry/strings';
 import {
   computeHeadstockOutlineBody,
@@ -60,7 +60,13 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const neckOutlinePts = computeNeckOutlineLocal(neckParams).map((p) => neckToBodySpace(p, neckParams, placement));
 
   const headstockPts = computeHeadstockOutlineBody(neckParams, headstockSettings, placement);
-  const tunerPts = computeTunerPositions(neckParams, headstockSettings, placement, hardware.saddles);
+  const tunerPts = computeTunerPositions(
+    neckParams,
+    headstockSettings,
+    placement,
+    hardware.saddles,
+    bridgeSettings?.stringCount ?? 6,
+  );
 
   const bounds = computeDesignBounds(bodyAnchors, neckOutlinePts, hardware, {}, [
     ...headstockPts,
@@ -114,13 +120,15 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const showStrings = layers?.strings?.visible && flavor !== 'fabrication';
   let stringsGroup = '<g id="strings"></g>';
   if (showStrings && bridgeSettings && nutSettings) {
-    const nutPts = computeNutStringPoints(neckParams, nutSettings, placement);
+    const count = bridgeSettings.stringCount ?? 6;
+    const nutPts = computeNutStringPoints(neckParams, nutSettings, placement, count);
     const bridgePts = computeBridgeStringPoints(hardware.saddles);
     const segs = computeStringSegments(nutPts, bridgePts);
+    const gauges = stringStrokeWidths(count);
     stringsGroup = `<g id="strings" transform="${transform}">${segs
       .map(
         (s) =>
-          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${STRING_STROKE_MM[s.index] ?? 1}" stroke-linecap="round"/>`,
+          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${gauges[s.index] ?? 1}" stroke-linecap="round"/>`,
       )
       .join('')}</g>`;
   }
@@ -210,8 +218,8 @@ ${bodyGroup}
 ${neckGroup}
 ${headstockGroup}
 ${fretsGroup}
-${stringsGroup}
 ${hardwareGroup}
+${stringsGroup}
 ${routesGroup}
 ${constructionGroup}
 ${dimensionsGroup}

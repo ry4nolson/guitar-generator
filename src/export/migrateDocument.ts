@@ -159,6 +159,10 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
 
   // Soft fills for any missing optional fields on current version.
   if (!parsed.bridgeSettings) parsed.bridgeSettings = { ...DEFAULT_BRIDGE_SETTINGS };
+  else {
+    const bridge = parsed.bridgeSettings as BridgeSettings;
+    if (bridge.stringCount === undefined) bridge.stringCount = 6;
+  }
   if (!parsed.nutSettings) parsed.nutSettings = { ...DEFAULT_NUT_SETTINGS };
   if (!parsed.headstockSettings) parsed.headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
   if (!parsed.pickupSettings) parsed.pickupSettings = { ...DEFAULT_PICKUP_SETTINGS };

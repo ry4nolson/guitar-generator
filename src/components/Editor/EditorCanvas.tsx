@@ -124,12 +124,13 @@ export function EditorCanvas() {
               <LayerGroup id="frets">
                 <FretLines />
               </LayerGroup>
-              <LayerGroup id="strings">
-                <Strings />
-              </LayerGroup>
               <LayerGroup id="hardware">
                 <Hardware stageRef={stageRef} />
                 <Tuners />
+              </LayerGroup>
+              {/* Strings above pickups/hardware so they read as sitting on the poles. */}
+              <LayerGroup id="strings">
+                <Strings />
               </LayerGroup>
               <FeatureHitRegions stageRef={stageRef} />
               <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />

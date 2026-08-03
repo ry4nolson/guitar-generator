@@ -12,7 +12,9 @@ import {
   layoutSaddles,
   saddleClusterCenter,
   STRING_STROKE_MM,
+  stringStrokeWidths,
 } from '../src/geometry/strings';
+import { suggestedBridgeSpacing, suggestedNutSpacing } from '../src/geometry/bridgeTypes';
 import { DEFAULT_NECK_PARAMS } from '../src/geometry/neckParams';
 import { useDesignStore } from '../src/state/store';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../src/export/migrateDocument';
@@ -31,11 +33,26 @@ describe('stringSlotOffsets', () => {
 });
 
 describe('string gauges', () => {
-  it('thickens from treble (high E) to bass (low E)', () => {
+  it('thickens from treble (high E) to bass (low E) without a cartoon bass', () => {
     expect(STRING_STROKE_MM).toHaveLength(6);
     for (let i = 1; i < STRING_STROKE_MM.length; i++) {
       expect(STRING_STROKE_MM[i]).toBeGreaterThan(STRING_STROKE_MM[i - 1]);
     }
+    expect(STRING_STROKE_MM[5]).toBeLessThanOrEqual(1.85);
+  });
+
+  it('produces N gauges for multi-string sets', () => {
+    expect(stringStrokeWidths(9)).toHaveLength(9);
+    expect(stringStrokeWidths(9)[8]).toBeLessThanOrEqual(1.85);
+  });
+});
+
+describe('suggested spacing', () => {
+  it('scales outer spacing with string count', () => {
+    expect(suggestedBridgeSpacing(6)).toBeCloseTo(52.5, 5);
+    expect(suggestedBridgeSpacing(7)).toBeCloseTo(63, 5);
+    expect(suggestedNutSpacing(6)).toBeCloseTo(35, 5);
+    expect(suggestedNutSpacing(8)).toBeGreaterThan(suggestedNutSpacing(6));
   });
 });
 
@@ -90,6 +107,24 @@ describe('bridge type switching', () => {
     expect(useDesignStore.getState().layers.strings.visible).toBe(true);
     useDesignStore.getState().setShowStrings(false);
     expect(useDesignStore.getState().layers.strings.visible).toBe(false);
+  });
+
+  it('setStringCount rebuilds saddles and suggests wider spacing', () => {
+    useDesignStore.getState().setStringCount(8);
+    const s = useDesignStore.getState();
+    expect(s.bridgeSettings.stringCount).toBe(8);
+    expect(s.hardware.saddles).toHaveLength(8);
+    expect(s.bridgeSettings.stringSpacing).toBeGreaterThan(52.5);
+    expect(s.nutSettings.stringSpacing).toBeGreaterThan(35);
+    const span = s.hardware.saddles[7].y - s.hardware.saddles[0].y;
+    expect(span).toBeCloseTo(s.bridgeSettings.stringSpacing, 5);
+  });
+
+  it('setStringCount clamps to 6–12', () => {
+    useDesignStore.getState().setStringCount(3);
+    expect(useDesignStore.getState().bridgeSettings.stringCount).toBe(6);
+    useDesignStore.getState().setStringCount(99);
+    expect(useDesignStore.getState().bridgeSettings.stringCount).toBe(12);
   });
 });
 

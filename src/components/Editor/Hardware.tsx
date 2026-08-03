@@ -49,13 +49,15 @@ function DraggablePart({
 
 /** Real-footprint pickup shapes, centered on the pickup position. */
 function PickupShape({ type, selected }: { type: PickupType; selected: boolean }) {
+  const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
   const dims = PICKUP_DIMENSIONS[type];
   const halfAlong = dims.along / 2;
   const halfAcross = dims.across / 2;
   const stroke = selected ? '#ff5533' : '#000';
   const strokeWidth = selected ? 1.5 : 0.8;
-  // Pole pieces track typical string spread at the pickup (~52 mm outer).
-  const poleYs = stringSlotOffsets(52, 6);
+  // Pole pieces track string spread at the pickup (~same outer as bridge spacing).
+  const poleSpan = Math.min(dims.across - 6, 10 + stringCount * 7);
+  const poleYs = stringSlotOffsets(poleSpan, stringCount);
 
   if (type === 'single-coil') {
     return (

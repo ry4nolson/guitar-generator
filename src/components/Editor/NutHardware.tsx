@@ -8,6 +8,7 @@ import { fanLineX, trebleFanOffset } from '../../geometry/frets';
 /** Nut block at the end of the fretboard — appearance depends on nutSettings.type. */
 export function NutHardware() {
   const nutSettings = useDesignStore((s) => s.nutSettings);
+  const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
   const { neckParams, joinPoint } = useNeckGeometry();
 
   const geometry = useMemo(() => {
@@ -22,11 +23,11 @@ export function NutHardware() {
       { x: off + t, y: -halfW },
       { x: off - t * 0.15, y: -halfW },
     ].map((p) => neckToBodySpace(p, neckParams, { joinPoint }));
-    const slots = stringSlotOffsets(nutSettings.stringSpacing, 6).map((y) =>
+    const slots = stringSlotOffsets(nutSettings.stringSpacing, stringCount).map((y) =>
       neckToBodySpace({ x: fanLineX(neckParams, t * 0.45, y, halfW), y }, neckParams, { joinPoint }),
     );
     return { corners, slots };
-  }, [neckParams, joinPoint, nutSettings]);
+  }, [neckParams, joinPoint, nutSettings, stringCount]);
 
   const d = `M ${geometry.corners.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')} Z`;
   const fill = nutSettings.type === 'locking' ? '#3a3a3a' : nutSettings.type === 'compensated' ? '#e8dcc8' : '#f0e6d2';

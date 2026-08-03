@@ -13,6 +13,7 @@ export function useNeckGeometry() {
   const neckParams = useDesignStore((s) => s.neckParams);
   const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
   const headstockSettings = useDesignStore((s) => s.headstockSettings);
+  const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
   const saddles = useDesignStore((s) => s.hardware.saddles);
 
   const joinPoint = useMemo<Point>(() => neckJoinPoint(bodyAnchors, neckParams), [bodyAnchors, neckParams]);
@@ -30,8 +31,11 @@ export function useNeckGeometry() {
   );
 
   const tunerPoints = useMemo(
-    () => computeTunerPositions(neckParams, headstockSettings, { joinPoint }, saddles).map((t) => t.position),
-    [neckParams, headstockSettings, joinPoint, saddles],
+    () =>
+      computeTunerPositions(neckParams, headstockSettings, { joinPoint }, saddles, stringCount).map(
+        (t) => t.position,
+      ),
+    [neckParams, headstockSettings, joinPoint, saddles, stringCount],
   );
 
   const placedFrets = useMemo(

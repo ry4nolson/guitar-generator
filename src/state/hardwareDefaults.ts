@@ -19,7 +19,7 @@ export interface HardwareState {
   controls: HardwarePosition[];
   /** Pickup selector switch (blade or toggle). Hidden when selector type is 'none'. */
   selector: HardwarePosition;
-  /** 6 individual saddles (or string slots), spaced across the bridge. */
+  /** Individual saddles (one per string), spaced across the bridge. */
   saddles: HardwarePosition[];
   /** 4-bolt neck attachment pattern (also used as back-view ferrules). */
   neckBolts: HardwarePosition[];
