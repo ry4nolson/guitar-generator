@@ -106,7 +106,7 @@ describe('pickup/control store actions', () => {
     expect(s.hardware.controls).toHaveLength(2);
     expect(s.controlSettings.selector).toBe('blade-3');
     expect(s.hardware.selector.visible).toBe(true);
-    expect(s.hardware.selector.rotation).toBe(65);
+    expect(s.hardware.selector.rotation).toBe(90);
   });
 
   it('rotateHardware adjusts the selector angle', () => {

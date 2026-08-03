@@ -197,6 +197,11 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   const settings = (parsed.settings as Record<string, unknown> | undefined) ?? {};
   if (typeof settings.bodyColor !== 'string') settings.bodyColor = '#d9c9a8';
   if (typeof settings.fretboardColor !== 'string') settings.fretboardColor = '#caa46a';
+  if (typeof settings.bodyOpacity !== 'number' || !Number.isFinite(settings.bodyOpacity)) {
+    settings.bodyOpacity = 1;
+  } else {
+    settings.bodyOpacity = Math.min(1, Math.max(0.05, settings.bodyOpacity as number));
+  }
   parsed.settings = settings;
 
   return parsed;

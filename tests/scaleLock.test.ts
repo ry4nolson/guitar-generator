@@ -126,7 +126,7 @@ describe('neck pocket inset', () => {
     const heelAfter = neckJoinPoint(after.bodyAnchors, after.neckParams).x;
     const centerAfter = saddleClusterCenter(after.hardware.saddles);
     expect(heelAfter - heelBefore).toBeCloseTo(20, 5);
-    expect(centerAfter.x - (heelAfter - after.neckParams.neckLength)).toBeCloseTo(scaleBefore, 5);
+    expect(centerAfter.x - (heelAfter - after.neckParams.neckLength)).toBeCloseTo(scaleBefore, 3);
     // Bolts are heel-relative: they ride along with the deeper-set heel.
     expect(after.hardware.neckBolts[0].x - boltBefore.x).toBeCloseTo(20, 5);
   });

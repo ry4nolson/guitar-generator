@@ -5,10 +5,11 @@ import {
   saveReferenceSettings,
   type ReferenceOverlaySettings,
 } from '../state/referenceOverlay';
+import { useDesignStore } from '../state/store';
 
 /** Holds the optional tracing reference image for the canvas.
- * Settings (opacity/scale/offset/flags) persist in localStorage; the image
- * bytes stay in-memory as an object URL for the session only.
+ * Settings (opacity/scale/rotation/offset/flags) persist in localStorage; the
+ * image bytes stay in-memory as an object URL for the session only.
  */
 export function useReferenceOverlay() {
   const [settings, setSettingsState] = useState<ReferenceOverlaySettings>(() => loadReferenceSettings());
@@ -26,8 +27,8 @@ export function useReferenceOverlay() {
 
   const loadImageFile = useCallback(
     (file: File) => {
-      if (!/^image\/(png|jpeg|jpg)$/i.test(file.type) && !/\.(png|jpe?g)$/i.test(file.name)) {
-        throw new Error('Reference image must be a PNG or JPEG file.');
+      if (!/^image\/(png|jpeg|jpg|webp)$/i.test(file.type) && !/\.(png|jpe?g|webp)$/i.test(file.name)) {
+        throw new Error('Reference image must be a PNG, JPEG, or WebP file.');
       }
       const url = URL.createObjectURL(file);
       if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
@@ -37,6 +38,9 @@ export function useReferenceOverlay() {
       img.onload = () => setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
       img.src = url;
       setSettings({ visible: true });
+      // First reference load: drop body opacity so the image shows through for tracing.
+      const { settings: editor, setBodyOpacity } = useDesignStore.getState();
+      if ((editor.bodyOpacity ?? 1) >= 0.99) setBodyOpacity(0.5);
     },
     [setSettings],
   );

@@ -89,10 +89,13 @@ export interface EditorSettings {
   bodyColor: string;
   /** Fretboard / headstock fill (CSS hex). */
   fretboardColor: string;
+  /** Body fill opacity (0–1). Useful when tracing over a reference image. */
+  bodyOpacity: number;
 }
 
 export const DEFAULT_BODY_COLOR = '#d9c9a8';
 export const DEFAULT_FRETBOARD_COLOR = '#caa46a';
+export const DEFAULT_BODY_OPACITY = 1;
 
 const DEFAULT_SETTINGS: EditorSettings = {
   unit: 'mm',
@@ -105,6 +108,7 @@ const DEFAULT_SETTINGS: EditorSettings = {
   canvasPadding: 40,
   bodyColor: DEFAULT_BODY_COLOR,
   fretboardColor: DEFAULT_FRETBOARD_COLOR,
+  bodyOpacity: DEFAULT_BODY_OPACITY,
 };
 
 /** Bump this whenever DesignDocument's shape changes in a way old files can't be read as-is. */
@@ -147,7 +151,7 @@ function defaultDocument(): DesignDocument {
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v10';
+const AUTOSAVE_KEY = 'fretforge-autosave-v11';
 
 interface HistoryEntry {
   templateId: string;
@@ -246,6 +250,7 @@ interface StoreState extends DesignDocument {
   setGridSize: (size: number) => void;
   setBodyColor: (color: string) => void;
   setFretboardColor: (color: string) => void;
+  setBodyOpacity: (opacity: number) => void;
   toggleGridSnap: () => void;
   toggleShowPoints: () => void;
   toggleDebugOverlay: () => void;
@@ -754,6 +759,11 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
   setFretboardColor: (fretboardColor) => {
     set((s) => ({ settings: { ...s.settings, fretboardColor } }));
+    get().autosave();
+  },
+  setBodyOpacity: (opacity) => {
+    const bodyOpacity = Math.min(1, Math.max(0.05, opacity));
+    set((s) => ({ settings: { ...s.settings, bodyOpacity } }));
     get().autosave();
   },
   toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),

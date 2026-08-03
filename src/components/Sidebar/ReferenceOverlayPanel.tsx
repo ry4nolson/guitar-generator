@@ -21,7 +21,7 @@ export function ReferenceOverlayPanel() {
   return (
     <section className="sidebar-section">
       <h3>Reference overlay</h3>
-      <p className="muted">Optional PNG/JPEG behind the outline for tracing. Not included in SVG exports.</p>
+      <p className="muted">Optional PNG/JPEG/WebP behind the outline for tracing. Not included in SVG exports.</p>
       <div className="button-row">
         <button type="button" onClick={() => fileRef.current?.click()}>
           {hasImage ? 'Replace image' : 'Upload image'}
@@ -32,7 +32,13 @@ export function ReferenceOverlayPanel() {
           </button>
         )}
       </div>
-      <input ref={fileRef} type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden onChange={onFile} />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+        hidden
+        onChange={onFile}
+      />
 
       {hasImage && (
         <>
@@ -82,6 +88,21 @@ export function ReferenceOverlayPanel() {
               onChange={(e) => setSettings({ scale: parseFloat(e.target.value) })}
             />
           </label>
+          <label className="param-slider">
+            <div className="param-slider-row">
+              <span>Rotation</span>
+              <span className="param-value">{Math.round(settings.rotation)}°</span>
+            </div>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={settings.rotation}
+              disabled={settings.locked}
+              onChange={(e) => setSettings({ rotation: parseFloat(e.target.value) })}
+            />
+          </label>
           <div className="coord-inputs">
             <label>
               X (mm)
@@ -104,7 +125,21 @@ export function ReferenceOverlayPanel() {
               />
             </label>
           </div>
-          {imageUrl && <p className="muted">Image is session-only; overlay settings are saved locally.</p>}
+          <label>
+            Rotation (°)
+            <input
+              type="number"
+              step={1}
+              value={Math.round(settings.rotation)}
+              disabled={settings.locked}
+              onChange={(e) => setSettings({ rotation: parseFloat(e.target.value) || 0 })}
+            />
+          </label>
+          {imageUrl && (
+            <p className="muted">
+              Unlocked: drag the blue frame to move, blue handle to rotate. Image is session-only; settings save locally.
+            </p>
+          )}
         </>
       )}
     </section>

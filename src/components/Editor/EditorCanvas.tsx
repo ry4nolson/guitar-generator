@@ -14,7 +14,7 @@ import { BackView } from './BackView';
 import { ConstructionView } from './ConstructionView';
 import { LayerGroup } from './LayerGroup';
 import { DebugOverlay } from './DebugOverlay';
-import { ReferenceImageOverlay } from './ReferenceImageOverlay';
+import { ReferenceImageOverlay, ReferenceOverlayManipulator } from './ReferenceImageOverlay';
 import { Strings } from './Strings';
 import { NutHardware } from './NutHardware';
 import { HeadstockOutline, Tuners } from './Headstock';
@@ -135,14 +135,21 @@ export function EditorCanvas() {
               <LayerGroup id="strings">
                 <Strings />
               </LayerGroup>
+              <ReferenceOverlayManipulator stageRef={stageRef} />
               <FeatureHitRegions stageRef={stageRef} />
               <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />
               {showDebugOverlay && <DebugOverlay />}
             </>
           )}
-          {view === 'back' && <BackView stageRef={stageRef} />}
+          {view === 'back' && (
+            <>
+              <ReferenceOverlayManipulator stageRef={stageRef} />
+              <BackView stageRef={stageRef} />
+            </>
+          )}
           {view === 'construction' && (
             <>
+              <ReferenceOverlayManipulator stageRef={stageRef} />
               <ConstructionView stageRef={stageRef} />
               {showDebugOverlay && <DebugOverlay />}
             </>

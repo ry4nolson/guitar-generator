@@ -1,0 +1,495 @@
+{
+  "version": 8,
+  "templateId": "tele",
+  "bodyParams": {
+    "bodyLength": 430,
+    "bodyWidth": 324,
+    "anchorCount": 13,
+    "forwardLean": 0,
+    "upperHornReach": 22,
+    "waistDepth": 12,
+    "waistPosition": 0.5,
+    "lowerBoutFullness": 0.97,
+    "hipCutoutDepth": 3,
+    "lowerHornReach": 12
+  },
+  "bodyAnchors": [
+    {
+      "id": "neckJoint",
+      "featureId": "neckTransition",
+      "continuity": "smooth",
+      "position": {
+        "x": 49.69283676147461,
+        "y": -9.506442070007324
+      },
+      "handleIn": {
+        "x": 51.38090325922229,
+        "y": -22.577981210413927
+      },
+      "handleOut": {
+        "x": 46.915497417644474,
+        "y": 11.999878911722984
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "upperHornTip",
+      "featureId": "upperHorn",
+      "continuity": "smooth",
+      "position": {
+        "x": 56.56216812133789,
+        "y": 30.856361389160156
+      },
+      "handleIn": {
+        "x": 92.02812767028809,
+        "y": -22.49203109741211
+      },
+      "handleOut": {
+        "x": 21.096208572387695,
+        "y": 84.20475387573242
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "upperHornShoulder",
+      "featureId": "upperHorn",
+      "continuity": "smooth",
+      "position": {
+        "x": 45.455387115478516,
+        "y": 129.54104614257812
+      },
+      "handleIn": {
+        "x": 30.025742211427087,
+        "y": 122.45790713964445
+      },
+      "handleOut": {
+        "x": 57.41341133597581,
+        "y": 135.03050155655137
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "upperBoutApex",
+      "featureId": "upperBout",
+      "continuity": "smooth",
+      "position": {
+        "x": 109.97663879394531,
+        "y": 140.85411071777344
+      },
+      "handleIn": {
+        "x": 73.11161041259766,
+        "y": 146.11912536621094
+      },
+      "handleOut": {
+        "x": 146.84166717529297,
+        "y": 135.58909606933594
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "waistPoint",
+      "featureId": "rearWaist",
+      "continuity": "smooth",
+      "position": {
+        "x": 210.12294006347656,
+        "y": 115.58670043945312
+      },
+      "handleIn": {
+        "x": 174.8826904296875,
+        "y": 100.92512512207031
+      },
+      "handleOut": {
+        "x": 245.36318969726562,
+        "y": 130.24827575683594
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "lowerBassBoutApex",
+      "featureId": "lowerBassBout",
+      "continuity": "smooth",
+      "position": {
+        "x": 361.4096984863281,
+        "y": 159.02676391601562
+      },
+      "handleIn": {
+        "x": 318.81622314453125,
+        "y": 170.14511108398438
+      },
+      "handleOut": {
+        "x": 404.003173828125,
+        "y": 147.90841674804688
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "tailShoulderBass",
+      "featureId": "tail",
+      "continuity": "smooth",
+      "position": {
+        "x": 428.5531921386719,
+        "y": 89.50556182861328
+      },
+      "handleIn": {
+        "x": 420.3236999511719,
+        "y": 114.09539031982422
+      },
+      "handleOut": {
+        "x": 436.7826843261719,
+        "y": 64.91573333740234
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "tailPoint",
+      "featureId": "tail",
+      "continuity": "smooth",
+      "position": {
+        "x": 435.5611267089844,
+        "y": 1.1022367477416992
+      },
+      "handleIn": {
+        "x": 435.5611267089844,
+        "y": 14.111935059754934
+      },
+      "handleOut": {
+        "x": 435.5611267089844,
+        "y": -11.33295550032588
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "tailShoulderTreble",
+      "featureId": "tail",
+      "continuity": "smooth",
+      "position": {
+        "x": 429.00048828125,
+        "y": -82.90433502197266
+      },
+      "handleIn": {
+        "x": 439.45184326171875,
+        "y": -42.90022277832031
+      },
+      "handleOut": {
+        "x": 418.54913330078125,
+        "y": -122.908447265625
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "lowerTrebleBoutApex",
+      "featureId": "lowerTrebleBout",
+      "continuity": "smooth",
+      "position": {
+        "x": 344.6061706542969,
+        "y": -157.1110382080078
+      },
+      "handleIn": {
+        "x": 403.69854736328125,
+        "y": -141.18711853027344
+      },
+      "handleOut": {
+        "x": 285.5137939453125,
+        "y": -173.0349578857422
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "hipContourPoint",
+      "featureId": "hipContour",
+      "continuity": "smooth",
+      "position": {
+        "x": 175.1187286376953,
+        "y": -118.88646697998047
+      },
+      "handleIn": {
+        "x": 215.76068115234375,
+        "y": -106.81173706054688
+      },
+      "handleOut": {
+        "x": 134.47677612304688,
+        "y": -130.96119689941406
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "lowerHornShoulder",
+      "featureId": "lowerHornCutaway",
+      "continuity": "smooth",
+      "position": {
+        "x": 41.96029281616211,
+        "y": -118.33747863769531
+      },
+      "handleIn": {
+        "x": 45.97850036621094,
+        "y": -158.0194320678711
+      },
+      "handleOut": {
+        "x": 37.94208526611328,
+        "y": -78.65552520751953
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    },
+    {
+      "id": "lowerHornTip",
+      "featureId": "lowerHornCutaway",
+      "continuity": "smooth",
+      "position": {
+        "x": 107.26908874511719,
+        "y": -61.83252716064453
+      },
+      "handleIn": {
+        "x": 110.19220733642578,
+        "y": -119.3089828491211
+      },
+      "handleOut": {
+        "x": 104.3459701538086,
+        "y": -4.356071472167969
+      },
+      "manuallyEdited": true,
+      "locked": false,
+      "mirrorHandles": true
+    }
+  ],
+  "neckParams": {
+    "bassScale": 647.7,
+    "trebleScale": 628.65,
+    "neutralFret": 8,
+    "fretCount": 24,
+    "nutWidth": 43,
+    "heelWidth": 56,
+    "neckLength": 460,
+    "neckAngle": 0,
+    "neckInset": 55
+  },
+  "hardware": {
+    "pickups": [
+      {
+        "x": 134.6928367614746,
+        "y": 0,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 191.04283676147463,
+        "y": 0,
+        "rotation": 0,
+        "visible": false,
+        "locked": false
+      },
+      {
+        "x": 247.39283676147465,
+        "y": 0,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "controls": [
+      {
+        "x": 306.5810241699219,
+        "y": -90.61714935302734,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 350.9060974121094,
+        "y": -90.72488403320312,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "selector": {
+      "x": 267.06793212890625,
+      "y": -92.26602172851562,
+      "rotation": 90,
+      "visible": true,
+      "locked": false
+    },
+    "saddles": [
+      {
+        "x": 280.69208876122593,
+        "y": -26.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 283.3322383612757,
+        "y": -15.75,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 285.97238796132547,
+        "y": -5.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 288.6125375613751,
+        "y": 5.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 291.2526871614249,
+        "y": 15.75,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 293.89283676147465,
+        "y": 26.25,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ],
+    "neckBolts": [
+      {
+        "x": 94.69283676147461,
+        "y": 19,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 94.69283676147461,
+        "y": -19,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 52.69283676147461,
+        "y": 19,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      },
+      {
+        "x": 52.69283676147461,
+        "y": -19,
+        "rotation": 0,
+        "visible": true,
+        "locked": false
+      }
+    ]
+  },
+  "bridgeSettings": {
+    "type": "hardtail",
+    "stringCount": 6,
+    "stringSpacing": 52.5,
+    "saddleTravel": 18,
+    "stopbarOffset": 28,
+    "postSpacing": 74
+  },
+  "nutSettings": {
+    "type": "standard",
+    "stringSpacing": 35,
+    "thickness": 5
+  },
+  "headstockSettings": {
+    "type": "paddle",
+    "length": 175,
+    "tipWidth": 68,
+    "earWidth": 30,
+    "showTuners": true,
+    "tunerLayout": "6-inline"
+  },
+  "pickupSettings": {
+    "neck": "single-coil",
+    "middle": "none",
+    "bridge": "humbucker"
+  },
+  "controlSettings": {
+    "volumes": 1,
+    "tones": 1,
+    "selector": "blade-3",
+    "cavityPad": 14,
+    "cavityRotationOffset": 0
+  },
+  "settings": {
+    "unit": "mm",
+    "theme": "dark",
+    "view": "top",
+    "gridSize": 5,
+    "gridSnapEnabled": false,
+    "showPointsAndHandles": true,
+    "showDebugOverlay": false,
+    "canvasPadding": 40,
+    "bodyColor": "#d9c9a8",
+    "fretboardColor": "#caa46a",
+    "bodyOpacity": 1
+  },
+  "layers": {
+    "body": {
+      "visible": true,
+      "locked": false
+    },
+    "neck": {
+      "visible": true,
+      "locked": false
+    },
+    "frets": {
+      "visible": true,
+      "locked": false
+    },
+    "strings": {
+      "visible": false,
+      "locked": false
+    },
+    "hardware": {
+      "visible": true,
+      "locked": false
+    },
+    "construction": {
+      "visible": true,
+      "locked": false
+    },
+    "dimensions": {
+      "visible": true,
+      "locked": false
+    },
+    "routes": {
+      "visible": true,
+      "locked": false
+    },
+    "centerlines": {
+      "visible": true,
+      "locked": false
+    }
+  }
+}
