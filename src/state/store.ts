@@ -62,7 +62,13 @@ import {
   type PickupSlot,
   type PickupSlotValue,
 } from '../geometry/pickups';
-import { layoutSaddlesFromScale, isScaleLockNeckKey, neckJoinPoint } from '../geometry/scaleLock';
+import {
+  layoutSaddlesFromScale,
+  layoutNeckBolts,
+  isScaleLockNeckKey,
+  isNeckBoltLayoutKey,
+  neckJoinPoint,
+} from '../geometry/scaleLock';
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
 
@@ -444,18 +450,17 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const neckParams = { ...get().neckParams, [key]: value };
     let hardware = get().hardware;
     if (isScaleLockNeckKey(key)) {
-      const oldJoin = neckJoinPoint(get().bodyAnchors, get().neckParams);
       // Note: the NEW neck params — neckInset/neckAngle move the heel itself.
       const newJoin = neckJoinPoint(get().bodyAnchors, neckParams);
       hardware = relayoutHardwareToScale(hardware, neckParams, get().bridgeSettings, newJoin);
-      // Neck bolts are heel-relative: when the heel itself moved (pocket inset
-      // or neck angle), carry them along; scale-only changes leave them put.
-      const dx = newJoin.x - oldJoin.x;
-      const dy = newJoin.y - oldJoin.y;
-      if (dx !== 0 || dy !== 0) {
+      // Bolts live in neck space — relayout so they stay on the heel centerline
+      // and rotate with neckAngle (a plain translate can't do that).
+      if (isNeckBoltLayoutKey(key)) {
         hardware = {
           ...hardware,
-          neckBolts: hardware.neckBolts.map((b) => (b.locked ? b : { ...b, x: b.x + dx, y: b.y + dy })),
+          neckBolts: layoutNeckBolts(neckParams, { joinPoint: newJoin }, {
+            prior: hardware.neckBolts,
+          }),
         };
       }
     }

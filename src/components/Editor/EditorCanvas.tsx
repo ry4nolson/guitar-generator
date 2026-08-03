@@ -72,8 +72,11 @@ export function EditorCanvas() {
   const contentHeight = bounds.maxY - bounds.minY;
   const width = contentWidth + canvasPadding * 2;
   const height = contentHeight + canvasPadding * 2;
+  // Top/construction: scale(-1,-1). Back: scale(-1,1) — flips bass↔treble like
+  // turning the guitar over, while keeping body-local coords (and drag CTM) intact.
   const stageTx = canvasPadding + bounds.maxX;
-  const stageTy = canvasPadding + bounds.maxY;
+  const stageTy = view === 'back' ? canvasPadding - bounds.minY : canvasPadding + bounds.maxY;
+  const stageScale = view === 'back' ? 'scale(-1, 1)' : 'scale(-1, -1)';
 
   const onlyFeatureAnchorIds = useMemo(
     () => (selected?.kind === 'feature' ? bodyAnchors.filter((a) => a.featureId === selected.id).map((a) => a.id) : undefined),
@@ -109,7 +112,7 @@ export function EditorCanvas() {
         }}
       />
       <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
-        <g ref={stageRef} id="stage" transform={`translate(${stageTx}, ${stageTy}) scale(-1,-1)`}>
+        <g ref={stageRef} id="stage" transform={`translate(${stageTx}, ${stageTy}) ${stageScale}`}>
           <ReferenceImageOverlay />
           {view === 'top' && (
             <>

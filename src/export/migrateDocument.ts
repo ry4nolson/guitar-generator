@@ -21,13 +21,13 @@ import {
   type ControlSettings,
   type PickupSettings,
 } from '../geometry/pickups';
-import { layoutSaddlesFromScale, neckJoinPoint } from '../geometry/scaleLock';
+import { layoutNeckBolts, layoutSaddlesFromScale, neckJoinPoint } from '../geometry/scaleLock';
 import type { BodyAnchor, HardwarePosition } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
 
 /** Current design-document schema version. Bump when the shape changes. */
-export const DESIGN_DOCUMENT_VERSION = 7;
+export const DESIGN_DOCUMENT_VERSION = 8;
 
 /** Pre-v6 hardware shape (single fixed pickup + volume knob). */
 interface LegacyHardware {
@@ -129,6 +129,8 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
         volumes: hardware.volumeKnob ? 1 : 0,
         tones: 0,
         selector: 'none',
+        cavityPad: DEFAULT_CONTROL_SETTINGS.cavityPad,
+        cavityRotationOffset: DEFAULT_CONTROL_SETTINGS.cavityRotationOffset,
       } satisfies ControlSettings;
     }
     version = 6;
@@ -151,6 +153,22 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     parsed.version = 7;
   }
 
+  // v7 → v8: neck bolts used to be an axis-aligned body-space rectangle that
+  // often sat past the heel tip. Snap unlocked 4-bolt patterns onto the heel
+  // in neck space (centered, rotated with neckAngle).
+  if (version === 7) {
+    const hardware = parsed.hardware as LegacyHardware | undefined;
+    if (anchors && neckParams && hardware?.neckBolts?.length === 4) {
+      hardware.neckBolts = layoutNeckBolts(
+        neckParams,
+        { joinPoint: neckJoinPoint(anchors, neckParams) },
+        { prior: hardware.neckBolts },
+      );
+    }
+    version = 8;
+    parsed.version = 8;
+  }
+
   if (version !== DESIGN_DOCUMENT_VERSION) {
     throw new Error(
       `This file was saved with design format v${version}, but this build expects v${DESIGN_DOCUMENT_VERSION}.`,
@@ -166,7 +184,13 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   if (!parsed.nutSettings) parsed.nutSettings = { ...DEFAULT_NUT_SETTINGS };
   if (!parsed.headstockSettings) parsed.headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
   if (!parsed.pickupSettings) parsed.pickupSettings = { ...DEFAULT_PICKUP_SETTINGS };
-  if (!parsed.controlSettings) parsed.controlSettings = { ...DEFAULT_CONTROL_SETTINGS };
+  if (!parsed.controlSettings) {
+    parsed.controlSettings = { ...DEFAULT_CONTROL_SETTINGS };
+  } else {
+    const cs = parsed.controlSettings as ControlSettings;
+    if (cs.cavityPad === undefined) cs.cavityPad = DEFAULT_CONTROL_SETTINGS.cavityPad;
+    if (cs.cavityRotationOffset === undefined) cs.cavityRotationOffset = DEFAULT_CONTROL_SETTINGS.cavityRotationOffset;
+  }
   const layers = (parsed.layers as Record<LayerId, LayerState> | undefined) ?? defaultLayers();
   if (!layers.strings) layers.strings = { visible: false, locked: false };
   parsed.layers = layers;

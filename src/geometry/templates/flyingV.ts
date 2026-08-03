@@ -133,7 +133,7 @@ export const FLYING_V_TEMPLATE: BodyTemplate = {
     // Heel position: pocket-mouth anchor + how deep the neck sets into the body.
     joinX: DEFAULT_PARAMS.bodyLength * 0.045 + DEFAULT_NECK_PARAMS.neckInset,
     neckParams: { ...DEFAULT_NECK_PARAMS, neckLength: 480 },
-    neckBoltSpanX: 42,
-    neckBoltSpanY: 16,
+    neckBoltSpanX: 42, // along-neck distance between bolt rows
+    neckBoltSpanY: 16, // half-width from centerline
   }),
 };

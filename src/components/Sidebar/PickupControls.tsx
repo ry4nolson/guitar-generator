@@ -118,6 +118,55 @@ export function PickupControls() {
           <span className="muted">°</span>
         </div>
       )}
+
+      <h3 style={{ marginTop: 14 }}>Control cavity</h3>
+      <p className="muted">Back-view route — auto-angled to the knob/selector cluster.</p>
+      <div className="row-inline">
+        <span>Pad</span>
+        <input
+          type="range"
+          min={4}
+          max={36}
+          step={1}
+          value={controlSettings.cavityPad ?? 14}
+          onChange={(e) => setControlSetting('cavityPad', parseFloat(e.target.value))}
+          style={{ flex: 1 }}
+          title="Cavity padding (mm)"
+        />
+        <input
+          type="number"
+          min={4}
+          max={36}
+          step={1}
+          value={Math.round(controlSettings.cavityPad ?? 14)}
+          onChange={(e) => setControlSetting('cavityPad', parseFloat(e.target.value) || 14)}
+          style={{ width: 52 }}
+        />
+        <span className="muted">mm</span>
+      </div>
+      <div className="row-inline">
+        <span>Angle offset</span>
+        <input
+          type="range"
+          min={-90}
+          max={90}
+          step={1}
+          value={controlSettings.cavityRotationOffset ?? 0}
+          onChange={(e) => setControlSetting('cavityRotationOffset', parseFloat(e.target.value))}
+          style={{ flex: 1 }}
+          title="Extra degrees on the auto-fitted cavity angle"
+        />
+        <input
+          type="number"
+          min={-90}
+          max={90}
+          step={1}
+          value={Math.round(controlSettings.cavityRotationOffset ?? 0)}
+          onChange={(e) => setControlSetting('cavityRotationOffset', parseFloat(e.target.value) || 0)}
+          style={{ width: 52 }}
+        />
+        <span className="muted">°</span>
+      </div>
     </section>
   );
 }

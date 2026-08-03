@@ -2,12 +2,20 @@ import { memo } from 'react';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 
 /** Headless or headed neck outline (layer: "neck"). */
-export const NeckOutline = memo(function NeckOutline() {
+export const NeckOutline = memo(function NeckOutline({ variant = 'top' }: { variant?: 'top' | 'back' }) {
   const { outlinePoints } = useNeckGeometry();
   const d = `M ${outlinePoints.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' L ')} Z`;
+  // Back view: translucent heel so the body pocket edge reads through while
+  // aligning movable neck bolts.
   return (
     <g id="neck">
-      <path d={d} fill="var(--neck-fill)" stroke="var(--outline-stroke)" strokeWidth={1} />
+      <path
+        d={d}
+        fill="var(--neck-fill)"
+        fillOpacity={variant === 'back' ? 0.42 : 1}
+        stroke="var(--outline-stroke)"
+        strokeWidth={1}
+      />
     </g>
   );
 });

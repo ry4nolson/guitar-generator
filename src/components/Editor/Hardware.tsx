@@ -126,34 +126,93 @@ function PickupShape({ type, selected }: { type: PickupType; selected: boolean }
 }
 
 /** Metal dome knob with position indicator. ~19 mm diameter like a real pot knob. */
-function KnobShape({ selected }: { selected: boolean }) {
+export function KnobShape({ selected, ghost = false }: { selected: boolean; ghost?: boolean }) {
+  const stroke = selected ? '#ff5533' : ghost ? '#888' : '#000';
   return (
-    <g>
-      <circle r={9.5} fill="#2c2c2c" stroke={selected ? '#ff5533' : '#000'} strokeWidth={selected ? 1.5 : 0.8} />
-      <circle r={6.8} fill="#3d3d3d" />
-      <line x1={0} y1={0} x2={0} y2={-8} stroke="#d0d0d0" strokeWidth={1.1} strokeLinecap="round" />
+    <g opacity={ghost ? 0.4 : 1}>
+      <circle r={9.5} fill={ghost ? 'none' : '#2c2c2c'} stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
+      {!ghost && <circle r={6.8} fill="#3d3d3d" />}
+      <line
+        x1={0}
+        y1={0}
+        x2={0}
+        y2={-8}
+        stroke={ghost ? '#aaa' : '#d0d0d0'}
+        strokeWidth={1.1}
+        strokeLinecap="round"
+      />
     </g>
   );
 }
 
-function SelectorShape({ type, rotation, selected }: { type: SelectorType; rotation: number; selected: boolean }) {
-  const stroke = selected ? '#ff5533' : '#000';
+export function SelectorShape({
+  type,
+  rotation,
+  selected,
+  ghost = false,
+}: {
+  type: SelectorType;
+  rotation: number;
+  selected: boolean;
+  ghost?: boolean;
+}) {
+  const stroke = selected ? '#ff5533' : ghost ? '#888' : '#000';
   if (type === 'toggle') {
     return (
-      <g>
-        <circle r={8} fill="#c9b98d" stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
-        <circle r={3.2} fill="#f2ead2" stroke="#555" strokeWidth={0.5} />
+      <g opacity={ghost ? 0.4 : 1}>
+        <circle r={8} fill={ghost ? 'none' : '#c9b98d'} stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
+        {!ghost && <circle r={3.2} fill="#f2ead2" stroke="#555" strokeWidth={0.5} />}
       </g>
     );
   }
   // Blade switch: plate + travel slot + lever tip.
   return (
-    <g transform={`rotate(${rotation})`}>
-      <rect x={-7} y={-26} width={14} height={52} rx={4} fill="#1c1c1c" stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
-      <rect x={-1.5} y={-19} width={3} height={38} rx={1.5} fill="#555" />
-      <circle cx={0} cy={-13} r={3} fill="#e0dcc8" stroke="#333" strokeWidth={0.5} />
-      <circle cx={0} cy={22} r={1.3} fill="#888" />
-      <circle cx={0} cy={-22} r={1.3} fill="#888" />
+    <g transform={`rotate(${rotation})`} opacity={ghost ? 0.4 : 1}>
+      <rect
+        x={-7}
+        y={-26}
+        width={14}
+        height={52}
+        rx={4}
+        fill={ghost ? 'none' : '#1c1c1c'}
+        stroke={stroke}
+        strokeWidth={selected ? 1.5 : 0.8}
+      />
+      {!ghost && (
+        <>
+          <rect x={-1.5} y={-19} width={3} height={38} rx={1.5} fill="#555" />
+          <circle cx={0} cy={-13} r={3} fill="#e0dcc8" stroke="#333" strokeWidth={0.5} />
+          <circle cx={0} cy={22} r={1.3} fill="#888" />
+          <circle cx={0} cy={-22} r={1.3} fill="#888" />
+        </>
+      )}
+    </g>
+  );
+}
+
+/** Non-interactive ghost of front knobs/selector for back-view cavity alignment. */
+export function ControlsGhost() {
+  const hardware = useDesignStore((s) => s.hardware);
+  const controlSettings = useDesignStore((s) => s.controlSettings);
+  return (
+    <g id="controls-ghost" style={{ pointerEvents: 'none' }}>
+      {hardware.controls.map((c, i) =>
+        c.visible ? (
+          <g key={i} transform={`translate(${c.x},${c.y})`}>
+            <KnobShape selected={false} ghost />
+          </g>
+        ) : null,
+      )}
+      {controlSettings.selector !== 'none' && hardware.selector.visible && (
+        <g transform={`translate(${hardware.selector.x},${hardware.selector.y})`}>
+          <SelectorShape
+            type={controlSettings.selector}
+            rotation={hardware.selector.rotation}
+            selected={false}
+            ghost
+          />
+        </g>
+      )}
     </g>
   );
 }

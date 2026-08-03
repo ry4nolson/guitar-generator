@@ -27,6 +27,10 @@ export interface ControlSettings {
   /** Number of tone knobs (0–2). */
   tones: number;
   selector: SelectorType;
+  /** Back-view control-cavity padding around the knob/selector cluster, mm. */
+  cavityPad: number;
+  /** Extra degrees added to the auto-fitted cavity angle. */
+  cavityRotationOffset: number;
 }
 
 export const DEFAULT_PICKUP_SETTINGS: PickupSettings = {
@@ -39,6 +43,8 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   volumes: 1,
   tones: 1,
   selector: 'blade-3',
+  cavityPad: 14,
+  cavityRotationOffset: 0,
 };
 
 /**

@@ -191,7 +191,13 @@ describe('v5 → v6 migration', () => {
     expect(hw.controls[0]).toMatchObject({ x: 300, y: -50, locked: true });
     // Legacy docs stay visually identical: only the bridge slot is populated.
     expect(migrated.pickupSettings).toEqual({ neck: 'none', middle: 'none', bridge: 'humbucker' });
-    expect(migrated.controlSettings).toEqual({ volumes: 1, tones: 0, selector: 'none' });
+    expect(migrated.controlSettings).toEqual({
+      volumes: 1,
+      tones: 0,
+      selector: 'none',
+      cavityPad: 14,
+      cavityRotationOffset: 0,
+    });
     expect(hw.selector.visible).toBe(false);
   });
 

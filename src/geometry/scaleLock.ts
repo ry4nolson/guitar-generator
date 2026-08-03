@@ -65,6 +65,48 @@ export function layoutSaddlesFromScale(
   });
 }
 
+/**
+ * 4-bolt neck plate in neck-local space, then transformed into body space so the
+ * pattern rides the neck centerline and rotates with neckAngle.
+ *
+ * Both rows sit on the heel (inside the pocket), never past the fretboard end:
+ * rear row ~10 mm in from the heel toward the nut, front row `spanAlong` further.
+ */
+export function layoutNeckBolts(
+  neckParams: NeckParams,
+  placement: NeckPlacement,
+  opts?: {
+    /** Distance between the two bolt rows along the neck, mm. */
+    spanAlong?: number;
+    /** Distance from centerline to each bolt (half the plate width), mm. */
+    halfAcross?: number;
+    prior?: HardwarePosition[];
+  },
+): HardwarePosition[] {
+  const spanAlong = opts?.spanAlong ?? 42;
+  const halfY = opts?.halfAcross ?? 19;
+  const rearFromHeel = 10;
+  const heel = neckParams.neckLength;
+  const locals: Point[] = [
+    { x: heel - rearFromHeel, y: halfY },
+    { x: heel - rearFromHeel, y: -halfY },
+    { x: heel - rearFromHeel - spanAlong, y: halfY },
+    { x: heel - rearFromHeel - spanAlong, y: -halfY },
+  ];
+  return locals.map((p, i) => {
+    const prev = opts?.prior?.[i];
+    if (prev?.locked) return prev;
+    const body = neckToBodySpace(p, neckParams, placement);
+    return {
+      x: body.x,
+      y: body.y,
+      rotation: neckParams.neckAngle,
+      visible: prev?.visible ?? true,
+      locked: false,
+    };
+  });
+}
+
 /** Neck params that move the nut or the scale-end bridge positions in body space. */
 export const SCALE_LOCK_NECK_KEYS: ReadonlyArray<keyof NeckParams> = [
   'bassScale',
@@ -75,6 +117,17 @@ export const SCALE_LOCK_NECK_KEYS: ReadonlyArray<keyof NeckParams> = [
   'neckInset',
 ];
 
+/** Neck params that move/rotate the heel — bolts must be fully relaid, not just translated. */
+export const NECK_BOLT_LAYOUT_KEYS: ReadonlyArray<keyof NeckParams> = [
+  'neckLength',
+  'neckAngle',
+  'neckInset',
+];
+
 export function isScaleLockNeckKey(key: keyof NeckParams): boolean {
   return (SCALE_LOCK_NECK_KEYS as ReadonlyArray<string>).includes(key);
+}
+
+export function isNeckBoltLayoutKey(key: keyof NeckParams): boolean {
+  return (NECK_BOLT_LAYOUT_KEYS as ReadonlyArray<string>).includes(key);
 }

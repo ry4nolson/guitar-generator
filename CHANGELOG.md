@@ -6,6 +6,16 @@
 
 - Strings now draw above pickups/hardware so they sit on the pole pieces.
 - Bass-side string strokes are thinner (outer bass ≈1.75 mm canvas width).
+- Neck bolt holes are laid out in neck space on the heel (inside the pocket),
+  centered on the neck centerline and rotated with neck angle — no longer an
+  axis-aligned body-space rectangle with half the pattern past the tip.
+- Back view flips bass↔treble (true rear perspective), shows the neck outline,
+  and uses translucent body/neck fills so the heel and pocket stay readable
+  under movable bolt ferrules.
+- Control cavity on the back is an oriented rectangle fitted to the
+  knob/selector cluster (not axis-aligned), with configurable pad and angle
+  offset in the Pickups sidebar. Front controls render as ghosts on the back
+  for alignment.
 
 ### Added
 

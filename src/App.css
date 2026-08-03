@@ -87,6 +87,7 @@
 }
 
 .toolbar button.active,
+.sidebar button.active,
 .segmented button.active {
   background: var(--btn-bg-active);
   color: white;

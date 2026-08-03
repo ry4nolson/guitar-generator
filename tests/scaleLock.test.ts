@@ -3,9 +3,11 @@ import { DEFAULT_NECK_PARAMS } from '../src/geometry/neckParams';
 import { DEFAULT_BRIDGE_SETTINGS } from '../src/geometry/bridgeTypes';
 import {
   layoutSaddlesFromScale,
+  layoutNeckBolts,
   neckJoinPoint,
   isScaleLockNeckKey,
 } from '../src/geometry/scaleLock';
+import { neckToBodySpace } from '../src/geometry/neckPlacement';
 import { saddleClusterCenter } from '../src/geometry/strings';
 import { useDesignStore } from '../src/state/store';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../src/export/migrateDocument';
@@ -131,6 +133,54 @@ describe('neck pocket inset', () => {
 
   it('marks neckInset as a scale-lock key', () => {
     expect(isScaleLockNeckKey('neckInset')).toBe(true);
+  });
+});
+
+describe('layoutNeckBolts', () => {
+  it('places all four bolts on the heel, inside the neck width, centered on the centerline', () => {
+    const neck = { ...DEFAULT_NECK_PARAMS, neckAngle: 0 };
+    const placement = { joinPoint: { x: 80, y: 0 } };
+    const bolts = layoutNeckBolts(neck, placement);
+    expect(bolts).toHaveLength(4);
+    const heelX = placement.joinPoint.x;
+    for (const b of bolts) {
+      // On the neck wood: toward the nut from the heel, within the pocket depth.
+      expect(b.x).toBeLessThan(heelX - 1);
+      expect(b.x).toBeGreaterThan(heelX - (neck.neckInset ?? 55) - 1);
+      expect(Math.abs(b.y)).toBeLessThan(neck.heelWidth / 2 - 2);
+    }
+    // Symmetric about the centerline.
+    const ys = bolts.map((b) => b.y).sort((a, b) => a - b);
+    expect(ys[0]).toBeCloseTo(-ys[3], 5);
+    expect(ys[1]).toBeCloseTo(-ys[2], 5);
+  });
+
+  it('rotates the bolt pattern with neckAngle', () => {
+    const neck = { ...DEFAULT_NECK_PARAMS, neckAngle: 8 };
+    const placement = { joinPoint: { x: 80, y: 0 } };
+    const bolts = layoutNeckBolts(neck, placement);
+    // Axis-aligned layout would keep |y| exactly at halfAcross (19); rotation moves them.
+    expect(bolts.every((b) => Math.abs(Math.abs(b.y) - 19) < 0.01)).toBe(false);
+    // Midpoint of the four bolts stays on the neck centerline through the heel.
+    const mid = {
+      x: bolts.reduce((s, b) => s + b.x, 0) / 4,
+      y: bolts.reduce((s, b) => s + b.y, 0) / 4,
+    };
+    const heel = neckToBodySpace({ x: neck.neckLength - 31, y: 0 }, neck, placement);
+    expect(mid.x).toBeCloseTo(heel.x, 4);
+    expect(mid.y).toBeCloseTo(heel.y, 4);
+  });
+
+  it('store relayouts bolts when neck angle changes', () => {
+    useDesignStore.getState().resetToDefaults();
+    useDesignStore.getState().setNeckParam('neckAngle', 6);
+    const bolts = useDesignStore.getState().hardware.neckBolts;
+    const expected = layoutNeckBolts(
+      useDesignStore.getState().neckParams,
+      { joinPoint: neckJoinPoint(useDesignStore.getState().bodyAnchors, useDesignStore.getState().neckParams) },
+    );
+    expect(bolts[0].x).toBeCloseTo(expected[0].x, 5);
+    expect(bolts[0].y).toBeCloseTo(expected[0].y, 5);
   });
 });
 

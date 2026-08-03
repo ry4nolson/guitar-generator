@@ -1,7 +1,7 @@
 import type { HardwarePosition } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
 import { DEFAULT_BRIDGE_SETTINGS } from '../geometry/bridgeTypes';
-import { layoutSaddlesFromScale } from '../geometry/scaleLock';
+import { layoutNeckBolts, layoutSaddlesFromScale } from '../geometry/scaleLock';
 import {
   DEFAULT_CONTROL_SETTINGS,
   DEFAULT_PICKUP_SETTINGS,
@@ -62,20 +62,16 @@ export function buildHardwareDefaults(opts: {
     locked: false,
   };
 
-  const boltSpanX = opts.neckBoltSpanX ?? 55;
-  const boltSpanY = opts.neckBoltSpanY ?? 20;
-  const boltStartX = opts.joinX - 5;
+  const neckBolts = layoutNeckBolts(opts.neckParams, placement, {
+    spanAlong: opts.neckBoltSpanX ?? 42,
+    halfAcross: opts.neckBoltSpanY ?? 19,
+  });
 
   return {
     pickups,
     controls,
     selector,
     saddles,
-    neckBolts: [
-      { x: boltStartX, y: boltSpanY, rotation: 0, visible: true, locked: false },
-      { x: boltStartX, y: -boltSpanY, rotation: 0, visible: true, locked: false },
-      { x: boltStartX + boltSpanX, y: boltSpanY, rotation: 0, visible: true, locked: false },
-      { x: boltStartX + boltSpanX, y: -boltSpanY, rotation: 0, visible: true, locked: false },
-    ],
+    neckBolts,
   };
 }

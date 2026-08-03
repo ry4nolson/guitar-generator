@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { darkenHex } from '../src/geometry/color';
 import { useDesignStore, DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR } from '../src/state/store';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../src/export/migrateDocument';
+import { neckJoinPoint } from '../src/geometry/scaleLock';
 import { getBodyTemplate } from '../src/geometry/templates';
 import { computeParametricAnchors } from '../src/geometry/bodyModel';
 import { defaultLayers } from '../src/state/layers';
@@ -35,7 +36,7 @@ describe('appearance settings', () => {
   });
 });
 
-describe('v6 → v7 migration', () => {
+describe('v6 → current migration', () => {
   it('rotates a legacy −25° blade selector to 65° and fills finish colors', () => {
     const tele = getBodyTemplate('tele');
     const anchors = computeParametricAnchors(tele, tele.defaultParams);
@@ -94,5 +95,38 @@ describe('v6 → v7 migration', () => {
     const migrated = migrateDesignDocument(v6 as unknown as Record<string, unknown>);
     const hw = migrated.hardware as typeof hardware;
     expect(hw.selector.rotation).toBe(12);
+  });
+
+  it('snaps legacy body-space neck bolts onto the heel (V.json-style)', () => {
+    const tele = getBodyTemplate('tele');
+    const anchors = computeParametricAnchors(tele, tele.defaultParams);
+    const neck = { ...tele.defaultNeckParams, neckInset: 55 };
+    const heelX = neckJoinPoint(anchors, neck).x;
+    const hardware = structuredClone(tele.defaultHardware);
+    // Old axis-aligned pattern with a row past the heel tip.
+    hardware.neckBolts = [
+      { x: heelX - 5, y: 16, rotation: 0, visible: true, locked: false },
+      { x: heelX - 5, y: -16, rotation: 0, visible: true, locked: false },
+      { x: heelX + 37, y: 16, rotation: 0, visible: true, locked: false },
+      { x: heelX + 37, y: -16, rotation: 0, visible: true, locked: false },
+    ];
+
+    const v6 = {
+      version: 6,
+      templateId: tele.id,
+      bodyParams: { ...tele.defaultParams },
+      bodyAnchors: anchors,
+      neckParams: neck,
+      hardware,
+      controlSettings: { volumes: 1, tones: 1, selector: 'blade-3' },
+      settings: {},
+      layers: defaultLayers(),
+    };
+
+    const migrated = migrateDesignDocument(v6 as unknown as Record<string, unknown>);
+    expect(migrated.version).toBe(DESIGN_DOCUMENT_VERSION);
+    const bolts = (migrated.hardware as typeof hardware).neckBolts;
+    expect(bolts.every((b) => b.x < heelX - 1)).toBe(true);
+    expect(bolts.every((b) => b.x > heelX - neck.neckInset - 1)).toBe(true);
   });
 });
