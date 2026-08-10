@@ -6,14 +6,13 @@ import { useReferenceOverlayContext } from '../../state/ReferenceOverlayContext'
 export function BodyOutline({ variant }: { variant: 'top' | 'back' }) {
   const anchors = useDesignStore((s) => s.bodyAnchors);
   const bodyOpacity = useDesignStore((s) => s.settings.bodyOpacity ?? DEFAULT_BODY_OPACITY);
-  const { hasImage, settings: refSettings } = useReferenceOverlayContext();
+  const { hasVisibleImage } = useReferenceOverlayContext();
   const d = anchorsToPathD(anchors);
   const isBack = variant === 'back';
 
   // With a visible reference, keep the body see-through for tracing even if
   // opacity is still at the opaque default (e.g. image loaded before this setting existed).
-  const tracing = hasImage && refSettings.visible;
-  let fillOpacity = tracing && bodyOpacity >= 0.99 ? 0.5 : bodyOpacity;
+  let fillOpacity = hasVisibleImage && bodyOpacity >= 0.99 ? 0.5 : bodyOpacity;
   if (isBack) fillOpacity = Math.min(0.72, fillOpacity);
 
   return (

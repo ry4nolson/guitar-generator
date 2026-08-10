@@ -304,6 +304,42 @@
   color: var(--muted);
 }
 
+.sidebar-subsection-title {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.reference-overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.reference-overlay-item {
+  text-align: left;
+  font-size: 11.5px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.reference-overlay-item:hover {
+  border-color: var(--accent);
+}
+
+.reference-overlay-item.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 .feature-heading {
   margin-top: 14px !important;
   color: var(--accent) !important;

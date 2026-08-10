@@ -34,6 +34,17 @@ describe('appearance settings', () => {
     expect(s.bodyColor).toBe('#112233');
     expect(s.fretboardColor).toBe('#445566');
   });
+
+  it('defaults and clamps tracing opacities', () => {
+    const s = useDesignStore.getState().settings;
+    expect(s.bodyOpacity).toBe(1);
+    expect(s.neckOpacity).toBe(1);
+    expect(s.headstockOpacity).toBe(1);
+    useDesignStore.getState().setNeckOpacity(0.4);
+    useDesignStore.getState().setHeadstockOpacity(0.01);
+    expect(useDesignStore.getState().settings.neckOpacity).toBe(0.4);
+    expect(useDesignStore.getState().settings.headstockOpacity).toBe(0.05);
+  });
 });
 
 describe('v6 → current migration', () => {
@@ -69,9 +80,16 @@ describe('v6 → current migration', () => {
     expect(migrated.version).toBe(DESIGN_DOCUMENT_VERSION);
     const hw = migrated.hardware as typeof hardware;
     expect(hw.selector.rotation).toBe(65);
-    const settings = migrated.settings as { bodyColor: string; fretboardColor: string };
+    const settings = migrated.settings as {
+      bodyColor: string;
+      fretboardColor: string;
+      neckOpacity: number;
+      headstockOpacity: number;
+    };
     expect(settings.bodyColor).toBe('#d9c9a8');
     expect(settings.fretboardColor).toBe('#caa46a');
+    expect(settings.neckOpacity).toBe(1);
+    expect(settings.headstockOpacity).toBe(1);
   });
 
   it('leaves a custom blade angle alone', () => {

@@ -1,6 +1,6 @@
-// Session-only reference image + lightweight overlay settings persisted in
-// localStorage. The bitmap itself is never written to disk/autosave — it lives
-// as an object URL for the current tab only. SVG export builds documents from
+// Session-only reference images + lightweight overlay settings persisted in
+// localStorage. Bitmaps are never written to disk/autosave — they live as
+// object URLs for the current tab only. SVG export builds documents from
 // geometry alone and never consults this module.
 
 export interface ReferenceOverlaySettings {
@@ -16,6 +16,16 @@ export interface ReferenceOverlaySettings {
   offsetY: number;
 }
 
+/** One persisted overlay slot (image bytes are session-only). */
+export interface ReferenceOverlayItem extends ReferenceOverlaySettings {
+  id: string;
+}
+
+export interface ReferenceOverlaysState {
+  overlays: ReferenceOverlayItem[];
+  activeId: string | null;
+}
+
 export const DEFAULT_REFERENCE_SETTINGS: ReferenceOverlaySettings = {
   visible: true,
   locked: false,
@@ -26,33 +36,93 @@ export const DEFAULT_REFERENCE_SETTINGS: ReferenceOverlaySettings = {
   offsetY: 0,
 };
 
-const SETTINGS_KEY = 'fretforge-reference-overlay-v2';
+const SETTINGS_KEY_V3 = 'fretforge-reference-overlay-v3';
+const SETTINGS_KEY_V2 = 'fretforge-reference-overlay-v2';
+const SETTINGS_KEY_V1 = 'fretforge-reference-overlay-v1';
 
-export function loadReferenceSettings(): ReferenceOverlaySettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem('fretforge-reference-overlay-v1');
-    if (!raw) return { ...DEFAULT_REFERENCE_SETTINGS };
-    const parsed = JSON.parse(raw) as Partial<ReferenceOverlaySettings>;
-    return {
-      visible: parsed.visible ?? DEFAULT_REFERENCE_SETTINGS.visible,
-      locked: parsed.locked ?? DEFAULT_REFERENCE_SETTINGS.locked,
-      opacity: clamp(parsed.opacity ?? DEFAULT_REFERENCE_SETTINGS.opacity, 0.05, 1),
-      scale: clamp(parsed.scale ?? DEFAULT_REFERENCE_SETTINGS.scale, 0.2, 4),
-      rotation: Number.isFinite(parsed.rotation) ? normalizeDegrees(parsed.rotation as number) : 0,
-      offsetX: Number.isFinite(parsed.offsetX) ? (parsed.offsetX as number) : 0,
-      offsetY: Number.isFinite(parsed.offsetY) ? (parsed.offsetY as number) : 0,
-    };
-  } catch {
-    return { ...DEFAULT_REFERENCE_SETTINGS };
+export function createOverlayId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
   }
+  return `ref-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function saveReferenceSettings(settings: ReferenceOverlaySettings): void {
+export function createReferenceOverlayItem(
+  partial?: Partial<ReferenceOverlaySettings> & { id?: string },
+): ReferenceOverlayItem {
+  return {
+    id: partial?.id ?? createOverlayId(),
+    visible: partial?.visible ?? DEFAULT_REFERENCE_SETTINGS.visible,
+    locked: partial?.locked ?? DEFAULT_REFERENCE_SETTINGS.locked,
+    opacity: clamp(partial?.opacity ?? DEFAULT_REFERENCE_SETTINGS.opacity, 0.05, 1),
+    scale: clamp(partial?.scale ?? DEFAULT_REFERENCE_SETTINGS.scale, 0.2, 4),
+    rotation: Number.isFinite(partial?.rotation)
+      ? normalizeDegrees(partial!.rotation as number)
+      : DEFAULT_REFERENCE_SETTINGS.rotation,
+    offsetX: Number.isFinite(partial?.offsetX) ? (partial!.offsetX as number) : 0,
+    offsetY: Number.isFinite(partial?.offsetY) ? (partial!.offsetY as number) : 0,
+  };
+}
+
+function normalizeItem(raw: Partial<ReferenceOverlayItem> & { id?: string }): ReferenceOverlayItem | null {
+  if (!raw.id || typeof raw.id !== 'string') return null;
+  return createReferenceOverlayItem(raw);
+}
+
+function parseLegacySingle(raw: string): ReferenceOverlaysState {
+  const parsed = JSON.parse(raw) as Partial<ReferenceOverlaySettings>;
+  const item = createReferenceOverlayItem(parsed);
+  return { overlays: [item], activeId: item.id };
+}
+
+export function loadReferenceOverlays(): ReferenceOverlaysState {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const rawV3 = localStorage.getItem(SETTINGS_KEY_V3);
+    if (rawV3) {
+      const parsed = JSON.parse(rawV3) as Partial<ReferenceOverlaysState>;
+      const overlays = Array.isArray(parsed.overlays)
+        ? parsed.overlays.map(normalizeItem).filter((o): o is ReferenceOverlayItem => o !== null)
+        : [];
+      const activeId =
+        typeof parsed.activeId === 'string' && overlays.some((o) => o.id === parsed.activeId)
+          ? parsed.activeId
+          : (overlays[0]?.id ?? null);
+      return { overlays, activeId };
+    }
+
+    const legacy = localStorage.getItem(SETTINGS_KEY_V2) ?? localStorage.getItem(SETTINGS_KEY_V1);
+    if (legacy) {
+      const migrated = parseLegacySingle(legacy);
+      saveReferenceOverlays(migrated);
+      return migrated;
+    }
+  } catch {
+    // private mode / corrupt — fall through
+  }
+  return { overlays: [], activeId: null };
+}
+
+/** @deprecated Prefer loadReferenceOverlays — kept for older call sites/tests. */
+export function loadReferenceSettings(): ReferenceOverlaySettings {
+  const { overlays, activeId } = loadReferenceOverlays();
+  const active = overlays.find((o) => o.id === activeId) ?? overlays[0];
+  if (!active) return { ...DEFAULT_REFERENCE_SETTINGS };
+  const { id: _id, ...settings } = active;
+  return settings;
+}
+
+export function saveReferenceOverlays(state: ReferenceOverlaysState): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY_V3, JSON.stringify(state));
   } catch {
     // private mode / quota — ignore
   }
+}
+
+/** @deprecated Prefer saveReferenceOverlays. */
+export function saveReferenceSettings(settings: ReferenceOverlaySettings): void {
+  const item = createReferenceOverlayItem(settings);
+  saveReferenceOverlays({ overlays: [item], activeId: item.id });
 }
 
 /** Layout of the reference image in body-local mm space. */

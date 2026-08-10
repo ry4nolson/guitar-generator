@@ -230,6 +230,16 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   } else {
     settings.bodyOpacity = Math.min(1, Math.max(0.05, settings.bodyOpacity as number));
   }
+  if (typeof settings.neckOpacity !== 'number' || !Number.isFinite(settings.neckOpacity)) {
+    settings.neckOpacity = 1;
+  } else {
+    settings.neckOpacity = Math.min(1, Math.max(0.05, settings.neckOpacity as number));
+  }
+  if (typeof settings.headstockOpacity !== 'number' || !Number.isFinite(settings.headstockOpacity)) {
+    settings.headstockOpacity = 1;
+  } else {
+    settings.headstockOpacity = Math.min(1, Math.max(0.05, settings.headstockOpacity as number));
+  }
   if (typeof settings.symmetricEditing !== 'boolean') settings.symmetricEditing = true;
   parsed.settings = settings;
 

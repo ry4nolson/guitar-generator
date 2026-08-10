@@ -10,6 +10,10 @@
 
 ### Added
 
+- Multiple reference overlay images (add/replace/remove per image; session-only
+  bitmaps, settings saved locally).
+- Neck and headstock tracing opacity sliders, grouped with body opacity next to
+  the reference overlay controls.
 - Headstock outline add/remove point controls, plus a tuner inset slider.
 - Per-pickup angle controls (−45°…45°) in the Pickups sidebar; routes and SVG
   export respect the rotation.

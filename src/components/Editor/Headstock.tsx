@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useDesignStore } from '../../state/store';
+import { useDesignStore, DEFAULT_HEADSTOCK_OPACITY } from '../../state/store';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 import {
   computeTunerPositions,
@@ -11,6 +11,7 @@ import {
 export function HeadstockOutline() {
   const headstock = useDesignStore((s) => s.headstockSettings);
   const anchors = useDesignStore((s) => s.headstockAnchors);
+  const headstockOpacity = useDesignStore((s) => s.settings.headstockOpacity ?? DEFAULT_HEADSTOCK_OPACITY);
   const { neckParams, joinPoint } = useNeckGeometry();
 
   const bodyAnchors = useMemo(
@@ -22,7 +23,13 @@ export function HeadstockOutline() {
   const d = headstockAnchorsToPathD(bodyAnchors);
   return (
     <g id="headstock">
-      <path d={d} fill="var(--neck-fill)" stroke="var(--outline-stroke)" strokeWidth={1} />
+      <path
+        d={d}
+        fill="var(--neck-fill)"
+        fillOpacity={headstockOpacity}
+        stroke="var(--outline-stroke)"
+        strokeWidth={1}
+      />
     </g>
   );
 }

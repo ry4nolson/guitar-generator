@@ -2,7 +2,6 @@ import {
   useDesignStore,
   DEFAULT_BODY_COLOR,
   DEFAULT_FRETBOARD_COLOR,
-  DEFAULT_BODY_OPACITY,
 } from '../../state/store';
 
 export function ViewSettings() {
@@ -11,7 +10,6 @@ export function ViewSettings() {
   const setGridSize = useDesignStore((s) => s.setGridSize);
   const setBodyColor = useDesignStore((s) => s.setBodyColor);
   const setFretboardColor = useDesignStore((s) => s.setFretboardColor);
-  const setBodyOpacity = useDesignStore((s) => s.setBodyOpacity);
   const toggleGridSnap = useDesignStore((s) => s.toggleGridSnap);
   const toggleShowPoints = useDesignStore((s) => s.toggleShowPoints);
   const toggleSymmetricEditing = useDesignStore((s) => s.toggleSymmetricEditing);
@@ -20,7 +18,6 @@ export function ViewSettings() {
 
   const bodyColor = settings.bodyColor || DEFAULT_BODY_COLOR;
   const fretboardColor = settings.fretboardColor || DEFAULT_FRETBOARD_COLOR;
-  const bodyOpacity = settings.bodyOpacity ?? DEFAULT_BODY_OPACITY;
 
   return (
     <section className="sidebar-section">
@@ -36,20 +33,6 @@ export function ViewSettings() {
         <button type="button" className="text-btn" onClick={() => setBodyColor(DEFAULT_BODY_COLOR)}>
           Reset
         </button>
-      </label>
-      <label className="param-slider">
-        <div className="param-slider-row">
-          <span>Body opacity</span>
-          <span className="param-value">{Math.round(bodyOpacity * 100)}%</span>
-        </div>
-        <input
-          type="range"
-          min={0.05}
-          max={1}
-          step={0.01}
-          value={bodyOpacity}
-          onChange={(e) => setBodyOpacity(parseFloat(e.target.value))}
-        />
       </label>
       <label className="row-inline color-row">
         <span>Fretboard</span>

@@ -100,6 +100,10 @@ export interface EditorSettings {
   fretboardColor: string;
   /** Body fill opacity (0–1). Useful when tracing over a reference image. */
   bodyOpacity: number;
+  /** Neck fill opacity (0–1). Useful when tracing over a reference image. */
+  neckOpacity: number;
+  /** Headstock fill opacity (0–1). Useful when tracing over a reference image. */
+  headstockOpacity: number;
   /**
    * When true, dragging a body/headstock outline point or handle also moves
    * its mirror across the string centerline (y = 0).
@@ -110,6 +114,8 @@ export interface EditorSettings {
 export const DEFAULT_BODY_COLOR = '#d9c9a8';
 export const DEFAULT_FRETBOARD_COLOR = '#caa46a';
 export const DEFAULT_BODY_OPACITY = 1;
+export const DEFAULT_NECK_OPACITY = 1;
+export const DEFAULT_HEADSTOCK_OPACITY = 1;
 
 const DEFAULT_SETTINGS: EditorSettings = {
   unit: 'mm',
@@ -123,6 +129,8 @@ const DEFAULT_SETTINGS: EditorSettings = {
   bodyColor: DEFAULT_BODY_COLOR,
   fretboardColor: DEFAULT_FRETBOARD_COLOR,
   bodyOpacity: DEFAULT_BODY_OPACITY,
+  neckOpacity: DEFAULT_NECK_OPACITY,
+  headstockOpacity: DEFAULT_HEADSTOCK_OPACITY,
   symmetricEditing: true,
 };
 
@@ -281,6 +289,8 @@ interface StoreState extends DesignDocument {
   setBodyColor: (color: string) => void;
   setFretboardColor: (color: string) => void;
   setBodyOpacity: (opacity: number) => void;
+  setNeckOpacity: (opacity: number) => void;
+  setHeadstockOpacity: (opacity: number) => void;
   toggleGridSnap: () => void;
   toggleShowPoints: () => void;
   toggleSymmetricEditing: () => void;
@@ -874,6 +884,16 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setBodyOpacity: (opacity) => {
     const bodyOpacity = Math.min(1, Math.max(0.05, opacity));
     set((s) => ({ settings: { ...s.settings, bodyOpacity } }));
+    get().autosave();
+  },
+  setNeckOpacity: (opacity) => {
+    const neckOpacity = Math.min(1, Math.max(0.05, opacity));
+    set((s) => ({ settings: { ...s.settings, neckOpacity } }));
+    get().autosave();
+  },
+  setHeadstockOpacity: (opacity) => {
+    const headstockOpacity = Math.min(1, Math.max(0.05, opacity));
+    set((s) => ({ settings: { ...s.settings, headstockOpacity } }));
     get().autosave();
   },
   toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),
