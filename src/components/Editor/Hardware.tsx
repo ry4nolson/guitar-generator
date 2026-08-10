@@ -14,12 +14,18 @@ function DraggablePart({
   item,
   stageRef,
   render,
+  /** When set, drag only updates that axis (other stays fixed). */
+  axis = 'xy',
+  /** Apply item.rotation on the outer transform (pickups). Selector rotates internally. */
+  applyRotation = false,
 }: {
   name: keyof HardwareState;
   index?: number;
   item: HardwarePosition;
   stageRef: React.RefObject<SVGGElement | null>;
   render: (selected: boolean) => React.ReactNode;
+  axis?: 'xy' | 'x' | 'y';
+  applyRotation?: boolean;
 }) {
   const move = useDesignStore((s) => s.moveHardware);
   const select = useDesignStore((s) => s.select);
@@ -28,19 +34,27 @@ function DraggablePart({
   const isSelected = selected?.kind === 'hardware' && selected.name === name && selected.index === index;
 
   const drag = useSvgDrag(stageRef, (p) => {
-    move(name, snapToGrid(p, settings.gridSize, settings.gridSnapEnabled), index);
+    const snapped = snapToGrid(p, settings.gridSize, settings.gridSnapEnabled);
+    const point = {
+      x: axis === 'y' ? item.x : snapped.x,
+      y: axis === 'x' ? item.y : snapped.y,
+    };
+    move(name, point, index);
   });
 
   if (!item.visible) return null;
+  const rotate = applyRotation ? ` rotate(${item.rotation})` : '';
   return (
     <g
-      transform={`translate(${item.x},${item.y})`}
+      transform={`translate(${item.x},${item.y})${rotate}`}
       onPointerDown={(e) => {
         e.stopPropagation();
         select({ kind: 'hardware', name, index });
         if (!item.locked) drag(e);
       }}
-      style={{ cursor: item.locked ? 'not-allowed' : 'grab' }}
+      style={{
+        cursor: item.locked ? 'not-allowed' : axis === 'x' ? 'ew-resize' : axis === 'y' ? 'ns-resize' : 'grab',
+      }}
     >
       {render(isSelected)}
     </g>
@@ -239,6 +253,8 @@ export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement |
             index={i}
             item={p}
             stageRef={stageRef}
+            axis="x"
+            applyRotation
             render={(sel) => <PickupShape type={type} selected={sel} />}
           />
         );

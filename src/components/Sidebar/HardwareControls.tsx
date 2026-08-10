@@ -10,6 +10,9 @@ function Row({
   onMove,
   onLock,
   onVisibility,
+  /** Pickups: lock Y (along-string only) and show angle instead. */
+  alongStringOnly = false,
+  onRotate,
 }: {
   id?: string;
   label: string;
@@ -18,6 +21,8 @@ function Row({
   onMove: (x: number, y: number) => void;
   onLock: () => void;
   onVisibility: () => void;
+  alongStringOnly?: boolean;
+  onRotate?: (deg: number) => void;
 }) {
   return (
     <div id={id} className={`hardware-row${highlighted ? ' hardware-row-selected' : ''}`}>
@@ -28,12 +33,22 @@ function Row({
         onChange={(e) => onMove(parseFloat(e.target.value) || 0, item.y)}
         title="X (mm)"
       />
-      <input
-        type="number"
-        value={Math.round(item.y * 100) / 100}
-        onChange={(e) => onMove(item.x, parseFloat(e.target.value) || 0)}
-        title="Y (mm)"
-      />
+      {alongStringOnly ? (
+        <input
+          type="number"
+          value={Math.round(item.rotation)}
+          disabled={item.locked}
+          onChange={(e) => onRotate?.(parseFloat(e.target.value) || 0)}
+          title="Angle (°)"
+        />
+      ) : (
+        <input
+          type="number"
+          value={Math.round(item.y * 100) / 100}
+          onChange={(e) => onMove(item.x, parseFloat(e.target.value) || 0)}
+          title="Y (mm)"
+        />
+      )}
       <button onClick={onLock} className={item.locked ? 'active' : ''} title="Lock">
         {item.locked ? '🔒' : '🔓'}
       </button>
@@ -50,6 +65,7 @@ export function HardwareControls() {
   const controlSettings = useDesignStore((s) => s.controlSettings);
   const selected = useDesignStore((s) => s.selected);
   const move = useDesignStore((s) => s.moveHardware);
+  const rotate = useDesignStore((s) => s.rotateHardware);
   const lock = useDesignStore((s) => s.toggleHardwareLock);
   const visibility = useDesignStore((s) => s.toggleHardwareVisibility);
 
@@ -61,6 +77,7 @@ export function HardwareControls() {
   return (
     <section className="sidebar-section" id="sidebar-hardware">
       <h3>Hardware positions</h3>
+      <p className="muted">Pickup rows: X position + angle (°). Y stays on the centerline.</p>
       {hardware.pickups.map((p, i) => {
         const slot = PICKUP_SLOTS[i];
         if (pickupSettings[slot] === 'none') return null;
@@ -71,7 +88,9 @@ export function HardwareControls() {
             label={`${PICKUP_SLOT_LABELS[slot]} pickup`}
             item={p}
             highlighted={isHw('pickups', i)}
+            alongStringOnly
             onMove={(x, y) => move('pickups', { x, y }, i)}
+            onRotate={(deg) => rotate('pickups', deg, i)}
             onLock={() => lock('pickups', i)}
             onVisibility={() => visibility('pickups', i)}
           />

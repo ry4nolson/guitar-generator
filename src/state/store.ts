@@ -49,6 +49,9 @@ import {
   seedHeadstockAnchors,
   syncHeadstockNutCorners,
   isHeadstockDirty,
+  insertHeadstockAnchorAfter,
+  removeHeadstockAnchorById,
+  NUT_BASS_ID,
   type HeadstockSettings,
   type HeadstockType,
   type HeadstockAnchor,
@@ -76,6 +79,7 @@ import {
 } from '../geometry/scaleLock';
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
+import { editOutlineWithSymmetry } from '../geometry/symmetricEdit';
 
 export { DESIGN_DOCUMENT_VERSION };
 
@@ -96,6 +100,11 @@ export interface EditorSettings {
   fretboardColor: string;
   /** Body fill opacity (0–1). Useful when tracing over a reference image. */
   bodyOpacity: number;
+  /**
+   * When true, dragging a body/headstock outline point or handle also moves
+   * its mirror across the string centerline (y = 0).
+   */
+  symmetricEditing: boolean;
 }
 
 export const DEFAULT_BODY_COLOR = '#d9c9a8';
@@ -114,6 +123,7 @@ const DEFAULT_SETTINGS: EditorSettings = {
   bodyColor: DEFAULT_BODY_COLOR,
   fretboardColor: DEFAULT_FRETBOARD_COLOR,
   bodyOpacity: DEFAULT_BODY_OPACITY,
+  symmetricEditing: true,
 };
 
 /** Bump this whenever DesignDocument's shape changes in a way old files can't be read as-is. */
@@ -244,6 +254,10 @@ interface StoreState extends DesignDocument {
   resetHeadstockShape: () => void;
   moveHeadstockAnchor: (id: string, part: 'position' | 'handleIn' | 'handleOut', bodyPoint: Point) => void;
   nudgeHeadstockAnchor: (id: string, dx: number, dy: number) => void;
+  /** Insert a free outline point after the given (or selected) headstock anchor. */
+  insertHeadstockAnchor: (afterId?: string) => void;
+  /** Remove a free outline point by id (or the current selection). */
+  removeHeadstockAnchor: (id?: string) => void;
 
   // --- pickups / controls ---
   setPickupType: (slot: PickupSlot, type: PickupSlotValue) => void;
@@ -269,10 +283,14 @@ interface StoreState extends DesignDocument {
   setBodyOpacity: (opacity: number) => void;
   toggleGridSnap: () => void;
   toggleShowPoints: () => void;
+  toggleSymmetricEditing: () => void;
   toggleDebugOverlay: () => void;
   setCanvasPadding: (mm: number) => void;
 
   // --- history / persistence ---
+  /** Snapshot current design once; subsequent mutations until endHistoryGesture share that undo step. */
+  beginHistoryGesture: () => void;
+  endHistoryGesture: () => void;
   commitHistory: () => void;
   undo: () => void;
   redo: () => void;
@@ -365,7 +383,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   setBodyParam: (key, value) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const template = getBodyTemplate(get().templateId);
     const bodyParams = { ...get().bodyParams, [key]: value };
     const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
@@ -375,36 +393,20 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     // Lowering anchorCount can remove the currently selected anchor.
     const sel = get().selected;
     const selected = sel?.kind === 'anchor' && !bodyAnchors.some((a) => a.id === sel.id) ? null : sel;
-    set({ bodyParams, bodyAnchors, hardware, selected, past: pushPast(get().past, before), future: [] });
+    set(hist ? { bodyParams, bodyAnchors, hardware, selected, ...hist } : { bodyParams, bodyAnchors, hardware, selected });
     get().autosave();
   },
 
   moveAnchorPoint: (id, part, point) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const prevJointX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
-    const bodyAnchors = get().bodyAnchors.map((a) => {
-      if (a.id !== id || a.locked) return a;
-      if (part === 'position') {
-        const dx = point.x - a.position.x;
-        const dy = point.y - a.position.y;
-        return {
-          ...a,
-          position: point,
-          handleIn: { x: a.handleIn.x + dx, y: a.handleIn.y + dy },
-          handleOut: { x: a.handleOut.x + dx, y: a.handleOut.y + dy },
-          manuallyEdited: true,
-        };
-      }
-      // Mirror-handle ("smooth point") behavior: moving one handle keeps the
-      // opposite handle at the same distance on the exact opposite side of
-      // the anchor, preserving tangent continuity through the curve.
-      if (a.mirrorHandles) {
-        const opposite = part === 'handleIn' ? 'handleOut' : 'handleIn';
-        const mirrored = { x: 2 * a.position.x - point.x, y: 2 * a.position.y - point.y };
-        return { ...a, [part]: point, [opposite]: mirrored, manuallyEdited: true };
-      }
-      return { ...a, [part]: point, manuallyEdited: true };
-    });
+    const bodyAnchors = editOutlineWithSymmetry(
+      get().bodyAnchors,
+      id,
+      part,
+      point,
+      get().settings.symmetricEditing,
+    );
     // Neck joint x drives heel placement — keep bridge/nut assembly locked to scale
     // by translating hardware with the joint (y only reshapes the body pocket).
     let hardware = get().hardware;
@@ -412,12 +414,12 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - prevJointX;
       if (dx !== 0) hardware = translateHardware(hardware, dx, 0);
     }
-    set({ bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
+    set(hist ? { bodyAnchors, hardware, ...hist } : { bodyAnchors, hardware });
     get().autosave();
   },
 
   moveFeatureAnchors: (anchorIds, dx, dy) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const idSet = new Set(anchorIds);
     const movesJoint = idSet.has('neckJoint');
     const bodyAnchors = get().bodyAnchors.map((a) => {
@@ -431,7 +433,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       };
     });
     const hardware = movesJoint ? translateHardware(get().hardware, dx, 0) : get().hardware;
-    set({ bodyAnchors, hardware, past: pushPast(get().past, before), future: [] });
+    set(hist ? { bodyAnchors, hardware, ...hist } : { bodyAnchors, hardware });
     get().autosave();
   },
 
@@ -467,7 +469,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   select: (sel) => set({ selected: sel }),
 
   setNeckParam: (key, value) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const neckParams = { ...get().neckParams, [key]: value };
     let hardware = get().hardware;
     if (isScaleLockNeckKey(key)) {
@@ -486,7 +488,11 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       }
     }
     const headstockAnchors = syncHeadstockNutCorners(get().headstockAnchors, neckParams);
-    set({ neckParams, hardware, headstockAnchors, past: pushPast(get().past, before), future: [] });
+    set(
+      hist
+        ? { neckParams, hardware, headstockAnchors, ...hist }
+        : { neckParams, hardware, headstockAnchors },
+    );
     get().autosave();
   },
 
@@ -522,7 +528,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   setBridgeSetting: (key, value) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const bridgeSettings = { ...get().bridgeSettings, [key]: value };
     let hardware = get().hardware;
     if (key === 'stringSpacing' || key === 'stringCount') {
@@ -536,7 +542,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         ),
       };
     }
-    set({ bridgeSettings, hardware, past: pushPast(get().past, before), future: [] });
+    set(hist ? { bridgeSettings, hardware, ...hist } : { bridgeSettings, hardware });
     get().autosave();
   },
 
@@ -551,12 +557,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   setNutSetting: (key, value) => {
-    const before = snapshotOf(get());
-    set({
-      nutSettings: { ...get().nutSettings, [key]: value },
-      past: pushPast(get().past, before),
-      future: [],
-    });
+    const hist = historyForMutation(get);
+    const nutSettings = { ...get().nutSettings, [key]: value };
+    set(hist ? { nutSettings, ...hist } : { nutSettings });
     get().autosave();
   },
 
@@ -624,7 +627,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   setHeadstockSetting: (key, value) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const headstockSettings = { ...get().headstockSettings, [key]: value };
     let headstockAnchors = get().headstockAnchors;
     // Dimensional knobs re-seed unless the user has already sculpted the outline.
@@ -635,12 +638,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         get().bridgeSettings.stringCount ?? 6,
       );
     }
-    set({
-      headstockSettings,
-      headstockAnchors,
-      past: pushPast(get().past, before),
-      future: [],
-    });
+    set(hist ? { headstockSettings, headstockAnchors, ...hist } : { headstockSettings, headstockAnchors });
     get().autosave();
   },
 
@@ -666,30 +664,17 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   moveHeadstockAnchor: (id, part, bodyPoint) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const joinPoint = neckJoinPoint(get().bodyAnchors, get().neckParams);
     const localPoint = bodyToNeckSpace(bodyPoint, get().neckParams, { joinPoint });
-    const headstockAnchors = get().headstockAnchors.map((a) => {
-      if (a.id !== id || a.locked) return a;
-      if (part === 'position') {
-        const dx = localPoint.x - a.position.x;
-        const dy = localPoint.y - a.position.y;
-        return {
-          ...a,
-          position: localPoint,
-          handleIn: { x: a.handleIn.x + dx, y: a.handleIn.y + dy },
-          handleOut: { x: a.handleOut.x + dx, y: a.handleOut.y + dy },
-          manuallyEdited: true,
-        };
-      }
-      if (a.mirrorHandles) {
-        const opposite = part === 'handleIn' ? 'handleOut' : 'handleIn';
-        const mirrored = { x: 2 * a.position.x - localPoint.x, y: 2 * a.position.y - localPoint.y };
-        return { ...a, [part]: localPoint, [opposite]: mirrored, manuallyEdited: true };
-      }
-      return { ...a, [part]: localPoint, manuallyEdited: true };
-    });
-    set({ headstockAnchors, past: pushPast(get().past, before), future: [] });
+    const headstockAnchors = editOutlineWithSymmetry(
+      get().headstockAnchors,
+      id,
+      part,
+      localPoint,
+      get().settings.symmetricEditing,
+    );
+    set(hist ? { headstockAnchors, ...hist } : { headstockAnchors });
     get().autosave();
   },
 
@@ -699,6 +684,44 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const joinPoint = neckJoinPoint(get().bodyAnchors, get().neckParams);
     const bodyPos = neckToBodySpace(a.position, get().neckParams, { joinPoint });
     get().moveHeadstockAnchor(id, 'position', { x: bodyPos.x + dx, y: bodyPos.y + dy });
+  },
+
+  insertHeadstockAnchor: (afterId) => {
+    if (get().headstockSettings.type === 'headless') return;
+    const selected = get().selected;
+    const id =
+      afterId ??
+      (selected?.kind === 'headstock' ? selected.id : NUT_BASS_ID);
+    const before = snapshotOf(get());
+    const prevIds = new Set(get().headstockAnchors.map((a) => a.id));
+    const headstockAnchors = insertHeadstockAnchorAfter(get().headstockAnchors, id);
+    const neu = headstockAnchors.find((a) => !prevIds.has(a.id));
+    set({
+      headstockAnchors,
+      selected: neu ? { kind: 'headstock', id: neu.id, part: 'position' } : get().selected,
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
+  },
+
+  removeHeadstockAnchor: (id) => {
+    const selected = get().selected;
+    const target = id ?? (selected?.kind === 'headstock' ? selected.id : undefined);
+    if (!target) return;
+    const before = snapshotOf(get());
+    const headstockAnchors = removeHeadstockAnchorById(get().headstockAnchors, target);
+    if (headstockAnchors === get().headstockAnchors || headstockAnchors.length === get().headstockAnchors.length) {
+      return;
+    }
+    const clearSel = selected?.kind === 'headstock' && selected.id === target;
+    set({
+      headstockAnchors,
+      selected: clearSel ? null : selected,
+      past: pushPast(get().past, before),
+      future: [],
+    });
+    get().autosave();
   },
 
   setPickupType: (slot, type) => {
@@ -757,20 +780,22 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   moveHardware: (name, point, index) => {
-    const before = snapshotOf(get());
+    const hist = historyForMutation(get);
     const hardware = { ...get().hardware };
     const field = hardware[name];
     if (Array.isArray(field)) {
       const arr = [...field];
       if (index !== undefined && arr[index] && !arr[index].locked) {
-        arr[index] = { ...arr[index], x: point.x, y: point.y };
+        // Pickups slide along the strings only — Y stays on the centerline.
+        const y = name === 'pickups' ? arr[index].y : point.y;
+        arr[index] = { ...arr[index], x: point.x, y };
       }
       hardware[name] = arr as never;
     } else {
       const item = field as HardwarePosition;
       if (!item.locked) hardware[name] = { ...item, x: point.x, y: point.y } as never;
     }
-    set({ hardware, past: pushPast(get().past, before), future: [] });
+    set(hist ? { hardware, ...hist } : { hardware });
     get().autosave();
   },
 
@@ -854,12 +879,24 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),
   toggleShowPoints: () =>
     set((s) => ({ settings: { ...s.settings, showPointsAndHandles: !s.settings.showPointsAndHandles } })),
+  toggleSymmetricEditing: () =>
+    set((s) => ({ settings: { ...s.settings, symmetricEditing: !s.settings.symmetricEditing } })),
   toggleDebugOverlay: () => set((s) => ({ settings: { ...s.settings, showDebugOverlay: !s.settings.showDebugOverlay } })),
   setCanvasPadding: (mm) => set((s) => ({ settings: { ...s.settings, canvasPadding: mm } })),
 
+  beginHistoryGesture: () => {
+    historyGestureActive = true;
+    historyGestureBase = snapshotOf(get());
+  },
+
+  endHistoryGesture: () => {
+    historyGestureActive = false;
+    historyGestureBase = null;
+  },
+
   commitHistory: () => {
-    // No-op hook kept for callers that want an explicit "checkpoint now"
-    // (e.g. end of a drag gesture) without duplicating snapshot logic.
+    // Explicit checkpoint (same as beginning a one-shot gesture snapshot).
+    set({ past: pushPast(get().past, snapshotOf(get())), future: [] });
   },
 
   undo: () => {
@@ -926,6 +963,28 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     }
   },
 }));
+
+/**
+ * Drag coalescing: beginHistoryGesture() freezes a pre-drag snapshot; the first
+ * mutation during the gesture pushes that one undo step; further moves skip
+ * history until endHistoryGesture(). Discrete edits (sliders, nudges, buttons)
+ * leave the gesture inactive and push normally.
+ */
+let historyGestureBase: HistoryEntry | null = null;
+let historyGestureActive = false;
+
+/** Past/future patch for a mutation, or null when this mid-gesture move should not record. */
+function historyForMutation(get: () => StoreState): { past: HistoryEntry[]; future: HistoryEntry[] } | null {
+  if (historyGestureActive) {
+    if (historyGestureBase) {
+      const base = historyGestureBase;
+      historyGestureBase = null;
+      return { past: pushPast(get().past, base), future: [] };
+    }
+    return null;
+  }
+  return { past: pushPast(get().past, snapshotOf(get())), future: [] };
+}
 
 function pushPast(past: HistoryEntry[], entry: HistoryEntry): HistoryEntry[] {
   return [...past, entry].slice(-HISTORY_LIMIT);

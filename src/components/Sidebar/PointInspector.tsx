@@ -5,6 +5,7 @@ export function PointInspector() {
   const selected = useDesignStore((s) => s.selected);
   const anchors = useDesignStore((s) => s.bodyAnchors);
   const headstockAnchors = useDesignStore((s) => s.headstockAnchors);
+  const symmetricEditing = useDesignStore((s) => s.settings.symmetricEditing);
   const toggleLock = useDesignStore((s) => s.toggleAnchorLock);
   const toggleMirror = useDesignStore((s) => s.toggleMirrorHandles);
   const reset = useDesignStore((s) => s.resetAnchorPoint);
@@ -58,7 +59,10 @@ export function PointInspector() {
           <span>Mirror handles (smooth tangent)</span>
           <input type="checkbox" checked={anchor.mirrorHandles} onChange={() => toggleMirror(anchor.id)} />
         </label>
-        <p className="muted">Arrow keys nudge the anchor position (Shift = 10x step).</p>
+        <p className="muted">
+          Arrow keys nudge the anchor position (Shift = 10x step).
+          {symmetricEditing ? ' Symmetric editing is on — the opposite side moves too.' : ''}
+        </p>
       </section>
     );
   }
@@ -76,7 +80,9 @@ export function PointInspector() {
         <p className="muted">
           {anchor.locked
             ? 'Nut corners stay fixed to the nut face.'
-            : 'Drag on the canvas, or use arrow keys (Shift = 10×).'}
+            : `Drag on the canvas, or use arrow keys (Shift = 10×).${
+                symmetricEditing ? ' Symmetric editing mirrors the opposite side.' : ''
+              }`}
         </p>
       </section>
     );

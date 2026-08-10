@@ -4,6 +4,7 @@ import {
   computeTunerPositions,
   seedHeadstockAnchors,
   syncHeadstockNutCorners,
+  mapStringIndexToTunerIndex,
   NUT_BASS_ID,
   NUT_TREBLE_ID,
   DEFAULT_HEADSTOCK_SETTINGS,
@@ -94,6 +95,30 @@ describe('headstock store actions', () => {
     const before = useDesignStore.getState().headstockAnchors[0].position;
     useDesignStore.getState().moveHeadstockAnchor(NUT_BASS_ID, 'position', { x: 1, y: 1 });
     expect(useDesignStore.getState().headstockAnchors[0].position).toEqual(before);
+  });
+
+  it('adds and removes free outline points', () => {
+    const beforeLen = useDesignStore.getState().headstockAnchors.length;
+    useDesignStore.getState().insertHeadstockAnchor(NUT_BASS_ID);
+    expect(useDesignStore.getState().headstockAnchors.length).toBe(beforeLen + 1);
+    const neu = useDesignStore.getState().selected;
+    expect(neu?.kind).toBe('headstock');
+    if (neu?.kind === 'headstock') {
+      useDesignStore.getState().removeHeadstockAnchor(neu.id);
+      expect(useDesignStore.getState().headstockAnchors.length).toBe(beforeLen);
+    }
+  });
+});
+
+describe('string→tuner mapping', () => {
+  it('maps inline 1:1 and split treble/bass correctly', () => {
+    expect(mapStringIndexToTunerIndex(0, 6, '6-inline')).toBe(0);
+    expect(mapStringIndexToTunerIndex(5, 6, '6-inline')).toBe(5);
+    // 3×3: high E → first treble peg (index 3), low E → last bass peg (index 2)
+    expect(mapStringIndexToTunerIndex(0, 6, '3x3')).toBe(3);
+    expect(mapStringIndexToTunerIndex(2, 6, '3x3')).toBe(5);
+    expect(mapStringIndexToTunerIndex(3, 6, '3x3')).toBe(0);
+    expect(mapStringIndexToTunerIndex(5, 6, '3x3')).toBe(2);
   });
 });
 

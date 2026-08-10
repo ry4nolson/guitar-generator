@@ -14,6 +14,8 @@ export interface StringSegment {
   index: number;
   nut: Point;
   bridge: Point;
+  /** Peg center when headed tuners are shown; otherwise null. */
+  tuner: Point | null;
 }
 
 /** Dark nickel/steel tone — readable on cream/maple body fills. */
@@ -66,11 +68,17 @@ export function computeBridgeStringPoints(saddles: HardwarePosition[]): Point[] 
 export function computeStringSegments(
   nutPoints: Point[],
   bridgePoints: Point[],
+  tunerPoints?: (Point | null)[] | null,
 ): StringSegment[] {
   const n = Math.min(nutPoints.length, bridgePoints.length);
   const out: StringSegment[] = [];
   for (let i = 0; i < n; i++) {
-    out.push({ index: i, nut: nutPoints[i], bridge: bridgePoints[i] });
+    out.push({
+      index: i,
+      nut: nutPoints[i],
+      bridge: bridgePoints[i],
+      tuner: tunerPoints?.[i] ?? null,
+    });
   }
   return out;
 }

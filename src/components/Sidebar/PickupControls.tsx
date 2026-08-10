@@ -33,6 +33,7 @@ function CountStepper({ label, value, min, max, onChange }: {
 /** Pickup slot types, knob counts, and selector switch configuration. */
 export function PickupControls() {
   const pickupSettings = useDesignStore((s) => s.pickupSettings);
+  const pickups = useDesignStore((s) => s.hardware.pickups);
   const controlSettings = useDesignStore((s) => s.controlSettings);
   const selector = useDesignStore((s) => s.hardware.selector);
   const setPickupType = useDesignStore((s) => s.setPickupType);
@@ -42,24 +43,57 @@ export function PickupControls() {
   return (
     <section className="sidebar-section" id="sidebar-pickups">
       <h3>Pickups</h3>
-      {PICKUP_SLOTS.map((slot) => (
-        <div key={slot} className="pickup-slot-row" id={`sidebar-pickup-${slot}`}>
-          <span className="hardware-label">{PICKUP_SLOT_LABELS[slot]}</span>
-          <div className="pickup-slot-buttons">
-            {PICKUP_TYPE_META.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={pickupSettings[slot] === t.id ? 'active' : ''}
-                title={t.description}
-                onClick={() => setPickupType(slot, t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
+      <p className="muted">Drag pickups along the strings (X only). Set angle below for slanted routes.</p>
+      {PICKUP_SLOTS.map((slot, index) => {
+        const type = pickupSettings[slot];
+        const item = pickups[index];
+        return (
+          <div key={slot} className="pickup-slot-row" id={`sidebar-pickup-${slot}`}>
+            <div className="pickup-slot-main">
+              <span className="hardware-label">{PICKUP_SLOT_LABELS[slot]}</span>
+              <div className="pickup-slot-buttons">
+                {PICKUP_TYPE_META.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={type === t.id ? 'active' : ''}
+                    title={t.description}
+                    onClick={() => setPickupType(slot, t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {type !== 'none' && item && (
+              <div className="row-inline pickup-angle-row">
+                <span>Angle</span>
+                <input
+                  type="range"
+                  min={-45}
+                  max={45}
+                  step={0.5}
+                  value={item.rotation}
+                  disabled={item.locked}
+                  onChange={(e) => rotateHardware('pickups', parseFloat(e.target.value), index)}
+                  title="Pickup rotation (degrees)"
+                />
+                <input
+                  type="number"
+                  min={-45}
+                  max={45}
+                  step={0.5}
+                  value={Math.round(item.rotation * 10) / 10}
+                  disabled={item.locked}
+                  onChange={(e) => rotateHardware('pickups', parseFloat(e.target.value) || 0, index)}
+                  title="Degrees"
+                />
+                <span className="muted">°</span>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <h3 id="sidebar-controls" style={{ marginTop: 14 }}>
         Controls

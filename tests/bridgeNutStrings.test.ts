@@ -66,7 +66,17 @@ describe('string geometry', () => {
     for (const s of segs) {
       expect(Number.isFinite(s.nut.x)).toBe(true);
       expect(Number.isFinite(s.bridge.x)).toBe(true);
+      expect(s.tuner).toBeNull();
     }
+  });
+
+  it('attaches optional tuner endpoints past the nut', () => {
+    const nut = computeNutStringPoints(DEFAULT_NECK_PARAMS, DEFAULT_NUT_SETTINGS, { joinPoint: { x: 20, y: 0 } });
+    const saddles = layoutSaddles({ x: 350, y: 0 }, DEFAULT_BRIDGE_SETTINGS);
+    const bridge = computeBridgeStringPoints(saddles);
+    const tuners = nut.map((p) => ({ x: p.x - 40, y: p.y }));
+    const segs = computeStringSegments(nut, bridge, tuners);
+    expect(segs[0].tuner).toEqual(tuners[0]);
   });
 
   it('layoutSaddles respects outer string spacing', () => {

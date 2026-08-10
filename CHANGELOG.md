@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Strings continue past the nut to each tuner peg on headed headstocks (inline and
+  3×3 layouts map correctly to treble/bass sides).
+- Pickups drag along the string axis only (X); Y stays on the centerline.
+
+### Added
+
+- Headstock outline add/remove point controls, plus a tuner inset slider.
+- Per-pickup angle controls (−45°…45°) in the Pickups sidebar; routes and SVG
+  export respect the rotation.
+- Symmetric editing for body and headstock outlines (Editor settings): dragging
+  a point or handle also moves its mirror across the string centerline.
+
 ## 0.5.3 — Multi-string + string layering
 
 ### Fixed

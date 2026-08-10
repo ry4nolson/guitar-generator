@@ -39,7 +39,17 @@ export function RoutesOverlay() {
         const dims = PICKUP_DIMENSIONS[type as PickupType];
         const w = dims.along + ROUTE_MARGIN_MM * 2;
         const h = dims.across + ROUTE_MARGIN_MM * 2;
-        return <rect key={i} x={p.x - w / 2} y={p.y - h / 2} width={w} height={h} rx={dims.radius + 2} />;
+        return (
+          <rect
+            key={i}
+            x={p.x - w / 2}
+            y={p.y - h / 2}
+            width={w}
+            height={h}
+            rx={dims.radius + 2}
+            transform={p.rotation ? `rotate(${p.rotation}, ${p.x}, ${p.y})` : undefined}
+          />
+        );
       })}
       {hardware.controls.map(
         (c, i) => c.visible && <circle key={`c${i}`} cx={c.x} cy={c.y} r={13} />,

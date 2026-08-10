@@ -1,17 +1,36 @@
 import { useDesignStore } from '../../state/store';
-import { HEADSTOCK_TYPE_META, TUNER_LAYOUT_META } from '../../geometry/headstock';
+import {
+  HEADSTOCK_TYPE_META,
+  MIN_FREE_HEADSTOCK_POINTS,
+  NUT_BASS_ID,
+  NUT_TREBLE_ID,
+  TUNER_LAYOUT_META,
+} from '../../geometry/headstock';
 import type { HeadstockType, TunerLayout } from '../../geometry/headstock';
 import { ParamSlider } from './ParamSlider';
 
-/** Headstock style, dimensions, and tuner layout. */
+/** Headstock style, dimensions, outline points, and tuner layout. */
 export function HeadstockControls() {
   const hs = useDesignStore((s) => s.headstockSettings);
+  const anchors = useDesignStore((s) => s.headstockAnchors);
+  const selected = useDesignStore((s) => s.selected);
   const setType = useDesignStore((s) => s.setHeadstockType);
   const setSetting = useDesignStore((s) => s.setHeadstockSetting);
   const setTunerLayout = useDesignStore((s) => s.setTunerLayout);
   const resetShape = useDesignStore((s) => s.resetHeadstockShape);
+  const insertAnchor = useDesignStore((s) => s.insertHeadstockAnchor);
+  const removeAnchor = useDesignStore((s) => s.removeHeadstockAnchor);
   const unit = useDesignStore((s) => s.settings.unit);
   const headed = hs.type !== 'headless';
+
+  const selectedId = selected?.kind === 'headstock' ? selected.id : null;
+  const selectedFree =
+    selectedId != null &&
+    selectedId !== NUT_BASS_ID &&
+    selectedId !== NUT_TREBLE_ID &&
+    anchors.some((a) => a.id === selectedId && !a.locked);
+  const freeCount = anchors.filter((a) => !a.locked).length;
+  const canRemove = selectedFree && freeCount > MIN_FREE_HEADSTOCK_POINTS;
 
   return (
     <section className="sidebar-section" id="sidebar-headstock">
@@ -32,7 +51,8 @@ export function HeadstockControls() {
       <p className="muted">{HEADSTOCK_TYPE_META.find((t) => t.id === hs.type)?.description}</p>
       {headed && (
         <p className="muted">
-          Purple points drag freely; grey nut corners stay locked. Select a point to edit Bézier handles.
+          Purple points drag freely; grey nut corners stay locked. Select a point to edit Bézier
+          handles, or add/remove points below.
         </p>
       )}
 
@@ -70,6 +90,14 @@ export function HeadstockControls() {
               onChange={(v) => setSetting('earWidth', v)}
             />
           )}
+          <div className="bridge-type-grid" style={{ marginTop: 8 }}>
+            <button type="button" onClick={() => insertAnchor(selectedId ?? NUT_BASS_ID)}>
+              Add outline point
+            </button>
+            <button type="button" disabled={!canRemove} onClick={() => removeAnchor()}>
+              Remove selected
+            </button>
+          </div>
           <button type="button" onClick={resetShape}>
             Reset shape to preset
           </button>
@@ -101,6 +129,18 @@ export function HeadstockControls() {
             ))}
           </div>
           <p className="muted">{TUNER_LAYOUT_META.find((t) => t.id === hs.tunerLayout)?.description}</p>
+          {headed && hs.tunerLayout !== 'headless' && (
+            <ParamSlider
+              label="Tuner inset"
+              value={hs.tunerInset ?? 12}
+              min={4}
+              max={28}
+              step={0.5}
+              unit="mm"
+              displayUnit={unit}
+              onChange={(v) => setSetting('tunerInset', v)}
+            />
+          )}
           <p className="muted">Tuner count follows Strings under Bridge &amp; nut (6–12).</p>
         </>
       )}

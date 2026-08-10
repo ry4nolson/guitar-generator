@@ -27,6 +27,11 @@ export interface HeadstockSettings {
   earWidth: number;
   showTuners: boolean;
   tunerLayout: TunerLayout;
+  /**
+   * How far tuner centers sit inward from the outline edge (mm).
+   * Higher = more toward the centerline.
+   */
+  tunerInset: number;
 }
 
 /** Editable headstock outline point in neck-local mm (closed loop, nut bass → tip → nut treble). */
@@ -51,6 +56,7 @@ export const DEFAULT_HEADSTOCK_SETTINGS: HeadstockSettings = {
   earWidth: 28,
   showTuners: true,
   tunerLayout: '6-inline',
+  tunerInset: 12,
 };
 
 /** Preserved look for designs that were authored before headed necks existed. */
@@ -61,7 +67,11 @@ export const LEGACY_HEADLESS_SETTINGS: HeadstockSettings = {
   earWidth: 20,
   showTuners: true,
   tunerLayout: 'headless',
+  tunerInset: 12,
 };
+
+/** Keep at least this many free (non-nut) outline points. */
+export const MIN_FREE_HEADSTOCK_POINTS = 3;
 
 export const HEADSTOCK_TYPE_META: {
   id: HeadstockType;
@@ -114,6 +124,70 @@ export function headstockTypeMeta(type: HeadstockType) {
 
 export function isHeadstockDirty(anchors: HeadstockAnchor[]): boolean {
   return anchors.some((a) => a.manuallyEdited && !a.locked);
+}
+
+/**
+ * Map fretted string index (0 = treble / high E) to a tuner mark index.
+ * Inline layouts share the same order; 3×3 puts bass-side pegs first, then treble.
+ */
+export function mapStringIndexToTunerIndex(
+  stringIndex: number,
+  stringCount: number,
+  layout: TunerLayout,
+): number {
+  const n = Math.max(1, stringCount);
+  const i = Math.max(0, Math.min(n - 1, stringIndex));
+  if (layout !== '3x3') return i;
+  const bassCount = Math.ceil(n / 2);
+  const trebleCount = Math.floor(n / 2);
+  if (i < trebleCount) return bassCount + i;
+  return i - trebleCount;
+}
+
+/** Insert a free outline point between `afterId` and the next anchor. */
+export function insertHeadstockAnchorAfter(
+  anchors: HeadstockAnchor[],
+  afterId: string,
+): HeadstockAnchor[] {
+  if (anchors.length < 2) return anchors;
+  let i = anchors.findIndex((a) => a.id === afterId);
+  if (i < 0) i = 0;
+  // Never insert past the locked treble nut corner — place before it instead.
+  if (anchors[i]?.id === NUT_TREBLE_ID) i = Math.max(0, i - 1);
+  const a = anchors[i];
+  const b = anchors[i + 1];
+  if (!a || !b) return anchors;
+
+  const mid = { x: (a.position.x + b.position.x) / 2, y: (a.position.y + b.position.y) / 2 };
+  const dx = b.position.x - a.position.x;
+  const dy = b.position.y - a.position.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const hx = (dx / len) * 10;
+  const hy = (dy / len) * 10;
+  const neu: HeadstockAnchor = {
+    id: `hs-${Date.now().toString(36)}`,
+    position: mid,
+    handleIn: { x: mid.x - hx, y: mid.y - hy },
+    handleOut: { x: mid.x + hx, y: mid.y + hy },
+    locked: false,
+    manuallyEdited: true,
+    mirrorHandles: true,
+  };
+  const next = [...anchors];
+  next.splice(i + 1, 0, neu);
+  return next;
+}
+
+/** Remove a free outline point (nut corners and the last few free points are protected). */
+export function removeHeadstockAnchorById(
+  anchors: HeadstockAnchor[],
+  id: string,
+): HeadstockAnchor[] {
+  const target = anchors.find((a) => a.id === id);
+  if (!target || target.locked) return anchors;
+  const free = anchors.filter((a) => !a.locked).length;
+  if (free <= MIN_FREE_HEADSTOCK_POINTS) return anchors;
+  return anchors.filter((a) => a.id !== id);
 }
 
 /** Seed editable anchors from the active preset (empty when headless). */
@@ -362,14 +436,21 @@ export function computeTunerPositions(
     pegAngleDeg: pegAngleDeg + neckParams.neckAngle,
   });
 
+  const inset =
+    typeof settings.tunerInset === 'number' && Number.isFinite(settings.tunerInset)
+      ? settings.tunerInset
+      : settings.type === '3x3'
+        ? 11
+        : 12;
+
   if (settings.tunerLayout === '6-inline') {
-    return placeAlongSide(outline, 'bass', n, settings.type).map((p, i) => toBody(p, 90, i));
+    return placeAlongSide(outline, 'bass', n, settings.type, inset).map((p, i) => toBody(p, 90, i));
   }
 
   const bassCount = Math.ceil(n / 2);
   const trebleCount = Math.floor(n / 2);
-  const bass = placeAlongSide(outline, 'bass', bassCount, settings.type);
-  const treble = placeAlongSide(outline, 'treble', trebleCount, settings.type);
+  const bass = placeAlongSide(outline, 'bass', bassCount, settings.type, inset);
+  const treble = placeAlongSide(outline, 'treble', trebleCount, settings.type, inset);
   const marks: TunerMark[] = bass.map((p, i) => toBody(p, 90, i));
   for (let i = 0; i < treble.length; i++) marks.push(toBody(treble[i], -90, bassCount + i));
   return marks;
@@ -402,6 +483,7 @@ function placeAlongSide(
   side: 'bass' | 'treble',
   count: number,
   type: HeadstockType,
+  inset: number,
 ): Point[] {
   if (count <= 0) return [];
   const edge = extractSideEdge(outline, side);
@@ -420,7 +502,6 @@ function placeAlongSide(
   const densified = densifyPolyline(clipped.length >= 2 ? clipped : edge, 48);
   if (densified.length < 2) return [];
 
-  const inset = type === '3x3' ? 11 : 12;
   return sampleArcLength(densified, count).map((p) => ({
     x: p.x,
     y: p.y - Math.sign(p.y || (side === 'bass' ? 1 : -1)) * inset,

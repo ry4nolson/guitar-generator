@@ -116,6 +116,19 @@ describe('pickup/control store actions', () => {
     expect(useDesignStore.getState().hardware.selector.rotation).toBe(160);
   });
 
+  it('moveHardware keeps pickup Y fixed (along-string only)', () => {
+    const before = useDesignStore.getState().hardware.pickups[0];
+    useDesignStore.getState().moveHardware('pickups', { x: before.x + 20, y: before.y + 40 }, 0);
+    const after = useDesignStore.getState().hardware.pickups[0];
+    expect(after.x).toBeCloseTo(before.x + 20, 5);
+    expect(after.y).toBeCloseTo(before.y, 5);
+  });
+
+  it('rotateHardware sets pickup angle', () => {
+    useDesignStore.getState().rotateHardware('pickups', 12, 2);
+    expect(useDesignStore.getState().hardware.pickups[2].rotation).toBe(12);
+  });
+
   it('setPickupType toggles slot visibility and seats new pickups at slot defaults', () => {
     useDesignStore.getState().setPickupType('middle', 'p90');
     let s = useDesignStore.getState();

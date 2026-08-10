@@ -74,6 +74,8 @@ describe('anchor count in the store', () => {
 
   it('preserves manual edits on anchors that survive the reduction', () => {
     // tailPoint is priority #3 for the Tele, so it survives at count 6.
+    // Off-axis y would be clamped by symmetric editing (default on).
+    useDesignStore.getState().toggleSymmetricEditing();
     useDesignStore.getState().moveAnchorPoint('tailPoint', 'position', { x: 500, y: 12 });
     useDesignStore.getState().setBodyParam('anchorCount', 6);
     const tail = useDesignStore.getState().bodyAnchors.find((a) => a.id === 'tailPoint')!;

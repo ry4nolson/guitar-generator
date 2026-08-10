@@ -1,5 +1,6 @@
 import { mmToDisplay, displayToMm } from '../../geometry/units';
 import type { Unit } from '../../geometry/types';
+import { useDesignStore } from '../../state/store';
 
 interface Props {
   label: string;
@@ -14,6 +15,8 @@ interface Props {
 
 /** A labeled slider + numeric readout, converting mm <-> the user's chosen display unit. */
 export function ParamSlider({ label, value, min, max, step, unit, displayUnit, onChange }: Props) {
+  const beginHistoryGesture = useDesignStore((s) => s.beginHistoryGesture);
+  const endHistoryGesture = useDesignStore((s) => s.endHistoryGesture);
   const isLength = unit === 'mm';
   const shownValue = isLength ? mmToDisplay(value, displayUnit) : value;
   const shownMin = isLength ? mmToDisplay(min, displayUnit) : min;
@@ -36,6 +39,9 @@ export function ParamSlider({ label, value, min, max, step, unit, displayUnit, o
         max={shownMax}
         step={shownStep}
         value={shownValue}
+        onPointerDown={() => beginHistoryGesture()}
+        onPointerUp={() => endHistoryGesture()}
+        onPointerCancel={() => endHistoryGesture()}
         onChange={(e) => {
           const raw = parseFloat(e.target.value);
           onChange(isLength ? displayToMm(raw, displayUnit) : raw);

@@ -23,6 +23,8 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const moveFeatureAnchors = useDesignStore((s) => s.moveFeatureAnchors);
+  const beginHistoryGesture = useDesignStore((s) => s.beginHistoryGesture);
+  const endHistoryGesture = useDesignStore((s) => s.endHistoryGesture);
   const dragOrigin = useRef<{ x: number; y: number } | null>(null);
 
   const featurePaths = useMemo(() => {
@@ -53,6 +55,7 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
               if (!group) return;
               const startLocal = clientToLocalPoint(e.nativeEvent, group);
               dragOrigin.current = startLocal;
+              beginHistoryGesture();
               (e.target as Element).setPointerCapture?.(e.pointerId);
 
               const handleMove = (ev: PointerEvent) => {
@@ -66,6 +69,7 @@ export function FeatureHitRegions({ stageRef }: { stageRef: React.RefObject<SVGG
               };
               const handleUp = () => {
                 dragOrigin.current = null;
+                endHistoryGesture();
                 window.removeEventListener('pointermove', handleMove);
                 window.removeEventListener('pointerup', handleUp);
               };

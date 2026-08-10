@@ -3,6 +3,7 @@
 // zoom/pan/viewBox scaling.
 import { useCallback, useRef } from 'react';
 import type { Point } from '../geometry/types';
+import { useDesignStore } from '../state/store';
 
 export function clientToLocalPoint(evt: PointerEvent | React.PointerEvent, referenceEl: SVGGraphicsElement): Point {
   const ctm = referenceEl.getScreenCTM();
@@ -20,6 +21,8 @@ export function clientToLocalPoint(evt: PointerEvent | React.PointerEvent, refer
  * Returns a pointerDown handler that tracks a drag gesture and reports live
  * mm-space points via onMove, ending with onEnd. `groupRef` must point to the
  * SVG group whose local coordinate system matches body-local mm space.
+ *
+ * Starts/ends a store history gesture so the whole drag is one undo step.
  */
 export function useSvgDrag(
   groupRef: React.RefObject<SVGGElement | null>,
@@ -27,6 +30,8 @@ export function useSvgDrag(
   onEnd?: () => void,
 ) {
   const dragging = useRef(false);
+  const beginHistoryGesture = useDesignStore((s) => s.beginHistoryGesture);
+  const endHistoryGesture = useDesignStore((s) => s.endHistoryGesture);
 
   const onPointerDown = useCallback(
     (evt: React.PointerEvent) => {
@@ -34,6 +39,7 @@ export function useSvgDrag(
       if (!group) return;
       evt.stopPropagation();
       dragging.current = true;
+      beginHistoryGesture();
       (evt.target as Element).setPointerCapture?.(evt.pointerId);
 
       const handleMove = (e: PointerEvent) => {
@@ -42,6 +48,7 @@ export function useSvgDrag(
       };
       const handleUp = () => {
         dragging.current = false;
+        endHistoryGesture();
         window.removeEventListener('pointermove', handleMove);
         window.removeEventListener('pointerup', handleUp);
         onEnd?.();
@@ -49,7 +56,7 @@ export function useSvgDrag(
       window.addEventListener('pointermove', handleMove);
       window.addEventListener('pointerup', handleUp);
     },
-    [groupRef, onMove, onEnd],
+    [groupRef, onMove, onEnd, beginHistoryGesture, endHistoryGesture],
   );
 
   return onPointerDown;

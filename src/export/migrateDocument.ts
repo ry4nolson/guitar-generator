@@ -199,6 +199,12 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   }
   if (!parsed.nutSettings) parsed.nutSettings = { ...DEFAULT_NUT_SETTINGS };
   if (!parsed.headstockSettings) parsed.headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
+  else {
+    const hs = parsed.headstockSettings as HeadstockSettings;
+    if (typeof hs.tunerInset !== 'number' || !Number.isFinite(hs.tunerInset)) {
+      hs.tunerInset = DEFAULT_HEADSTOCK_SETTINGS.tunerInset;
+    }
+  }
   if (!Array.isArray(parsed.headstockAnchors)) {
     const hs = parsed.headstockSettings as HeadstockSettings;
     const neck = parsed.neckParams as NeckParams | undefined;
@@ -224,6 +230,7 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   } else {
     settings.bodyOpacity = Math.min(1, Math.max(0.05, settings.bodyOpacity as number));
   }
+  if (typeof settings.symmetricEditing !== 'boolean') settings.symmetricEditing = true;
   parsed.settings = settings;
 
   return parsed;

@@ -21,6 +21,7 @@ import {
   DEFAULT_HEADSTOCK_SETTINGS,
   headstockAnchorsToBody,
   headstockAnchorsToPathD,
+  mapStringIndexToTunerIndex,
 } from '../geometry/headstock';
 import {
   DEFAULT_CONTROL_SETTINGS,
@@ -127,13 +128,31 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     const count = bridgeSettings.stringCount ?? 6;
     const nutPts = computeNutStringPoints(neckParams, nutSettings, placement, count);
     const bridgePts = computeBridgeStringPoints(hardware.saddles);
-    const segs = computeStringSegments(nutPts, bridgePts);
+    const headed =
+      headstockSettings.type !== 'headless' &&
+      headstockSettings.showTuners &&
+      headstockSettings.tunerLayout !== 'none' &&
+      headstockSettings.tunerLayout !== 'headless' &&
+      tunerPts.length > 0;
+    const tunerEnds = headed
+      ? Array.from({ length: count }, (_, i) => {
+          const ti = mapStringIndexToTunerIndex(i, count, headstockSettings.tunerLayout);
+          const mark = tunerPts.find((t) => t.index === ti) ?? tunerPts[ti];
+          return mark?.position ?? null;
+        })
+      : null;
+    const segs = computeStringSegments(nutPts, bridgePts, tunerEnds);
     const gauges = stringStrokeWidths(count);
     stringsGroup = `<g id="strings" transform="${transform}">${segs
-      .map(
-        (s) =>
-          `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.bridge.x)}" y2="${pad(s.bridge.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${gauges[s.index] ?? 1}" stroke-linecap="round"/>`,
-      )
+      .map((s) => {
+        const w = gauges[s.index] ?? 1;
+        const fretted = `<line x1="${pad(s.bridge.x)}" y1="${pad(s.bridge.y)}" x2="${pad(s.nut.x)}" y2="${pad(s.nut.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${w}" stroke-linecap="round"/>`;
+        const toPeg =
+          s.tuner != null
+            ? `<line x1="${pad(s.nut.x)}" y1="${pad(s.nut.y)}" x2="${pad(s.tuner.x)}" y2="${pad(s.tuner.y)}" stroke="${STRING_STROKE_COLOR}" stroke-width="${w}" stroke-linecap="round"/>`
+            : '';
+        return fretted + toPeg;
+      })
       .join('')}</g>`;
   }
 
@@ -147,10 +166,11 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     if (type === 'none' || !p.visible) return;
     const dims = PICKUP_DIMENSIONS[type as PickupType];
     const fill = type === 'single-coil' ? '#e8e2d2' : '#1a1a1a';
+    const rot = p.rotation ? ` transform="rotate(${p.rotation}, ${pad(p.x)}, ${pad(p.y)})"` : '';
     hw.push(
       `<rect x="${pad(p.x - dims.along / 2)}" y="${pad(p.y - dims.across / 2)}" width="${pad(dims.along)}" height="${pad(
         dims.across,
-      )}" rx="${dims.radius}" fill="${flavor === 'fabrication' ? 'none' : fill}" stroke="#111" stroke-width="0.8"/>`,
+      )}" rx="${dims.radius}" fill="${flavor === 'fabrication' ? 'none' : fill}" stroke="#111" stroke-width="0.8"${rot}/>`,
     );
   });
   for (const c of hardware.controls) drawCircle(c, 9.5, '#333');

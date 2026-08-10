@@ -14,6 +14,7 @@ export function ViewSettings() {
   const setBodyOpacity = useDesignStore((s) => s.setBodyOpacity);
   const toggleGridSnap = useDesignStore((s) => s.toggleGridSnap);
   const toggleShowPoints = useDesignStore((s) => s.toggleShowPoints);
+  const toggleSymmetricEditing = useDesignStore((s) => s.toggleSymmetricEditing);
   const toggleDebugOverlay = useDesignStore((s) => s.toggleDebugOverlay);
   const setCanvasPadding = useDesignStore((s) => s.setCanvasPadding);
 
@@ -103,6 +104,18 @@ export function ViewSettings() {
         <span>Show points &amp; handles</span>
         <input type="checkbox" checked={settings.showPointsAndHandles} onChange={toggleShowPoints} />
       </label>
+      <label className="row-inline checkbox">
+        <span>Symmetric editing</span>
+        <input
+          type="checkbox"
+          checked={settings.symmetricEditing ?? true}
+          onChange={toggleSymmetricEditing}
+        />
+      </label>
+      <p className="muted">
+        When on, dragging a body or headstock point/handle also moves its mirror across the
+        centerline. Turn off for cutaways and other one-sided edits.
+      </p>
       <label className="row-inline checkbox">
         <span>Debug overlay (names / tangents / continuity)</span>
         <input type="checkbox" checked={settings.showDebugOverlay} onChange={toggleDebugOverlay} />
