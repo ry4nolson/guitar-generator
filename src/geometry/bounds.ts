@@ -63,6 +63,7 @@ export function computeDesignBounds(
   if (hardware.selector.visible) bounds = expand(bounds, hardware.selector, 27);
   for (const s of hardware.saddles) bounds = expand(bounds, s, 4);
   for (const b of hardware.neckBolts) bounds = expand(bounds, b, 4);
+  for (const t of hardware.tuners ?? []) if (t.visible) bounds = expand(bounds, t, 6);
 
   if (!Number.isFinite(bounds.minX)) {
     // Degenerate fallback (should not happen with a real design document).

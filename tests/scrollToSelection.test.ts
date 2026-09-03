@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sidebarTargetId } from '../src/components/Sidebar/scrollToSelection';
+import { sidebarTargetId, stationFromSelection } from '../src/components/Sidebar/scrollToSelection';
 
 describe('sidebarTargetId', () => {
   it('maps pickups to their slot row', () => {
@@ -22,7 +22,42 @@ describe('sidebarTargetId', () => {
     expect(sidebarTargetId({ kind: 'feature', id: 'upperHorn' })).toBe('sidebar-inspector');
   });
 
+  it('maps reference overlays to their sidebar row', () => {
+    expect(sidebarTargetId({ kind: 'reference', id: 'ref-abc' })).toBe('sidebar-ref-ref-abc');
+  });
+
   it('returns null when nothing is selected', () => {
     expect(sidebarTargetId(null)).toBeNull();
+  });
+});
+
+describe('stationFromSelection', () => {
+  it('routes body edits to Shape', () => {
+    expect(stationFromSelection({ kind: 'anchor', id: 'neckJoint', part: 'position' })).toBe('shape');
+    expect(stationFromSelection({ kind: 'feature', id: 'upperHorn' })).toBe('shape');
+  });
+
+  it('routes headstock and tuners to Head', () => {
+    expect(stationFromSelection({ kind: 'headstock', id: 'hs1', part: 'position' })).toBe('head');
+    expect(stationFromSelection({ kind: 'hardware', name: 'tuners', index: 0 })).toBe('head');
+  });
+
+  it('routes pickups and controls to Pickups', () => {
+    expect(stationFromSelection({ kind: 'hardware', name: 'pickups', index: 1 })).toBe('pickups');
+    expect(stationFromSelection({ kind: 'hardware', name: 'controls', index: 0 })).toBe('pickups');
+    expect(stationFromSelection({ kind: 'hardware', name: 'selector' })).toBe('pickups');
+  });
+
+  it('routes saddles to Bridge and neck bolts to Neck', () => {
+    expect(stationFromSelection({ kind: 'hardware', name: 'saddles', index: 0 })).toBe('bridge');
+    expect(stationFromSelection({ kind: 'hardware', name: 'neckBolts', index: 0 })).toBe('neck');
+  });
+
+  it('routes reference overlays to Trace', () => {
+    expect(stationFromSelection({ kind: 'reference', id: 'ref-1' })).toBe('trace');
+  });
+
+  it('returns null when nothing is selected', () => {
+    expect(stationFromSelection(null)).toBeNull();
   });
 });

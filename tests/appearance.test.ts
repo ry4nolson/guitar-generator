@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { darkenHex } from '../src/geometry/color';
+import { darkenHex, lightenHex, bodyFinishStops, LEGACY_BODY_COLOR, LEGACY_FRETBOARD_COLOR, DEFAULT_HEADSTOCK_COLOR } from '../src/geometry/color';
 import { useDesignStore, DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR } from '../src/state/store';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../src/export/migrateDocument';
 import { neckJoinPoint } from '../src/geometry/scaleLock';
@@ -7,12 +7,33 @@ import { getBodyTemplate } from '../src/geometry/templates';
 import { computeParametricAnchors } from '../src/geometry/bodyModel';
 import { defaultLayers } from '../src/state/layers';
 
-describe('darkenHex', () => {
+describe('hex finish helpers', () => {
   it('mixes a hex color toward black', () => {
     expect(darkenHex('#ffffff', 0)).toBe('#ffffff');
     expect(darkenHex('#ffffff', 1)).toBe('#000000');
     expect(darkenHex('#d9c9a8', 0.18).startsWith('#')).toBe(true);
     expect(darkenHex('#d9c9a8', 0.18)).not.toBe('#d9c9a8');
+  });
+
+  it('mixes a hex color toward white', () => {
+    expect(lightenHex('#000000', 0)).toBe('#000000');
+    expect(lightenHex('#000000', 1)).toBe('#ffffff');
+    expect(lightenHex('#c9973d', 0.28)).not.toBe('#c9973d');
+  });
+
+  it('builds a three-stop burst from a solid body color', () => {
+    const stops = bodyFinishStops('#c9973d');
+    expect(stops.mid).toBe('#c9973d');
+    expect(stops.center).not.toBe(stops.mid);
+    expect(stops.rim).not.toBe(stops.mid);
+  });
+
+  it('keeps black and white finishes nearly solid', () => {
+    const black = bodyFinishStops('#1c1c1c');
+    const white = bodyFinishStops('#f4f0e6');
+    expect(black.center).not.toBe('#ffffff');
+    expect(white.rim).not.toBe('#000000');
+    expect(black.rim).not.toBe(black.mid);
   });
 });
 
@@ -21,18 +42,21 @@ describe('appearance settings', () => {
     useDesignStore.getState().resetToDefaults();
   });
 
-  it('defaults body and fretboard colors', () => {
+  it('defaults body, fretboard, and headstock colors', () => {
     const s = useDesignStore.getState().settings;
     expect(s.bodyColor).toBe(DEFAULT_BODY_COLOR);
     expect(s.fretboardColor).toBe(DEFAULT_FRETBOARD_COLOR);
+    expect(s.headstockColor).toBe(DEFAULT_HEADSTOCK_COLOR);
   });
 
-  it('setBodyColor / setFretboardColor update settings', () => {
+  it('setBodyColor / setFretboardColor / setHeadstockColor update settings', () => {
     useDesignStore.getState().setBodyColor('#112233');
     useDesignStore.getState().setFretboardColor('#445566');
+    useDesignStore.getState().setHeadstockColor('#778899');
     const s = useDesignStore.getState().settings;
     expect(s.bodyColor).toBe('#112233');
     expect(s.fretboardColor).toBe('#445566');
+    expect(s.headstockColor).toBe('#778899');
   });
 
   it('defaults and clamps tracing opacities', () => {
@@ -83,11 +107,13 @@ describe('v6 → current migration', () => {
     const settings = migrated.settings as {
       bodyColor: string;
       fretboardColor: string;
+      headstockColor: string;
       neckOpacity: number;
       headstockOpacity: number;
     };
-    expect(settings.bodyColor).toBe('#d9c9a8');
-    expect(settings.fretboardColor).toBe('#caa46a');
+    expect(settings.bodyColor).toBe(DEFAULT_BODY_COLOR);
+    expect(settings.fretboardColor).toBe(DEFAULT_FRETBOARD_COLOR);
+    expect(settings.headstockColor).toBe(DEFAULT_HEADSTOCK_COLOR);
     expect(settings.neckOpacity).toBe(1);
     expect(settings.headstockOpacity).toBe(1);
   });
@@ -113,6 +139,40 @@ describe('v6 → current migration', () => {
     const migrated = migrateDesignDocument(v6 as unknown as Record<string, unknown>);
     const hw = migrated.hardware as typeof hardware;
     expect(hw.selector.rotation).toBe(12);
+  });
+
+  it('upgrades the old plywood CAD fills to the new wood defaults', () => {
+    const tele = getBodyTemplate('tele');
+    const migrated = migrateDesignDocument({
+      version: 6,
+      templateId: tele.id,
+      bodyParams: { ...tele.defaultParams },
+      bodyAnchors: computeParametricAnchors(tele, tele.defaultParams),
+      neckParams: { ...tele.defaultNeckParams },
+      hardware: structuredClone(tele.defaultHardware),
+      settings: { bodyColor: LEGACY_BODY_COLOR, fretboardColor: LEGACY_FRETBOARD_COLOR },
+      layers: defaultLayers(),
+    } as unknown as Record<string, unknown>);
+    const settings = migrated.settings as { bodyColor: string; fretboardColor: string };
+    expect(settings.bodyColor).toBe(DEFAULT_BODY_COLOR);
+    expect(settings.fretboardColor).toBe(DEFAULT_FRETBOARD_COLOR);
+  });
+
+  it('leaves a custom finish alone', () => {
+    const tele = getBodyTemplate('tele');
+    const migrated = migrateDesignDocument({
+      version: 6,
+      templateId: tele.id,
+      bodyParams: { ...tele.defaultParams },
+      bodyAnchors: computeParametricAnchors(tele, tele.defaultParams),
+      neckParams: { ...tele.defaultNeckParams },
+      hardware: structuredClone(tele.defaultHardware),
+      settings: { bodyColor: '#112233', fretboardColor: '#445566' },
+      layers: defaultLayers(),
+    } as unknown as Record<string, unknown>);
+    const settings = migrated.settings as { bodyColor: string; fretboardColor: string };
+    expect(settings.bodyColor).toBe('#112233');
+    expect(settings.fretboardColor).toBe('#445566');
   });
 
   it('snaps legacy body-space neck bolts onto the heel (V.json-style)', () => {

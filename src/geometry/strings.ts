@@ -19,7 +19,7 @@ export interface StringSegment {
 }
 
 /** Dark nickel/steel tone — readable on cream/maple body fills. */
-export const STRING_STROKE_COLOR = '#2c2c2c';
+export const STRING_STROKE_COLOR = '#7a756c';
 
 /**
  * Canvas stroke widths (mm), treble→bass. Scaled from a typical light electric

@@ -1,0 +1,323 @@
+/* App chrome: toolbar menus, canvas docks, template gallery, viewport HUD */
+
+.split-menu {
+  position: relative;
+}
+
+.split-menu-trigger .toolbar-btn-label {
+  margin-right: 2px;
+}
+
+.split-menu-list {
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.split-menu-list button {
+  text-align: left;
+  width: 100%;
+  border-radius: 6px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.split-menu-list button:hover {
+  background: var(--btn-bg);
+}
+
+.editor-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.canvas-identity {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(340px, calc(100% - 20px));
+}
+
+.canvas-identity > * {
+  pointer-events: auto;
+}
+
+.body-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  background: var(--dock-bg) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-border) !important;
+  color: var(--text);
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.body-picker-svg {
+  width: 64px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+}
+
+.body-picker-svg svg {
+  width: 100%;
+  height: 100%;
+}
+
+.body-picker-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.body-picker-name {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.body-picker-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finish-dock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--dock-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.finish-well {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.finish-well input[type='color'] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.finish-reset {
+  margin-left: auto;
+}
+
+.view-hud {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: var(--dock-bg);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.view-hud button {
+  min-width: 72px;
+  height: 30px;
+}
+
+.viewport-hud .toolbar-btn {
+  position: relative;
+}
+
+.viewport-hud .toolbar-btn.icon-only[data-tooltip]:hover::after,
+.viewport-hud .toolbar-btn.icon-only[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  z-index: 40;
+}
+
+.viewport-hud {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--dock-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.gallery-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.gallery-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: var(--scrim);
+  cursor: pointer;
+  padding: 0;
+}
+
+.gallery-panel {
+  position: relative;
+  z-index: 1;
+  margin: 24px;
+  width: min(920px, calc(100% - 48px));
+  max-height: calc(100% - 48px);
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  padding: 16px 18px 22px;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.gallery-header h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.gallery-family {
+  margin-top: 14px;
+}
+
+.gallery-family h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 10px !important;
+  border-radius: 10px !important;
+  background: var(--btn-bg) !important;
+  color: var(--text);
+  text-align: left;
+  border: 1px solid var(--panel-border) !important;
+}
+
+.gallery-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--panel-border)) !important;
+}
+
+.gallery-card.active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.gallery-card-svg {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-card-svg svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-card-name {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.gallery-card-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+@media (max-width: 900px) {
+  .canvas-identity {
+    max-width: calc(100% - 20px);
+  }
+
+  .body-picker-hint {
+    display: none;
+  }
+
+  .view-hud button {
+    min-width: 56px;
+  }
+}

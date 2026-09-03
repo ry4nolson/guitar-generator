@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createReferenceOverlayItem,
+  isAllowedImageDataUrl,
+  isAllowedReferenceImageFile,
   loadReferenceOverlays,
+  normalizeReferenceOverlaysDocument,
   saveReferenceOverlays,
   type ReferenceOverlayItem,
   type ReferenceOverlaySettings,
+  type ReferenceOverlaysDocument,
   type ReferenceOverlaysState,
 } from '../state/referenceOverlay';
 import { useDesignStore } from '../state/store';
@@ -19,7 +23,7 @@ export interface ReferenceOverlayRuntime {
 type ImageMap = Record<string, { imageUrl: string; naturalSize: { width: number; height: number } | null }>;
 
 function assertImageFile(file: File): void {
-  if (!/^image\/(png|jpeg|jpg|webp)$/i.test(file.type) && !/\.(png|jpe?g|webp)$/i.test(file.name)) {
+  if (!isAllowedReferenceImageFile(file)) {
     throw new Error('Reference image must be a PNG, JPEG, or WebP file.');
   }
 }
@@ -29,9 +33,34 @@ function softDropBodyOpacityForTracing(): void {
   if ((editor.bodyOpacity ?? 1) >= 0.99) setBodyOpacity(0.5);
 }
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== 'string' || !isAllowedImageDataUrl(result)) {
+        reject(new Error('Reference image must be a PNG, JPEG, or WebP file.'));
+        return;
+      }
+      resolve(result);
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function measureImage(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error('Failed to decode reference image.'));
+    img.src = url;
+  });
+}
+
 /** Holds optional tracing reference images for the canvas.
- * Settings (opacity/scale/rotation/offset/flags) persist in localStorage; the
- * image bytes stay in-memory as object URLs for the session only.
+ * Transform settings persist in localStorage; bitmaps are kept in-memory as
+ * data URLs and embedded into design JSON on Save / restored on Load.
  */
 export function useReferenceOverlay() {
   const [persisted, setPersisted] = useState<ReferenceOverlaysState>(() => loadReferenceOverlays());
@@ -46,43 +75,42 @@ export function useReferenceOverlay() {
     });
   }, []);
 
-  const revoke = useCallback((id: string) => {
-    const entry = imagesRef.current[id];
-    if (entry?.imageUrl) URL.revokeObjectURL(entry.imageUrl);
+  const setImageEntry = useCallback((id: string, imageUrl: string, naturalSize: { width: number; height: number } | null) => {
+    const nextImages = {
+      ...imagesRef.current,
+      [id]: { imageUrl, naturalSize },
+    };
+    imagesRef.current = nextImages;
+    setImages(nextImages);
   }, []);
 
-  const assignImage = useCallback(
-    (id: string, file: File) => {
-      assertImageFile(file);
-      const url = URL.createObjectURL(file);
-      revoke(id);
-      const nextImages = {
-        ...imagesRef.current,
-        [id]: { imageUrl: url, naturalSize: null },
-      };
-      imagesRef.current = nextImages;
-      setImages(nextImages);
-      const img = new Image();
-      img.onload = () => {
-        setImages((prev) => {
-          const cur = prev[id];
-          if (!cur || cur.imageUrl !== url) return prev;
-          const updated = {
-            ...prev,
-            [id]: { ...cur, naturalSize: { width: img.naturalWidth, height: img.naturalHeight } },
-          };
-          imagesRef.current = updated;
-          return updated;
-        });
-      };
-      img.src = url;
+  const clearImageEntry = useCallback((id: string) => {
+    const nextImages = { ...imagesRef.current };
+    delete nextImages[id];
+    imagesRef.current = nextImages;
+    setImages(nextImages);
+  }, []);
+
+  const assignDataUrl = useCallback(
+    async (id: string, dataUrl: string) => {
+      const naturalSize = await measureImage(dataUrl);
+      setImageEntry(id, dataUrl, naturalSize);
       softDropBodyOpacityForTracing();
     },
-    [revoke],
+    [setImageEntry],
+  );
+
+  const assignImageFile = useCallback(
+    async (id: string, file: File) => {
+      assertImageFile(file);
+      const dataUrl = await readFileAsDataUrl(file);
+      await assignDataUrl(id, dataUrl);
+    },
+    [assignDataUrl],
   );
 
   const addImageFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       assertImageFile(file);
       const emptyId = persisted.overlays.find((o) => !imagesRef.current[o.id])?.id;
       if (emptyId) {
@@ -90,21 +118,23 @@ export function useReferenceOverlay() {
           overlays: prev.overlays.map((o) => (o.id === emptyId ? { ...o, visible: true } : o)),
           activeId: emptyId,
         }));
-        assignImage(emptyId, file);
+        await assignImageFile(emptyId, file);
         return;
       }
-      const item = createReferenceOverlayItem({ visible: true });
+      // The top-view stage is scale(-1,-1) (a 180° turn of body space), so an
+      // unrotated bitmap renders upside-down. Start new photos upright on screen.
+      const item = createReferenceOverlayItem({ visible: true, rotation: 180 });
       persistUpdate((prev) => {
         if (prev.overlays.some((o) => o.id === item.id)) return { ...prev, activeId: item.id };
         return { overlays: [...prev.overlays, item], activeId: item.id };
       });
-      assignImage(item.id, file);
+      await assignImageFile(item.id, file);
     },
-    [assignImage, persistUpdate, persisted.overlays],
+    [assignImageFile, persistUpdate, persisted.overlays],
   );
 
   const replaceImageFile = useCallback(
-    (id: string, file: File) => {
+    async (id: string, file: File) => {
       persistUpdate((prev) => {
         if (!prev.overlays.some((o) => o.id === id)) return prev;
         return {
@@ -112,25 +142,21 @@ export function useReferenceOverlay() {
           activeId: id,
         };
       });
-      assignImage(id, file);
+      await assignImageFile(id, file);
     },
-    [assignImage, persistUpdate],
+    [assignImageFile, persistUpdate],
   );
 
   const removeOverlay = useCallback(
     (id: string) => {
-      revoke(id);
-      const nextImages = { ...imagesRef.current };
-      delete nextImages[id];
-      imagesRef.current = nextImages;
-      setImages(nextImages);
+      clearImageEntry(id);
       persistUpdate((prev) => {
         const overlays = prev.overlays.filter((o) => o.id !== id);
         const activeId = prev.activeId === id ? (overlays[overlays.length - 1]?.id ?? null) : prev.activeId;
         return { overlays, activeId };
       });
     },
-    [persistUpdate, revoke],
+    [clearImageEntry, persistUpdate],
   );
 
   const setActiveId = useCallback(
@@ -153,12 +179,69 @@ export function useReferenceOverlay() {
     [persistUpdate],
   );
 
-  useEffect(() => {
-    return () => {
-      for (const id of Object.keys(imagesRef.current)) {
-        const entry = imagesRef.current[id];
-        if (entry?.imageUrl) URL.revokeObjectURL(entry.imageUrl);
+  /** Snapshot for design JSON (settings + base64 images). */
+  const toDocument = useCallback((): ReferenceOverlaysDocument => {
+    return {
+      activeId: persisted.activeId,
+      overlays: persisted.overlays.map((item) => {
+        const img = imagesRef.current[item.id];
+        return img?.imageUrl && isAllowedImageDataUrl(img.imageUrl)
+          ? { ...item, imageDataUrl: img.imageUrl }
+          : { ...item };
+      }),
+    };
+  }, [persisted.activeId, persisted.overlays]);
+
+  /** Restore overlays from a loaded design JSON. */
+  const hydrateFromDocument = useCallback(
+    (raw: ReferenceOverlaysDocument | undefined | null) => {
+      const doc = normalizeReferenceOverlaysDocument(raw);
+      imagesRef.current = {};
+      setImages({});
+
+      const nextImages: ImageMap = {};
+      for (const item of doc.overlays) {
+        if (item.imageDataUrl && isAllowedImageDataUrl(item.imageDataUrl)) {
+          nextImages[item.id] = { imageUrl: item.imageDataUrl, naturalSize: null };
+        }
       }
+      imagesRef.current = nextImages;
+      setImages(nextImages);
+
+      const settingsOnly: ReferenceOverlaysState = {
+        activeId: doc.activeId,
+        overlays: doc.overlays.map(({ imageDataUrl: _img, ...rest }) => rest),
+      };
+      setPersisted(settingsOnly);
+      saveReferenceOverlays(settingsOnly);
+
+      // Measure natural sizes asynchronously.
+      for (const [id, entry] of Object.entries(nextImages)) {
+        void measureImage(entry.imageUrl)
+          .then((naturalSize) => {
+            setImages((prev) => {
+              const cur = prev[id];
+              if (!cur || cur.imageUrl !== entry.imageUrl) return prev;
+              const updated = { ...prev, [id]: { ...cur, naturalSize } };
+              imagesRef.current = updated;
+              return updated;
+            });
+          })
+          .catch(() => {
+            // Drop undecodable payloads so the UI stays usable.
+            clearImageEntry(id);
+          });
+      }
+
+      if (doc.overlays.some((o) => o.imageDataUrl)) softDropBodyOpacityForTracing();
+    },
+    [clearImageEntry],
+  );
+
+  useEffect(() => {
+    // data URLs need no revoke; kept for symmetry if blob URLs ever return.
+    return () => {
+      imagesRef.current = {};
     };
   }, []);
 
@@ -196,6 +279,8 @@ export function useReferenceOverlay() {
     replaceImageFile,
     removeOverlay,
     updateOverlay,
+    toDocument,
+    hydrateFromDocument,
     hasAnyImage,
     hasVisibleImage,
     /** @deprecated use hasAnyImage / hasVisibleImage */
@@ -214,15 +299,14 @@ export function useReferenceOverlay() {
     naturalSize: activeOverlay?.naturalSize ?? null,
     /** @deprecated use addImageFile / replaceImageFile */
     loadImageFile: (file: File) => {
-      if (activeOverlay?.imageUrl) replaceImageFile(activeOverlay.id, file);
-      else addImageFile(file);
+      if (activeOverlay?.imageUrl) void replaceImageFile(activeOverlay.id, file);
+      else void addImageFile(file);
     },
     /** @deprecated use removeOverlay */
     removeImage: () => {
       if (activeOverlay) removeOverlay(activeOverlay.id);
     },
     resetSettings: () => {
-      for (const id of Object.keys(imagesRef.current)) revoke(id);
       imagesRef.current = {};
       setImages({});
       persistUpdate(() => ({ overlays: [], activeId: null }));

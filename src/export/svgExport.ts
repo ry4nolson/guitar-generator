@@ -13,9 +13,12 @@ import {
   computeBridgeStringPoints,
   computeNutStringPoints,
   computeStringSegments,
+  saddleClusterCenter,
   STRING_STROKE_COLOR,
   stringStrokeWidths,
 } from '../geometry/strings';
+import { DEFAULT_BRIDGE_SETTINGS } from '../geometry/bridgeTypes';
+import { bridgeAssemblyPoints, bridgePlateSvgMarkup, saddleGlyphSvgMarkup } from '../geometry/bridgeGlyph';
 import {
   computeTunerPositions,
   DEFAULT_HEADSTOCK_SETTINGS,
@@ -23,6 +26,7 @@ import {
   headstockAnchorsToPathD,
   mapStringIndexToTunerIndex,
 } from '../geometry/headstock';
+import { tunerGlyphSvgMarkup } from '../geometry/tunerGlyph';
 import {
   DEFAULT_CONTROL_SETTINGS,
   DEFAULT_PICKUP_SETTINGS,
@@ -32,6 +36,7 @@ import {
 } from '../geometry/pickups';
 import type { DesignDocument } from '../state/store';
 import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR } from '../state/store';
+import { bodyFinishStops, DEFAULT_HEADSTOCK_COLOR } from '../geometry/color';
 
 export type ExportFlavor = 'clean' | 'blueprint' | 'fabrication';
 
@@ -57,6 +62,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const margin = 40;
   const bodyColor = settings?.bodyColor || DEFAULT_BODY_COLOR;
   const fretboardColor = settings?.fretboardColor || DEFAULT_FRETBOARD_COLOR;
+  const headstockColor = settings?.headstockColor || DEFAULT_HEADSTOCK_COLOR;
 
   const joinPoint = neckJoinPoint(bodyAnchors, neckParams);
   const placement = { joinPoint };
@@ -64,7 +70,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
 
   const hsBody = headstockAnchorsToBody(headstockAnchors, neckParams, placement);
   const headstockPts = hsBody.map((a) => a.position);
-  const tunerPts = computeTunerPositions(
+  const autoTuners = computeTunerPositions(
     neckParams,
     headstockSettings,
     placement,
@@ -72,10 +78,27 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
     bridgeSettings?.stringCount ?? 6,
     headstockAnchors,
   );
+  const storedTuners = hardware.tuners ?? [];
+  const tunerPts =
+    storedTuners.length > 0
+      ? storedTuners.map((t, i) => ({
+          index: i,
+          position: { x: t.x, y: t.y },
+          radius: autoTuners[i]?.radius ?? 4.2,
+          pegAngleDeg: t.rotation,
+          visible: t.visible,
+        }))
+      : autoTuners.map((t) => ({ ...t, visible: true }));
 
+  const bridge = bridgeSettings ?? DEFAULT_BRIDGE_SETTINGS;
   const bounds = computeDesignBounds(bodyAnchors, neckOutlinePts, hardware, {}, [
     ...headstockPts,
     ...tunerPts.map((t) => t.position),
+    ...bridgeAssemblyPoints(
+      saddleClusterCenter(hardware.saddles),
+      hardware.saddles[0]?.rotation ?? 0,
+      bridge,
+    ),
   ]);
   const width = bounds.maxX - bounds.minX + margin * 2;
   const height = bounds.maxY - bounds.minY + margin * 2;
@@ -86,21 +109,38 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const frets = computeFanFrets(neckParams);
   const bodyPathD = anchorsToPathD(bodyAnchors);
 
-  const bodyGroup = `<g id="body-outline"><path d="${bodyPathD}" fill="${
-    flavor === 'fabrication' ? 'none' : bodyColor
-  }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
+  const stops = bodyFinishStops(bodyColor);
+  let bx = 0;
+  let by = 0;
+  for (const a of bodyAnchors) {
+    bx += a.position.x;
+    by += a.position.y;
+  }
+  const bn = bodyAnchors.length || 1;
+  const bcx = bx / bn;
+  const bcy = by / bn;
+  let br = 80;
+  for (const a of bodyAnchors) {
+    br = Math.max(br, Math.hypot(a.position.x - bcx, a.position.y - bcy));
+  }
+  const finishGrad =
+    flavor === 'fabrication'
+      ? ''
+      : `<defs><radialGradient id="body-finish" cx="${pad(bcx)}" cy="${pad(bcy)}" r="${pad(br)}" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="${stops.center}"/><stop offset="48%" stop-color="${stops.mid}"/><stop offset="100%" stop-color="${stops.rim}"/></radialGradient></defs>`;
+  const bodyFill = flavor === 'fabrication' ? 'none' : 'url(#body-finish)';
+  const bodyGroup = `<g id="body-outline" transform="${transform}">${finishGrad}<path d="${bodyPathD}" fill="${bodyFill}" stroke="#2a2218" stroke-width="0.7"/></g>`;
 
   const neckPathD = `M ${neckOutlinePts.map((p) => `${pad(p.x)} ${pad(p.y)}`).join(' L ')} Z`;
   const neckGroup = `<g id="neck"><path d="${neckPathD}" fill="${
     flavor === 'fabrication' ? 'none' : fretboardColor
-  }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
+  }" stroke="#2a2218" stroke-width="0.7" transform="${transform}"/></g>`;
 
   let headstockGroup = '<g id="headstock"></g>';
   if (hsBody.length >= 3) {
     const hsPath = headstockAnchorsToPathD(hsBody);
     headstockGroup = `<g id="headstock"><path d="${hsPath}" fill="${
-      flavor === 'fabrication' ? 'none' : fretboardColor
-    }" stroke="#1a1a1a" stroke-width="1" transform="${transform}"/></g>`;
+      flavor === 'fabrication' ? 'none' : headstockColor
+    }" stroke="#2a2218" stroke-width="0.7" transform="${transform}"/></g>`;
   }
 
   const inlayDots =
@@ -109,7 +149,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
       : computeInlayDots(neckParams)
           .map((d) => {
             const c = neckToBodySpace({ x: d.x, y: d.y }, neckParams, placement);
-            return `<circle cx="${pad(c.x)}" cy="${pad(c.y)}" r="${pad(d.radius)}" fill="#e8e0ca" stroke="#555" stroke-width="0.3"/>`;
+            return `<circle cx="${pad(c.x)}" cy="${pad(c.y)}" r="${pad(d.radius)}" fill="#e8dfc4" stroke="#2a2018" stroke-width="0.25"/>`;
           })
           .join('');
   const fretLines = frets
@@ -157,6 +197,12 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   }
 
   const hw: string[] = [];
+  const fab = flavor === 'fabrication';
+  const cluster = saddleClusterCenter(hardware.saddles);
+  const bridgeRot = hardware.saddles[0]?.rotation ?? 0;
+  hw.push(
+    `<g id="bridge-assembly" transform="translate(${pad(cluster.x)},${pad(cluster.y)}) rotate(${pad(bridgeRot)})">${bridgePlateSvgMarkup(bridge, { fabrication: fab })}</g>`,
+  );
   const drawCircle = (p: { x: number; y: number; visible: boolean }, r: number, fill: string) => {
     if (!p.visible) return;
     hw.push(`<circle cx="${pad(p.x)}" cy="${pad(p.y)}" r="${r}" fill="${fill}" stroke="#111" stroke-width="0.8"/>`);
@@ -186,15 +232,40 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
       );
     }
   }
-  for (const s of hardware.saddles) drawCircle(s, 3, '#888');
+  for (const s of hardware.saddles) {
+    if (!s.visible) continue;
+    hw.push(
+      `<g transform="translate(${pad(s.x)},${pad(s.y)}) rotate(${pad(s.rotation ?? 0)})">${saddleGlyphSvgMarkup(bridge, { fabrication: fab })}</g>`,
+    );
+  }
   if (flavor !== 'fabrication') {
     for (const b of hardware.neckBolts) drawCircle(b, 3.5, '#777');
   }
+  const showTunerButtons = headstockSettings.tunerLayout !== 'headless';
+  const tunerBack: string[] = [];
+  const tunerFront: string[] = [];
   for (const t of tunerPts) {
-    hw.push(
-      `<circle cx="${pad(t.position.x)}" cy="${pad(t.position.y)}" r="${t.radius}" fill="#c8c8c8" stroke="#222" stroke-width="0.6"/>`,
+    if (t.visible === false) continue;
+    const xf = `transform="translate(${pad(t.position.x)},${pad(t.position.y)}) rotate(${pad(t.pegAngleDeg)})"`;
+    if (showTunerButtons) {
+      tunerBack.push(
+        `<g ${xf}>${tunerGlyphSvgMarkup(t.radius, {
+          showButton: true,
+          part: 'back',
+          fabrication: flavor === 'fabrication',
+        })}</g>`,
+      );
+    }
+    tunerFront.push(
+      `<g ${xf}>${tunerGlyphSvgMarkup(t.radius, {
+        showButton: showTunerButtons,
+        part: 'front',
+        fabrication: flavor === 'fabrication',
+      })}</g>`,
     );
   }
+  const tunersBackGroup = `<g id="tuners-back" transform="${transform}">${tunerBack.join('')}</g>`;
+  hw.push(...tunerFront);
   const hardwareGroup = `<g id="hardware" transform="${transform}">${hw.join('')}</g>`;
 
   const routesGroup = `<g id="routes" transform="${transform}"></g>`;
@@ -240,6 +311,7 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
 ${metadata}
 ${bodyGroup}
 ${neckGroup}
+${tunersBackGroup}
 ${headstockGroup}
 ${fretsGroup}
 ${hardwareGroup}

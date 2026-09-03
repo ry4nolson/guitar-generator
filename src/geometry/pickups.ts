@@ -78,12 +78,25 @@ export const PICKUP_SLOT_LABELS: Record<PickupSlot, string> = {
 };
 
 /**
- * Default pickup centers in body space, ordered [neck, middle, bridge].
- * Bridge pickup ~45 mm in front of the bridge line; neck pickup just past
- * the fretboard end; middle halfway between.
+ * Wood the default layout leaves between the neck-pocket route and the neck
+ * pickup route. Matches the pocket overhang (6) + minimum-wood constraint (20)
+ * in geometry/constraints.ts, plus a little slack so defaults never warn.
  */
-export function defaultPickupPositions(neckParams: NeckParams, placement: NeckPlacement): Point[] {
-  const neckX = neckParams.neckLength + 30;
+const NECK_PICKUP_POCKET_GAP_MM = 28;
+
+/**
+ * Default pickup centers in body space, ordered [neck, middle, bridge].
+ * Bridge pickup ~45 mm in front of the bridge line; neck pickup sits just
+ * past the fretboard end with enough wood left around the pocket route for
+ * its footprint; middle halfway between.
+ */
+export function defaultPickupPositions(
+  neckParams: NeckParams,
+  placement: NeckPlacement,
+  settings: PickupSettings = DEFAULT_PICKUP_SETTINGS,
+): Point[] {
+  const neckType = settings.neck === 'none' ? 'single-coil' : settings.neck;
+  const neckX = neckParams.neckLength + NECK_PICKUP_POCKET_GAP_MM + PICKUP_DIMENSIONS[neckType].along / 2;
   const bridgeX = neckParams.bassScale - 45;
   const middleX = (neckX + bridgeX) / 2;
   return [neckX, middleX, bridgeX].map((x) => neckToBodySpace({ x, y: 0 }, neckParams, placement));

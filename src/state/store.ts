@@ -51,6 +51,7 @@ import {
   isHeadstockDirty,
   insertHeadstockAnchorAfter,
   removeHeadstockAnchorById,
+  layoutTunersAsHardware,
   NUT_BASS_ID,
   type HeadstockSettings,
   type HeadstockType,
@@ -80,6 +81,8 @@ import {
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
 import { editOutlineWithSymmetry } from '../geometry/symmetricEdit';
+import type { ReferenceOverlaysDocument } from './referenceOverlay';
+import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR, DEFAULT_HEADSTOCK_COLOR } from '../geometry/color';
 
 export { DESIGN_DOCUMENT_VERSION };
 
@@ -96,8 +99,10 @@ export interface EditorSettings {
   canvasPadding: number;
   /** Top-view body fill (CSS hex). */
   bodyColor: string;
-  /** Fretboard / headstock fill (CSS hex). */
+  /** Fretboard fill (CSS hex). */
   fretboardColor: string;
+  /** Headstock fill (CSS hex). */
+  headstockColor: string;
   /** Body fill opacity (0–1). Useful when tracing over a reference image. */
   bodyOpacity: number;
   /** Neck fill opacity (0–1). Useful when tracing over a reference image. */
@@ -111,8 +116,11 @@ export interface EditorSettings {
   symmetricEditing: boolean;
 }
 
-export const DEFAULT_BODY_COLOR = '#d9c9a8';
-export const DEFAULT_FRETBOARD_COLOR = '#caa46a';
+export {
+  DEFAULT_BODY_COLOR,
+  DEFAULT_FRETBOARD_COLOR,
+  DEFAULT_HEADSTOCK_COLOR,
+} from '../geometry/color';
 export const DEFAULT_BODY_OPACITY = 1;
 export const DEFAULT_NECK_OPACITY = 1;
 export const DEFAULT_HEADSTOCK_OPACITY = 1;
@@ -128,6 +136,7 @@ const DEFAULT_SETTINGS: EditorSettings = {
   canvasPadding: 40,
   bodyColor: DEFAULT_BODY_COLOR,
   fretboardColor: DEFAULT_FRETBOARD_COLOR,
+  headstockColor: DEFAULT_HEADSTOCK_COLOR,
   bodyOpacity: DEFAULT_BODY_OPACITY,
   neckOpacity: DEFAULT_NECK_OPACITY,
   headstockOpacity: DEFAULT_HEADSTOCK_OPACITY,
@@ -154,32 +163,90 @@ export interface DesignDocument {
   controlSettings: ControlSettings;
   settings: EditorSettings;
   layers: Record<LayerId, LayerState>;
+  /**
+   * Reference overlays with optional base64 images. Present in saved JSON files;
+   * runtime editing lives in ReferenceOverlayContext (not kept in Zustand/autosave
+   * to avoid localStorage quota blowups).
+   */
+  referenceOverlays?: ReferenceOverlaysDocument;
 }
 
 function defaultDocument(): DesignDocument {
   const template = TELE_TEMPLATE;
   const neckParams = { ...template.defaultNeckParams };
-  const headstockSettings = { ...DEFAULT_HEADSTOCK_SETTINGS };
+  const headType = template.presets?.headstockType ?? DEFAULT_HEADSTOCK_SETTINGS.type;
+  const headMeta = headstockTypeMeta(headType);
+  const headstockSettings: HeadstockSettings = {
+    ...DEFAULT_HEADSTOCK_SETTINGS,
+    type: headType,
+    tunerLayout: headMeta.defaultTunerLayout,
+    tunerTipClearance: headMeta.defaultTipClearance,
+    tunerNutClearance: headMeta.defaultNutClearance,
+    ...headMeta.defaultDims,
+    ...template.presets?.headstock,
+  };
+  const bodyAnchors = computeParametricAnchors(template, template.defaultParams);
+  const headstockAnchors = seedHeadstockAnchors(
+    neckParams,
+    headstockSettings,
+    DEFAULT_BRIDGE_SETTINGS.stringCount,
+  );
+  const hardware = structuredClone(template.defaultHardware);
+  const joinPoint = neckJoinPoint(bodyAnchors, neckParams);
+  hardware.tuners = layoutTunersAsHardware(
+    neckParams,
+    headstockSettings,
+    { joinPoint },
+    hardware.saddles,
+    DEFAULT_BRIDGE_SETTINGS.stringCount,
+    headstockAnchors,
+    hardware.tuners,
+  );
   return {
     version: DESIGN_DOCUMENT_VERSION,
     templateId: template.id,
     bodyParams: { ...template.defaultParams },
-    bodyAnchors: computeParametricAnchors(template, template.defaultParams),
+    bodyAnchors,
     neckParams,
-    hardware: structuredClone(template.defaultHardware),
+    hardware,
     bridgeSettings: { ...DEFAULT_BRIDGE_SETTINGS },
     nutSettings: { ...DEFAULT_NUT_SETTINGS },
     headstockSettings,
-    headstockAnchors: seedHeadstockAnchors(neckParams, headstockSettings, DEFAULT_BRIDGE_SETTINGS.stringCount),
-    pickupSettings: { ...DEFAULT_PICKUP_SETTINGS },
-    controlSettings: { ...DEFAULT_CONTROL_SETTINGS },
+    headstockAnchors,
+    pickupSettings: { ...(template.presets?.pickups ?? DEFAULT_PICKUP_SETTINGS) },
+    controlSettings: { ...DEFAULT_CONTROL_SETTINGS, ...template.presets?.controls },
     settings: { ...DEFAULT_SETTINGS },
     layers: defaultLayers(),
   };
 }
 
+/** Relayout unlocked tuner pegs from the current headstock outline / settings. */
+function withRelayoutTuners(
+  hardware: HardwareState,
+  neckParams: NeckParams,
+  headstockSettings: HeadstockSettings,
+  headstockAnchors: HeadstockAnchor[],
+  bodyAnchors: BodyAnchor[],
+  stringCount: number,
+): HardwareState {
+  const joinPoint = neckJoinPoint(bodyAnchors, neckParams);
+  return {
+    ...hardware,
+    tuners: layoutTunersAsHardware(
+      neckParams,
+      headstockSettings,
+      { joinPoint },
+      hardware.saddles,
+      stringCount,
+      headstockAnchors,
+      hardware.tuners,
+    ),
+  };
+}
+
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'fretforge-autosave-v12';
+const AUTOSAVE_KEY = 'guitloft-autosave-v12';
+const LEGACY_AUTOSAVE_KEY = 'fretforge-autosave-v12';
 
 interface HistoryEntry {
   templateId: string;
@@ -216,6 +283,7 @@ export type SelectedPoint =
   | { kind: 'headstock'; id: string; part: 'position' | 'handleIn' | 'handleOut' }
   | { kind: 'hardware'; name: keyof HardwareState; index?: number }
   | { kind: 'feature'; id: BodyFeatureId }
+  | { kind: 'reference'; id: string }
   | null;
 
 interface StoreState extends DesignDocument {
@@ -260,6 +328,8 @@ interface StoreState extends DesignDocument {
   setHeadstockSetting: <K extends keyof HeadstockSettings>(key: K, value: HeadstockSettings[K]) => void;
   setTunerLayout: (layout: TunerLayout) => void;
   resetHeadstockShape: () => void;
+  /** Unlock all tuners and snap them back to auto layout along the outline. */
+  resetTunerPositions: () => void;
   moveHeadstockAnchor: (id: string, part: 'position' | 'handleIn' | 'handleOut', bodyPoint: Point) => void;
   nudgeHeadstockAnchor: (id: string, dx: number, dy: number) => void;
   /** Insert a free outline point after the given (or selected) headstock anchor. */
@@ -288,6 +358,7 @@ interface StoreState extends DesignDocument {
   setGridSize: (size: number) => void;
   setBodyColor: (color: string) => void;
   setFretboardColor: (color: string) => void;
+  setHeadstockColor: (color: string) => void;
   setBodyOpacity: (opacity: number) => void;
   setNeckOpacity: (opacity: number) => void;
   setHeadstockOpacity: (opacity: number) => void;
@@ -311,7 +382,7 @@ interface StoreState extends DesignDocument {
 
 function loadAutosave(): DesignDocument | null {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    const raw = localStorage.getItem(AUTOSAVE_KEY) ?? localStorage.getItem(LEGACY_AUTOSAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed.bodyParams || !parsed.bodyAnchors || !parsed.templateId) return null;
@@ -345,11 +416,58 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       neutralFret: currentNeck.neutralFret,
     };
     const bodyAnchors = computeParametricAnchors(template, template.defaultParams);
-    const hardware = relayoutHardwareToScale(
+    const presets = template.presets ?? {};
+    const stringCount = get().bridgeSettings.stringCount ?? 6;
+
+    // Family presets: electronics + bridge + headstock. Multi-string designs
+    // keep their spacing; only 6-string snaps to the bridge type's default.
+    const pickupSettings: PickupSettings = presets.pickups ? { ...presets.pickups } : get().pickupSettings;
+    const controlSettings: ControlSettings = presets.controls
+      ? { ...get().controlSettings, ...presets.controls }
+      : get().controlSettings;
+    let bridgeSettings: BridgeSettings = get().bridgeSettings;
+    if (presets.bridgeType && presets.bridgeType !== bridgeSettings.type) {
+      bridgeSettings = {
+        ...bridgeSettings,
+        type: presets.bridgeType,
+        stringSpacing:
+          stringCount === 6 ? bridgeTypeMeta(presets.bridgeType).defaultSpacing : bridgeSettings.stringSpacing,
+      };
+    }
+    let headstockSettings: HeadstockSettings = get().headstockSettings;
+    let headstockAnchors: HeadstockAnchor[] = syncHeadstockNutCorners(get().headstockAnchors, neckParams);
+    const typeChanges = presets.headstockType !== undefined && presets.headstockType !== headstockSettings.type;
+    if (typeChanges || !isHeadstockDirty(headstockAnchors)) {
+      // Apply the family's head type + dimensions; a hand-sculpted outline is
+      // kept unless the type itself changes.
+      if (typeChanges) {
+        const meta = headstockTypeMeta(presets.headstockType!);
+        headstockSettings = {
+          ...headstockSettings,
+          type: presets.headstockType!,
+          tunerLayout: meta.defaultTunerLayout,
+          tunerTipClearance: meta.defaultTipClearance,
+          tunerNutClearance: meta.defaultNutClearance,
+          ...meta.defaultDims,
+        };
+      }
+      if (presets.headstock) headstockSettings = { ...headstockSettings, ...presets.headstock };
+      headstockAnchors = seedHeadstockAnchors(neckParams, headstockSettings, stringCount);
+    }
+
+    let hardware = relayoutHardwareToScale(
       structuredClone(template.defaultHardware),
       neckParams,
-      get().bridgeSettings,
+      bridgeSettings,
       neckJoinPoint(bodyAnchors, neckParams),
+    );
+    hardware = withRelayoutTuners(
+      { ...hardware, tuners: [] },
+      neckParams,
+      headstockSettings,
+      headstockAnchors,
+      bodyAnchors,
+      stringCount,
     );
     set({
       templateId: template.id,
@@ -357,6 +475,11 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       bodyAnchors,
       neckParams,
       hardware,
+      pickupSettings,
+      controlSettings,
+      bridgeSettings,
+      headstockSettings,
+      headstockAnchors,
       selected: null,
       past: pushPast(get().past, before),
       future: [],
@@ -602,11 +725,19 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     if (!isHeadstockDirty(headstockAnchors)) {
       headstockAnchors = seedHeadstockAnchors(neckParams, get().headstockSettings, stringCount);
     }
+    const hardware = withRelayoutTuners(
+      { ...get().hardware, saddles, tuners: [] },
+      neckParams,
+      get().headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      stringCount,
+    );
     set({
       bridgeSettings,
       nutSettings,
       neckParams,
-      hardware: { ...get().hardware, saddles },
+      hardware,
       headstockAnchors,
       past: pushPast(get().past, before),
       future: [],
@@ -626,13 +757,24 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       ...get().headstockSettings,
       type,
       tunerLayout: meta.defaultTunerLayout,
+      tunerTipClearance: meta.defaultTipClearance,
+      tunerNutClearance: meta.defaultNutClearance,
+      ...meta.defaultDims,
     };
     const headstockAnchors = seedHeadstockAnchors(
       get().neckParams,
       headstockSettings,
       get().bridgeSettings.stringCount ?? 6,
     );
-    set({ headstockSettings, headstockAnchors, past: pushPast(get().past, before), future: [] });
+    const hardware = withRelayoutTuners(
+      { ...get().hardware, tuners: [] },
+      get().neckParams,
+      headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set({ headstockSettings, headstockAnchors, hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
 
@@ -648,14 +790,36 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         get().bridgeSettings.stringCount ?? 6,
       );
     }
-    set(hist ? { headstockSettings, headstockAnchors, ...hist } : { headstockSettings, headstockAnchors });
+    const hardware = withRelayoutTuners(
+      get().hardware,
+      get().neckParams,
+      headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set(hist ? { headstockSettings, headstockAnchors, hardware, ...hist } : { headstockSettings, headstockAnchors, hardware });
     get().autosave();
   },
 
   setTunerLayout: (layout) => {
     const before = snapshotOf(get());
+    const headstockSettings = {
+      ...get().headstockSettings,
+      tunerLayout: layout,
+      showTuners: layout !== 'none',
+    };
+    const hardware = withRelayoutTuners(
+      { ...get().hardware, tuners: [] },
+      get().neckParams,
+      headstockSettings,
+      get().headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
     set({
-      headstockSettings: { ...get().headstockSettings, tunerLayout: layout, showTuners: layout !== 'none' },
+      headstockSettings,
+      hardware,
       past: pushPast(get().past, before),
       future: [],
     });
@@ -669,7 +833,30 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       get().headstockSettings,
       get().bridgeSettings.stringCount ?? 6,
     );
-    set({ headstockAnchors, past: pushPast(get().past, before), future: [] });
+    const hardware = withRelayoutTuners(
+      { ...get().hardware, tuners: [] },
+      get().neckParams,
+      get().headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set({ headstockAnchors, hardware, past: pushPast(get().past, before), future: [] });
+    get().autosave();
+  },
+
+  resetTunerPositions: () => {
+    const before = snapshotOf(get());
+    const unlocked = (get().hardware.tuners ?? []).map((t) => ({ ...t, locked: false }));
+    const hardware = withRelayoutTuners(
+      { ...get().hardware, tuners: unlocked },
+      get().neckParams,
+      get().headstockSettings,
+      get().headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set({ hardware, past: pushPast(get().past, before), future: [] });
     get().autosave();
   },
 
@@ -684,7 +871,15 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       localPoint,
       get().settings.symmetricEditing,
     );
-    set(hist ? { headstockAnchors, ...hist } : { headstockAnchors });
+    const hardware = withRelayoutTuners(
+      get().hardware,
+      get().neckParams,
+      get().headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
+    set(hist ? { headstockAnchors, hardware, ...hist } : { headstockAnchors, hardware });
     get().autosave();
   },
 
@@ -706,8 +901,17 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const prevIds = new Set(get().headstockAnchors.map((a) => a.id));
     const headstockAnchors = insertHeadstockAnchorAfter(get().headstockAnchors, id);
     const neu = headstockAnchors.find((a) => !prevIds.has(a.id));
+    const hardware = withRelayoutTuners(
+      get().hardware,
+      get().neckParams,
+      get().headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
     set({
       headstockAnchors,
+      hardware,
       selected: neu ? { kind: 'headstock', id: neu.id, part: 'position' } : get().selected,
       past: pushPast(get().past, before),
       future: [],
@@ -725,8 +929,17 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       return;
     }
     const clearSel = selected?.kind === 'headstock' && selected.id === target;
+    const hardware = withRelayoutTuners(
+      get().hardware,
+      get().neckParams,
+      get().headstockSettings,
+      headstockAnchors,
+      get().bodyAnchors,
+      get().bridgeSettings.stringCount ?? 6,
+    );
     set({
       headstockAnchors,
+      hardware,
       selected: clearSel ? null : selected,
       past: pushPast(get().past, before),
       future: [],
@@ -747,7 +960,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       // Re-seat the pickup at its slot default when it was previously empty,
       // so it doesn't reappear wherever it was last dragged for another config.
       const placement = { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) };
-      const pos = wasNone ? defaultPickupPositions(get().neckParams, placement)[idx] : prev;
+      const pos = wasNone ? defaultPickupPositions(get().neckParams, placement, pickupSettings)[idx] : prev;
       pickups[idx] = { ...prev, x: pos.x, y: pos.y, visible: true };
     }
     set({
@@ -795,10 +1008,16 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const field = hardware[name];
     if (Array.isArray(field)) {
       const arr = [...field];
-      if (index !== undefined && arr[index] && !arr[index].locked) {
-        // Pickups slide along the strings only — Y stays on the centerline.
-        const y = name === 'pickups' ? arr[index].y : point.y;
-        arr[index] = { ...arr[index], x: point.x, y };
+      if (index !== undefined && arr[index]) {
+        // Tuner "locked" means stay put on outline/inset changes — still draggable.
+        if (name !== 'tuners' && arr[index].locked) {
+          // no-op
+        } else {
+          // Pickups slide along the strings only — Y stays on the centerline.
+          const y = name === 'pickups' ? arr[index].y : point.y;
+          const locked = name === 'tuners' ? true : arr[index].locked;
+          arr[index] = { ...arr[index], x: point.x, y, locked };
+        }
       }
       hardware[name] = arr as never;
     } else {
@@ -818,8 +1037,15 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     if (deg > 180) deg -= 360;
     if (Array.isArray(field)) {
       const arr = [...field];
-      if (index !== undefined && arr[index] && !arr[index].locked) {
-        arr[index] = { ...arr[index], rotation: deg };
+      if (index !== undefined && arr[index]) {
+        if (name === 'tuners' || !arr[index].locked) {
+          // Rotating a tuner also marks it as manual so outline sync won't overwrite.
+          arr[index] = {
+            ...arr[index],
+            rotation: deg,
+            locked: name === 'tuners' ? true : arr[index].locked,
+          };
+        }
       }
       hardware[name] = arr as never;
     } else {
@@ -841,7 +1067,19 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       const item = field as HardwarePosition;
       hardware[name] = { ...item, locked: !item.locked } as never;
     }
-    set({ hardware });
+    // Unlocking a tuner snaps it back onto the auto layout.
+    const next =
+      name === 'tuners'
+        ? withRelayoutTuners(
+            hardware,
+            get().neckParams,
+            get().headstockSettings,
+            get().headstockAnchors,
+            get().bodyAnchors,
+            get().bridgeSettings.stringCount ?? 6,
+          )
+        : hardware;
+    set({ hardware: next });
     get().autosave();
   },
 
@@ -879,6 +1117,10 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
   setFretboardColor: (fretboardColor) => {
     set((s) => ({ settings: { ...s.settings, fretboardColor } }));
+    get().autosave();
+  },
+  setHeadstockColor: (headstockColor) => {
+    set((s) => ({ settings: { ...s.settings, headstockColor } }));
     get().autosave();
   },
   setBodyOpacity: (opacity) => {
@@ -954,7 +1196,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   loadDocument: (doc) => {
     const migrated = migrateDesignDocument({ ...doc }) as unknown as DesignDocument;
-    set({ ...migrated, past: [], future: [] });
+    // Keep base64 overlays out of the Zustand snapshot / autosave.
+    const { referenceOverlays: _overlays, ...rest } = migrated;
+    set({ ...rest, past: [], future: [] });
     get().autosave();
   },
 

@@ -5,6 +5,8 @@ import { useKeyboardNudge } from '../../hooks/useKeyboardNudge';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 import { computeDesignBounds } from '../../geometry/bounds';
+import { saddleClusterCenter } from '../../geometry/strings';
+import { bridgeAssemblyPoints } from '../../geometry/bridgeGlyph';
 import { BodyOutline } from './BodyOutline';
 import { AnchorPoints } from './AnchorPoints';
 import { FeatureHitRegions } from './FeatureHitRegions';
@@ -14,11 +16,14 @@ import { BackView } from './BackView';
 import { ConstructionView } from './ConstructionView';
 import { LayerGroup } from './LayerGroup';
 import { DebugOverlay } from './DebugOverlay';
-import { ReferenceImageOverlay, ReferenceOverlayManipulator } from './ReferenceImageOverlay';
+import { ReferenceImageOverlay, ReferenceOverlayHitTargets, ReferenceOverlayManipulator } from './ReferenceImageOverlay';
 import { Strings } from './Strings';
 import { NutHardware } from './NutHardware';
-import { HeadstockOutline, Tuners } from './Headstock';
+import { HeadstockOutline, TunersBack, TunersFront } from './Headstock';
 import { HeadstockAnchors } from './HeadstockAnchors';
+import { FinishDock } from '../chrome/FinishDock';
+import { BodyPickerButton, TemplateGalleryOverlay } from '../chrome/TemplatePicker';
+import { ViewModeHud, ViewportHud } from '../chrome/CanvasHud';
 
 /**
  * Top-level SVG stage. The viewBox + stage transform are derived from the
@@ -34,6 +39,7 @@ import { HeadstockAnchors } from './HeadstockAnchors';
 export function EditorCanvas() {
   const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
   const hardware = useDesignStore((s) => s.hardware);
+  const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
   const view = useDesignStore((s) => s.settings.view);
   const gridSize = useDesignStore((s) => s.settings.gridSize);
   const canvasPadding = useDesignStore((s) => s.settings.canvasPadding);
@@ -45,7 +51,7 @@ export function EditorCanvas() {
 
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const stageRef = useRef<SVGGElement | null>(null);
-  const { viewport, onPointerDown, onDoubleClick, fit, resetView, bindSpaceKeys, bindWheel, bindTouch, panBy, zoomBy } =
+  const { viewport, onPointerDown, onDoubleClick, fit, resetView, bindSpaceKeys, bindWheel, bindTouch, zoomBy } =
     useViewport(svgRootRef);
 
   useKeyboardNudge();
@@ -65,8 +71,17 @@ export function EditorCanvas() {
   }, [templateId, fit]);
 
   const bounds = useMemo(
-    () => computeDesignBounds(bodyAnchors, outlinePoints, hardware, {}, [...headstockPoints, ...tunerPoints]),
-    [bodyAnchors, outlinePoints, hardware, headstockPoints, tunerPoints],
+    () =>
+      computeDesignBounds(bodyAnchors, outlinePoints, hardware, {}, [
+        ...headstockPoints,
+        ...tunerPoints,
+        ...bridgeAssemblyPoints(
+          saddleClusterCenter(hardware.saddles),
+          hardware.saddles[0]?.rotation ?? 0,
+          bridgeSettings,
+        ),
+      ]),
+    [bodyAnchors, outlinePoints, hardware, headstockPoints, tunerPoints, bridgeSettings],
   );
 
   const contentWidth = bounds.maxX - bounds.minX;
@@ -84,154 +99,97 @@ export function EditorCanvas() {
     [selected, bodyAnchors],
   );
 
-  const panStep = Math.max(width, height) * 0.08;
-
   return (
-    <svg
-      ref={svgRootRef}
-      className="editor-svg"
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label={`FretForge ${view} view`}
-      onPointerDown={onPointerDown}
-      onDoubleClick={onDoubleClick}
-    >
-      <defs>
-        <pattern id="grid-pattern" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
-          <path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke="var(--grid-line)" strokeWidth={0.25} />
-        </pattern>
-      </defs>
-      <rect
-        x={0}
-        y={0}
-        width={width}
-        height={height}
-        fill="url(#grid-pattern)"
-        onPointerDown={(e) => {
-          if (e.pointerType !== 'touch') select(null);
-        }}
-      />
-      <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
-        <g ref={stageRef} id="stage" transform={`translate(${stageTx}, ${stageTy}) ${stageScale}`}>
-          <ReferenceImageOverlay />
-          {view === 'top' && (
-            <>
-              <LayerGroup id="body">
-                <BodyOutline variant="top" />
-              </LayerGroup>
-              <LayerGroup id="neck">
-                <NeckOutline />
-                <HeadstockOutline />
-                <NutHardware />
-              </LayerGroup>
-              <LayerGroup id="frets">
-                <FretLines />
-              </LayerGroup>
-              <LayerGroup id="hardware">
-                <Hardware stageRef={stageRef} />
-                <Tuners />
-              </LayerGroup>
-              {/* Strings above pickups/hardware so they read as sitting on the poles. */}
-              <LayerGroup id="strings">
-                <Strings />
-              </LayerGroup>
-              <ReferenceOverlayManipulator stageRef={stageRef} />
-              <FeatureHitRegions stageRef={stageRef} />
-              <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />
-              <HeadstockAnchors stageRef={stageRef} />
-              {showDebugOverlay && <DebugOverlay />}
-            </>
-          )}
-          {view === 'back' && (
-            <>
-              <ReferenceOverlayManipulator stageRef={stageRef} />
-              <BackView stageRef={stageRef} />
-            </>
-          )}
-          {view === 'construction' && (
-            <>
-              <ReferenceOverlayManipulator stageRef={stageRef} />
-              <ConstructionView stageRef={stageRef} />
-              <HeadstockAnchors stageRef={stageRef} />
-              {showDebugOverlay && <DebugOverlay />}
-            </>
-          )}
-        </g>
-      </g>
-      <ViewportButtonsPortal onFit={fit} onResetView={resetView} />
-      <ViewportControlsPortal
-        width={width}
-        onPanLeft={() => panBy(-panStep, 0)}
-        onPanRight={() => panBy(panStep, 0)}
-        onPanUp={() => panBy(0, -panStep)}
-        onPanDown={() => panBy(0, panStep)}
+    <div className="editor-stage">
+      <div className="canvas-identity">
+        <BodyPickerButton />
+        <FinishDock />
+      </div>
+      <ViewModeHud />
+      <ViewportHud
+        onFit={fit}
+        onResetView={resetView}
         onZoomIn={() => zoomBy(1.25)}
         onZoomOut={() => zoomBy(0.8)}
       />
-    </svg>
-  );
-}
-
-function ViewportButtonsPortal({ onFit, onResetView }: { onFit: () => void; onResetView: () => void }) {
-  return (
-    <foreignObject x={8} y={8} width={160} height={30} style={{ overflow: 'visible' }}>
-      <div className="viewport-top-buttons" style={{ pointerEvents: 'auto' }}>
-        <button className="fit-button" onClick={onFit} title="Fit to screen (F)">
-          ⤢ Fit
-        </button>
-        <button className="fit-button" onClick={onResetView} title="Reset view (0)">
-          Reset View
-        </button>
-      </div>
-    </foreignObject>
-  );
-}
-
-function ViewportControlsPortal({
-  width,
-  onPanLeft,
-  onPanRight,
-  onPanUp,
-  onPanDown,
-  onZoomIn,
-  onZoomOut,
-}: {
-  width: number;
-  onPanLeft: () => void;
-  onPanRight: () => void;
-  onPanUp: () => void;
-  onPanDown: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-}) {
-  return (
-    <foreignObject x={Math.max(8, width - 132)} y={8} width={124} height={124} style={{ overflow: 'visible' }}>
-      <div className="viewport-controls" style={{ pointerEvents: 'auto' }}>
-        <div className="dpad">
-          <button className="dpad-up" onClick={onPanUp} title="Pan up" aria-label="Pan up">
-            ▲
-          </button>
-          <button className="dpad-left" onClick={onPanLeft} title="Pan left" aria-label="Pan left">
-            ◀
-          </button>
-          <button className="dpad-center" disabled aria-hidden="true" />
-          <button className="dpad-right" onClick={onPanRight} title="Pan right" aria-label="Pan right">
-            ▶
-          </button>
-          <button className="dpad-down" onClick={onPanDown} title="Pan down" aria-label="Pan down">
-            ▼
-          </button>
-        </div>
-        <div className="zoom-buttons">
-          <button onClick={onZoomOut} title="Zoom out" aria-label="Zoom out">
-            −
-          </button>
-          <button onClick={onZoomIn} title="Zoom in" aria-label="Zoom in">
-            +
-          </button>
-        </div>
-      </div>
-    </foreignObject>
+      <svg
+        ref={svgRootRef}
+        className="editor-svg"
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={`Guitloft ${view} view`}
+        onPointerDown={onPointerDown}
+        onDoubleClick={onDoubleClick}
+      >
+        <defs>
+          <pattern id="grid-pattern" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+            <path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke="var(--grid-line)" strokeWidth={0.25} />
+          </pattern>
+        </defs>
+        <rect
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          fill="url(#grid-pattern)"
+          onPointerDown={(e) => {
+            if (e.pointerType !== 'touch') select(null);
+          }}
+        />
+        <g transform={`translate(${viewport.panX}, ${viewport.panY}) scale(${viewport.zoom})`}>
+          <g ref={stageRef} id="stage" transform={`translate(${stageTx}, ${stageTy}) ${stageScale}`}>
+            <ReferenceImageOverlay />
+            {view === 'top' && (
+              <>
+                <LayerGroup id="body">
+                  <BodyOutline variant="top" />
+                </LayerGroup>
+                <LayerGroup id="neck">
+                  {/* Keys/housing under the headstock fill; only tips stick past the edge. */}
+                  <TunersBack />
+                  <NeckOutline />
+                  <HeadstockOutline />
+                  <NutHardware />
+                </LayerGroup>
+                <LayerGroup id="frets">
+                  <FretLines />
+                </LayerGroup>
+                {/* Above body/neck fills so the photo is clickable; below hardware/anchors. */}
+                <ReferenceOverlayHitTargets />
+                <LayerGroup id="hardware">
+                  <Hardware stageRef={stageRef} />
+                  <TunersFront stageRef={stageRef} />
+                </LayerGroup>
+                {/* Strings above pickups/hardware so they read as sitting on the poles. */}
+                <LayerGroup id="strings">
+                  <Strings />
+                </LayerGroup>
+                <ReferenceOverlayManipulator stageRef={stageRef} />
+                <FeatureHitRegions stageRef={stageRef} />
+                <AnchorPoints stageRef={stageRef} onlyIds={onlyFeatureAnchorIds} />
+                <HeadstockAnchors stageRef={stageRef} />
+                {showDebugOverlay && <DebugOverlay />}
+              </>
+            )}
+            {view === 'back' && (
+              <>
+                <ReferenceOverlayManipulator stageRef={stageRef} />
+                <BackView stageRef={stageRef} />
+              </>
+            )}
+            {view === 'construction' && (
+              <>
+                <ReferenceOverlayManipulator stageRef={stageRef} />
+                <ConstructionView stageRef={stageRef} />
+                <HeadstockAnchors stageRef={stageRef} />
+                {showDebugOverlay && <DebugOverlay />}
+              </>
+            )}
+          </g>
+        </g>
+      </svg>
+      <TemplateGalleryOverlay />
+    </div>
   );
 }

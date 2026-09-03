@@ -22,6 +22,7 @@ export function translateHardware(hw: HardwareState, dx: number, dy: number): Ha
     selector: translatePos(hw.selector, dx, dy),
     saddles: hw.saddles.map((s) => translatePos(s, dx, dy)),
     neckBolts: hw.neckBolts.map((b) => translatePos(b, dx, dy)),
+    tuners: (hw.tuners ?? []).map((t) => translatePos(t, dx, dy)),
   };
 }
 
@@ -48,6 +49,7 @@ export function relayoutHardwareToScale(
     selector: translatePos(hw.selector, dx, dy),
     saddles,
     neckBolts: hw.neckBolts,
+    tuners: (hw.tuners ?? []).map((t) => translatePos(t, dx, dy)),
   };
 }
 

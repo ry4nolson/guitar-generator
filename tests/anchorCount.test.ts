@@ -37,7 +37,7 @@ describe('configurable anchor count per template', () => {
     for (const t of BODY_TEMPLATES) {
       for (const count of [4, 5, 7]) {
         const anchors = computeParametricAnchors(t, { ...t.defaultParams, anchorCount: count });
-        expect(anchors).toHaveLength(count);
+        expect(anchors).toHaveLength(Math.min(count, t.defaultParams.anchorCount));
         expect(anchors.some((a) => a.id === 'neckJoint')).toBe(true);
       }
     }

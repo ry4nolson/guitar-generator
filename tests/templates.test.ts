@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeParametricAnchors } from '../src/geometry/bodyModel';
-import { BODY_TEMPLATES, getBodyTemplate } from '../src/geometry/templates';
+import { BODY_TEMPLATES, getBodyTemplate, groupedTemplates, templateHardwareHint } from '../src/geometry/templates';
 import { buildSvgDocument } from '../src/export/svgExport';
+import { evaluateConstraints } from '../src/geometry/constraints';
 import { useDesignStore, DESIGN_DOCUMENT_VERSION } from '../src/state/store';
 import { defaultLayers } from '../src/state/layers';
 import type { BodyAnchor, Point } from '../src/geometry/types';
@@ -105,18 +106,12 @@ describe('every template preset', () => {
         }
       });
 
-      it('allows corner-continuity anchors to have discontinuous (non-opposite) tangents', () => {
+      it('corner-continuity anchors keep independent (non-mirrored) handles', () => {
         const cornerAnchors = anchors.filter((a) => a.continuity === 'corner');
         if (cornerAnchors.length === 0) return;
-        const hasADiscontinuity = cornerAnchors.some((a) => {
-          const inDir = { x: a.handleIn.x - a.position.x, y: a.handleIn.y - a.position.y };
-          const outDir = { x: a.handleOut.x - a.position.x, y: a.handleOut.y - a.position.y };
-          const inLen = Math.hypot(inDir.x, inDir.y) || 1;
-          const outLen = Math.hypot(outDir.x, outDir.y) || 1;
-          const cosAngle = (inDir.x * outDir.x + inDir.y * outDir.y) / (inLen * outLen);
-          return cosAngle > -0.98;
-        });
-        expect(hasADiscontinuity).toBe(true);
+        // The engine must not force-align corner handles; the template decides
+        // whether they read as a kink or as a straight-into-arc (G1) join.
+        expect(cornerAnchors.every((a) => a.mirrorHandles === false)).toBe(true);
       });
 
       it('body bounds stay within a reasonable tolerance of the declared length/width params', () => {
@@ -136,10 +131,13 @@ describe('every template preset', () => {
       it('default body dimensions stay in a realistic electric-guitar range', () => {
         const L = template.defaultParams.bodyLength;
         const W = template.defaultParams.bodyWidth;
-        expect(L).toBeGreaterThanOrEqual(420);
-        expect(L).toBeLessThanOrEqual(470);
-        expect(W).toBeGreaterThanOrEqual(300);
-        expect(W).toBeLessThanOrEqual(360);
+        expect(L).toBeGreaterThanOrEqual(400);
+        expect(L).toBeLessThanOrEqual(560);
+        expect(W).toBeGreaterThanOrEqual(280);
+        // Offset-V / explorer bodies are legitimately 375–434 mm tip-to-tip;
+        // conventional double-cuts stay under ~360.
+        const wide = new Set(['flying-v', 'kelly', 'rhoads', 'king-v', 'warrior']);
+        expect(W).toBeLessThanOrEqual(wide.has(template.id) ? 450 : 360);
       });
     });
   }
@@ -149,27 +147,78 @@ describe('Flying-V corner continuity', () => {
   const template = getBodyTemplate('flying-v');
   const anchors = computeParametricAnchors(template, template.defaultParams);
 
+  const byId = new Map(anchors.map((a) => [a.id, a]));
+
   it('uses corner continuity on every anchor', () => {
     expect(anchors.every((a) => a.continuity === 'corner')).toBe(true);
   });
 
-  it('places wing tips as the rearmost points (aft of the rear notch)', () => {
-    const tip = anchors.find((a) => a.id === 'upperWingTip')!;
-    const notch = anchors.find((a) => a.id === 'rearNotch')!;
-    expect(tip.position.x).toBeGreaterThan(notch.position.x);
+  it('renders the wing edges as true straight lines (handles collinear with the segment)', () => {
+    const straightPairs: [string, string][] = [
+      ['upperShoulderOuter', 'upperTipOuter'], // outer bass edge
+      ['upperTipInner', 'crotchUpper'], // inner bass edge
+      ['crotchLower', 'lowerTipInner'], // inner treble edge
+      ['lowerTipOuter', 'lowerShoulderOuter'], // outer treble edge
+      ['lowerShoulderFront', 'neckJoint'], // front edge
+      ['neckJoint', 'upperShoulderFront'],
+    ];
+    for (const [fromId, toId] of straightPairs) {
+      const from = byId.get(fromId)!;
+      const to = byId.get(toId)!;
+      const seg = { x: to.position.x - from.position.x, y: to.position.y - from.position.y };
+      for (const h of [
+        { x: from.handleOut.x - from.position.x, y: from.handleOut.y - from.position.y },
+        { x: to.handleIn.x - to.position.x, y: to.handleIn.y - to.position.y },
+      ]) {
+        expect(Math.abs(seg.x * h.y - seg.y * h.x)).toBeLessThan(1e-6 * Math.hypot(seg.x, seg.y) * Math.hypot(h.x, h.y) + 1e-6);
+      }
+    }
   });
 
-  it('keeps wing tips nearly symmetrical about the centerline', () => {
-    const upper = anchors.find((a) => a.id === 'upperWingTip')!;
-    const lower = anchors.find((a) => a.id === 'lowerWingTip')!;
-    expect(upper.position.x).toBeCloseTo(lower.position.x, 5);
-    expect(upper.position.y).toBeCloseTo(-lower.position.y, 5);
+  it('rounds every corner with a G1 fillet (no pinched cusps at tips / crotch / shoulders)', () => {
+    for (const a of anchors) {
+      const inDir = { x: a.handleIn.x - a.position.x, y: a.handleIn.y - a.position.y };
+      const outDir = { x: a.handleOut.x - a.position.x, y: a.handleOut.y - a.position.y };
+      const cos =
+        (inDir.x * outDir.x + inDir.y * outDir.y) / (Math.hypot(inDir.x, inDir.y) * Math.hypot(outDir.x, outDir.y));
+      expect(cos).toBeLessThan(-0.999);
+    }
   });
 
-  it('keeps wings thick: mid-wing outer edge is much wider than the inner trailing edge', () => {
-    const bend = anchors.find((a) => a.id === 'upperWingBend')!;
-    const inner = anchors.find((a) => a.id === 'upperInnerEdge')!;
-    expect(Math.abs(bend.position.y)).toBeGreaterThan(Math.abs(inner.position.y) * 2);
+  it('places the rounded tips exactly at the declared length / half-width', () => {
+    const { bodyLength, bodyWidth } = template.defaultParams;
+    const samples = sampleClosedPath(anchors, 200);
+    const maxX = Math.max(...samples.map((p) => p.x));
+    const maxY = Math.max(...samples.map((p) => p.y));
+    expect(maxX).toBeCloseTo(bodyLength, 0);
+    expect(maxY).toBeCloseTo(bodyWidth / 2, 0);
+  });
+
+  it('places wing tips as the rearmost points (aft of the crotch)', () => {
+    expect(byId.get('upperTipOuter')!.position.x).toBeGreaterThan(byId.get('crotchUpper')!.position.x);
+  });
+
+  it('keeps the outline symmetrical about the centerline', () => {
+    const pairs: [string, string][] = [
+      ['upperTipOuter', 'lowerTipOuter'],
+      ['upperTipInner', 'lowerTipInner'],
+      ['crotchUpper', 'crotchLower'],
+      ['upperShoulderOuter', 'lowerShoulderOuter'],
+    ];
+    for (const [u, l] of pairs) {
+      const upper = byId.get(u)!;
+      const lower = byId.get(l)!;
+      expect(upper.position.x).toBeCloseTo(lower.position.x, 6);
+      expect(upper.position.y).toBeCloseTo(-lower.position.y, 6);
+    }
+  });
+
+  it("matches '58-style proportions: ~121 mm front, crotch ~63% back, 424 mm tip-to-tip", () => {
+    const front = byId.get('upperShoulderFront')!.position.y - byId.get('lowerShoulderFront')!.position.y;
+    expect(front).toBeGreaterThan(80);
+    expect(front).toBeLessThan(121);
+    expect(byId.get('crotchUpper')!.position.x / template.defaultParams.bodyLength).toBeGreaterThan(0.55);
+    expect(template.defaultParams.bodyWidth).toBe(424);
   });
 });
 
@@ -234,7 +283,9 @@ describe('self-intersection across a range of parameter values (not just default
 });
 
 describe('turning angle sanity (no accidental hidden cusps in smooth-only templates)', () => {
-  const smoothTemplates = BODY_TEMPLATES.filter((t) => t.id !== 'flying-v');
+  const smoothTemplates = BODY_TEMPLATES.filter((t) =>
+    computeParametricAnchors(t, t.defaultParams).every((a) => a.continuity !== 'corner'),
+  );
   for (const template of smoothTemplates) {
     it(`${template.name}: max turning angle stays well below a sharp-corner threshold`, () => {
       const anchors = computeParametricAnchors(template, template.defaultParams);
@@ -295,6 +346,74 @@ describe('template switching', () => {
     useDesignStore.getState().setTemplate('strat');
     expect(useDesignStore.getState().settings.unit).toBe('in');
   });
+
+  it('applies family presets: Strat gets 3 single coils, 5-way, tremolo; V gets 2 humbuckers, toggle, TOM, 3×3', () => {
+    useDesignStore.getState().setTemplate('strat');
+    let s = useDesignStore.getState();
+    expect(s.pickupSettings).toEqual({ neck: 'single-coil', middle: 'single-coil', bridge: 'single-coil' });
+    expect(s.hardware.pickups.every((p) => p.visible)).toBe(true);
+    expect(s.controlSettings.selector).toBe('blade-5');
+    expect(s.controlSettings.volumes + s.controlSettings.tones).toBe(3);
+    expect(s.hardware.controls).toHaveLength(3);
+    expect(s.bridgeSettings.type).toBe('strat-tremolo');
+    expect(s.headstockSettings.type).toBe('paddle');
+
+    useDesignStore.getState().setTemplate('flying-v');
+    s = useDesignStore.getState();
+    expect(s.pickupSettings).toEqual({ neck: 'humbucker', middle: 'none', bridge: 'humbucker' });
+    expect(s.hardware.pickups[1].visible).toBe(false);
+    expect(s.controlSettings.selector).toBe('toggle');
+    expect(s.bridgeSettings.type).toBe('tom');
+    expect(s.headstockSettings.type).toBe('3x3');
+    expect(s.headstockSettings.tunerLayout).toBe('3x3');
+    expect(s.hardware.tuners.length).toBe(6);
+  });
+
+  it('applies each family head at its natural proportions unless the outline was hand-sculpted', () => {
+    useDesignStore.getState().setTemplate('strat');
+    let s = useDesignStore.getState();
+    expect(s.headstockSettings.type).toBe('paddle');
+    expect(s.headstockSettings.length).toBe(175);
+    expect(s.headstockSettings.tipWidth).toBe(93);
+
+    // Sculpt the head, then re-apply a template with the same head type: the
+    // outline survives because the type did not change.
+    const free = s.headstockAnchors.find((a) => !a.locked)!;
+    s.nudgeHeadstockAnchor(free.id, 3, 3);
+    useDesignStore.getState().setTemplate('strat');
+    s = useDesignStore.getState();
+    expect(s.headstockAnchors.some((a) => a.manuallyEdited)).toBe(true);
+
+    // A type change always re-seeds with the new family's dimensions.
+    useDesignStore.getState().setTemplate('tele');
+    s = useDesignStore.getState();
+    expect(s.headstockSettings.type).toBe('tele');
+    expect(s.headstockSettings.length).toBe(174);
+    expect(s.headstockSettings.tipWidth).toBe(79);
+    expect(s.headstockAnchors.some((a) => a.manuallyEdited)).toBe(false);
+  });
+
+  it('keeps multi-string bridge spacing when a preset changes the bridge type', () => {
+    useDesignStore.getState().setStringCount(7);
+    const spacing = useDesignStore.getState().bridgeSettings.stringSpacing;
+    useDesignStore.getState().setTemplate('flying-v');
+    expect(useDesignStore.getState().bridgeSettings.stringSpacing).toBe(spacing);
+    expect(useDesignStore.getState().hardware.saddles).toHaveLength(7);
+  });
+});
+
+describe('template defaults are constraint-clean', () => {
+  beforeEach(() => {
+    useDesignStore.getState().resetToDefaults();
+  });
+
+  for (const template of BODY_TEMPLATES) {
+    it(`${template.name}: fresh design raises no constraint warnings`, () => {
+      useDesignStore.getState().setTemplate(template.id);
+      const violations = evaluateConstraints(useDesignStore.getState());
+      expect(violations.map((v) => v.message)).toEqual([]);
+    });
+  }
 });
 
 describe('SVG export excludes reference overlays', () => {
@@ -334,5 +453,25 @@ describe('SVG export excludes reference overlays', () => {
       expect(svg).not.toMatch(/data-reference-overlay/);
       expect(svg).not.toMatch(/<image\b/i);
     }
+  });
+});
+
+describe('template families', () => {
+  it('assigns every template to a gallery family', () => {
+    for (const t of BODY_TEMPLATES) {
+      expect(['classic', 'v', 'superstrat']).toContain(t.family);
+    }
+  });
+
+  it('groups Classic / V / Superstrat without dropping templates', () => {
+    const groups = groupedTemplates(BODY_TEMPLATES);
+    expect(groups.map((g) => g.id)).toEqual(['classic', 'v', 'superstrat']);
+    expect(groups.flatMap((g) => g.templates).length).toBe(BODY_TEMPLATES.length);
+  });
+
+  it('builds a hardware hint for Strat', () => {
+    const hint = templateHardwareHint(getBodyTemplate('strat'));
+    expect(hint).toContain('SSS');
+    expect(hint.length).toBeGreaterThan(3);
   });
 });

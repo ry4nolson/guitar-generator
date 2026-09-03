@@ -97,9 +97,9 @@ describe('pickup/control store actions', () => {
     useDesignStore.getState().resetToDefaults();
   });
 
-  it('defaults to neck single-coil + bridge humbucker with vol/tone and a 3-way', () => {
+  it('defaults to the Tele preset: two single coils with vol/tone and a 3-way', () => {
     const s = useDesignStore.getState();
-    expect(s.pickupSettings).toEqual({ neck: 'single-coil', middle: 'none', bridge: 'humbucker' });
+    expect(s.pickupSettings).toEqual({ neck: 'single-coil', middle: 'none', bridge: 'single-coil' });
     expect(s.hardware.pickups[0].visible).toBe(true);
     expect(s.hardware.pickups[1].visible).toBe(false);
     expect(s.hardware.pickups[2].visible).toBe(true);

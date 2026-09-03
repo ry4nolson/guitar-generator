@@ -4,11 +4,27 @@
 import { PICKUP_SLOTS } from '../../geometry/pickups';
 import type { SelectedPoint } from '../../state/store';
 
+export type InspectorStation = 'shape' | 'neck' | 'head' | 'bridge' | 'pickups' | 'trace' | 'stage';
+
+/** Which inspector station owns a selection, or null if none. */
+export function stationFromSelection(selected: SelectedPoint): InspectorStation | null {
+  if (!selected) return null;
+  if (selected.kind === 'headstock') return 'head';
+  if (selected.kind === 'anchor' || selected.kind === 'feature') return 'shape';
+  if (selected.kind === 'reference') return 'trace';
+  if (selected.kind !== 'hardware') return null;
+  if (selected.name === 'tuners') return 'head';
+  if (selected.name === 'saddles') return 'bridge';
+  if (selected.name === 'neckBolts') return 'neck';
+  return 'pickups';
+}
+
 /** DOM id of the sidebar target for a selection, or null if none. */
 export function sidebarTargetId(selected: SelectedPoint): string | null {
   if (!selected) return null;
   if (selected.kind === 'headstock') return 'sidebar-headstock';
   if (selected.kind === 'anchor' || selected.kind === 'feature') return 'sidebar-inspector';
+  if (selected.kind === 'reference') return `sidebar-ref-${selected.id}`;
   if (selected.kind !== 'hardware') return null;
 
   switch (selected.name) {
@@ -24,6 +40,8 @@ export function sidebarTargetId(selected: SelectedPoint): string | null {
       return selected.index !== undefined ? `sidebar-hw-saddles-${selected.index}` : 'sidebar-hardware';
     case 'neckBolts':
       return selected.index !== undefined ? `sidebar-hw-neckBolts-${selected.index}` : 'sidebar-hardware';
+    case 'tuners':
+      return selected.index !== undefined ? `sidebar-hw-tuners-${selected.index}` : 'sidebar-tuners';
     default:
       return 'sidebar-hardware';
   }

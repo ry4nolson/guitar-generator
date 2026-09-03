@@ -6,7 +6,7 @@ import type { HardwarePosition } from '../../geometry/types';
 import type { PickupType, SelectorType } from '../../geometry/pickups';
 import { PICKUP_DIMENSIONS, PICKUP_SLOTS } from '../../geometry/pickups';
 import { stringSlotOffsets } from '../../geometry/bridgeTypes';
-import { BridgeAssembly } from './BridgeAssembly';
+import { BridgeAssembly, SaddleGlyph } from './BridgeAssembly';
 
 function DraggablePart({
   name,
@@ -82,12 +82,21 @@ function PickupShape({ type, selected }: { type: PickupType; selected: boolean }
           width={dims.along}
           height={dims.across}
           rx={dims.radius}
-          fill="#e8e2d2"
+          fill="#efe6d0"
           stroke={stroke}
           strokeWidth={strokeWidth}
         />
+        <rect
+          x={-halfAlong + 1.2}
+          y={-halfAcross + 1.2}
+          width={dims.along - 2.4}
+          height={dims.across - 2.4}
+          rx={Math.max(0, dims.radius - 1)}
+          fill="#f7f1e0"
+          opacity={0.55}
+        />
         {poleYs.map((y, i) => (
-          <circle key={i} cx={0} cy={y} r={1.6} fill="#7d7d7d" />
+          <circle key={i} cx={0} cy={y} r={1.6} fill="#6a6a68" stroke="#3a3a38" strokeWidth={0.25} />
         ))}
       </g>
     );
@@ -102,16 +111,16 @@ function PickupShape({ type, selected }: { type: PickupType; selected: boolean }
           width={dims.along}
           height={dims.across}
           rx={dims.radius}
-          fill="#1d1d1a"
+          fill="#1a1916"
           stroke={stroke}
           strokeWidth={strokeWidth}
         />
         {poleYs.map((y, i) => (
-          <circle key={i} cx={0} cy={y} r={1.8} fill="#9a9a9a" />
+          <circle key={i} cx={0} cy={y} r={1.8} fill="#b8b4a8" stroke="#5a584e" strokeWidth={0.25} />
         ))}
         {/* Soapbar mounting screws between the poles and each end */}
-        <circle cx={0} cy={-halfAcross + 5} r={1.4} fill="#666" />
-        <circle cx={0} cy={halfAcross - 5} r={1.4} fill="#666" />
+        <circle cx={0} cy={-halfAcross + 5} r={1.4} fill="#8a8680" />
+        <circle cx={0} cy={halfAcross - 5} r={1.4} fill="#8a8680" />
       </g>
     );
   }
@@ -125,14 +134,14 @@ function PickupShape({ type, selected }: { type: PickupType; selected: boolean }
         width={dims.along}
         height={dims.across}
         rx={dims.radius}
-        fill="#181818"
+        fill="#161616"
         stroke={stroke}
         strokeWidth={strokeWidth}
       />
       {poleYs.map((y, i) => (
         <g key={i}>
-          <circle cx={-9} cy={y} r={1.7} fill="#b9b9b9" />
-          <circle cx={9} cy={y} r={1.7} fill="#8f8f8f" />
+          <circle cx={-9} cy={y} r={1.7} fill="#d0ccc4" stroke="#6a6860" strokeWidth={0.25} />
+          <circle cx={9} cy={y} r={1.7} fill="#a8a49c" stroke="#5a5850" strokeWidth={0.25} />
         </g>
       ))}
     </g>
@@ -144,14 +153,20 @@ export function KnobShape({ selected, ghost = false }: { selected: boolean; ghos
   const stroke = selected ? '#ff5533' : ghost ? '#888' : '#000';
   return (
     <g opacity={ghost ? 0.4 : 1}>
-      <circle r={9.5} fill={ghost ? 'none' : '#2c2c2c'} stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
-      {!ghost && <circle r={6.8} fill="#3d3d3d" />}
+      <circle r={9.5} fill={ghost ? 'none' : '#2a2a2a'} stroke={stroke} strokeWidth={selected ? 1.5 : 0.8} />
+      {!ghost && (
+        <>
+          <circle r={7.2} fill="#3c3c3c" />
+          <circle r={4.4} fill="#4e4e4e" />
+          <circle cx={-2.2} cy={-2.6} r={2.1} fill="#6a6a6a" opacity={0.55} />
+        </>
+      )}
       <line
         x1={0}
         y1={0}
         x2={0}
         y2={-8}
-        stroke={ghost ? '#aaa' : '#d0d0d0'}
+        stroke={ghost ? '#aaa' : '#e4e0d6'}
         strokeWidth={1.1}
         strokeLinecap="round"
       />
@@ -234,11 +249,9 @@ export function ControlsGhost() {
 /** Bridge assembly (by type) + pickups + knobs + selector + saddles. */
 export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
   const hardware = useDesignStore((s) => s.hardware);
-  const bridgeType = useDesignStore((s) => s.bridgeSettings.type);
+  const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
   const pickupSettings = useDesignStore((s) => s.pickupSettings);
   const controlSettings = useDesignStore((s) => s.controlSettings);
-
-  const saddleFill = bridgeType === 'tom' ? '#e8e8e8' : bridgeType === 'floyd-rose' ? '#888' : '#c0c0c0';
 
   return (
     <g id="hardware">
@@ -286,18 +299,8 @@ export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement |
           index={i}
           item={s}
           stageRef={stageRef}
-          render={(sel) => (
-            <rect
-              x={-6}
-              y={-2.5}
-              width={12}
-              height={5}
-              rx={1.5}
-              fill={saddleFill}
-              stroke={sel ? '#ff5533' : '#000'}
-              strokeWidth={sel ? 1.2 : 0.6}
-            />
-          )}
+          applyRotation
+          render={(sel) => <SaddleGlyph settings={bridgeSettings} selected={sel} />}
         />
       ))}
     </g>
@@ -317,7 +320,7 @@ export function NeckBolts({ stageRef }: { stageRef: React.RefObject<SVGGElement 
           item={b}
           stageRef={stageRef}
           render={(sel) => (
-            <circle r={4} fill="#999" stroke={sel ? '#ff5533' : '#000'} strokeWidth={sel ? 1.4 : 0.7} />
+            <circle r={4} fill="#b8b4ac" stroke={sel ? '#ff5533' : '#3a3834'} strokeWidth={sel ? 1.4 : 0.7} />
           )}
         />
       ))}

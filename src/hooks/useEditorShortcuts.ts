@@ -1,9 +1,15 @@
-// Canvas keyboard shortcuts: Fit (F), Reset View (0), Escape clears selection,
-// Delete/Backspace resets a selected manual override after confirmation.
-// Arrow-key nudging stays in useKeyboardNudge. Ignored while typing in inputs.
+// Canvas keyboard shortcuts: Undo/Redo (⌘/Ctrl+Z / ⌘/Ctrl+Shift+Z), Fit (F),
+// Reset View (0), Escape clears selection, Delete/Backspace resets a selected
+// manual override after confirmation. Arrow-key nudging stays in useKeyboardNudge.
 
 import { useEffect } from 'react';
 import { useDesignStore } from '../state/store';
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return true;
+  return target.isContentEditable;
+}
 
 export function useEditorShortcuts({ fit, resetView }: { fit: () => void; resetView: () => void }) {
   const select = useDesignStore((s) => s.select);
@@ -12,9 +18,26 @@ export function useEditorShortcuts({ fit, resetView }: { fit: () => void; resetV
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      // Undo / redo — handle before the modifier bail-out below. Prefer design
+      // history over the browser's (mostly useless) field undo on number inputs.
+      if (mod && key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) useDesignStore.getState().redo();
+        else useDesignStore.getState().undo();
+        return;
+      }
+      if (mod && key === 'y' && !e.shiftKey) {
+        // Windows / Linux alternate redo
+        e.preventDefault();
+        useDesignStore.getState().redo();
+        return;
+      }
+
+      if (isTypingTarget(e.target)) return;
+      if (mod || e.altKey) return;
 
       if (e.key === 'Escape') {
         e.preventDefault();

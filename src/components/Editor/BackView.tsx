@@ -6,6 +6,7 @@ import { BodyOutline } from './BodyOutline';
 import { NeckOutline } from './NeckAndFrets';
 import { NeckBolts, ControlsGhost } from './Hardware';
 import { LayerGroup } from './LayerGroup';
+import { ReferenceOverlayHitTargets } from './ReferenceImageOverlay';
 
 /**
  * Back view reuses the same body + neck paths as the top view (no separate
@@ -73,6 +74,7 @@ export function BackView({ stageRef }: { stageRef: React.RefObject<SVGGElement |
           />
         </g>
       </LayerGroup>
+      <ReferenceOverlayHitTargets />
       {/* Ghost front controls — non-interactive, for cavity alignment. */}
       <LayerGroup id="hardware">
         <ControlsGhost />

@@ -12,8 +12,9 @@ import { trebleFanOffset } from './frets';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 import { saddleClusterCenter } from './strings';
 import type { HardwarePosition } from './types';
+import { TRACED_HEADS, tracedHeadAnchors, type TracedHeadId } from './headstockOutlines';
 
-export type HeadstockType = 'headless' | 'paddle' | '6-inline' | '3x3' | 'pointy';
+export type HeadstockType = 'headless' | 'paddle' | 'tele' | '6-inline' | '3x3' | 'pointy';
 
 export type TunerLayout = 'none' | 'headless' | '6-inline' | '3x3';
 
@@ -21,9 +22,9 @@ export interface HeadstockSettings {
   type: HeadstockType;
   /** Length from nut face to tip, mm. Ignored when type is headless. */
   length: number;
-  /** Width at the tip (or narrowest end), mm. */
+  /** Overall head width at its widest point, mm. */
   tipWidth: number;
-  /** Extra half-width of 3×3 “ears” past the nut width, mm. */
+  /** Legacy 3×3 ear setting; kept for saved documents, no longer drives the outline. */
   earWidth: number;
   showTuners: boolean;
   tunerLayout: TunerLayout;
@@ -32,6 +33,17 @@ export interface HeadstockSettings {
    * Higher = more toward the centerline.
    */
   tunerInset: number;
+  /**
+   * Fraction of tip→nut span kept clear at the tip (0.05–0.45).
+   * Higher pulls the first/last pegs away from a narrow tip.
+   */
+  tunerTipClearance: number;
+  /** Fraction of the flank kept clear between the nut and the first peg. */
+  tunerNutClearance: number;
+  /** Arc-length margin (mm) at each end of the tuner row along the edge. */
+  tunerEndMargin: number;
+  /** Extra degrees added to each peg wing angle. */
+  tunerPegAngleOffset: number;
 }
 
 /** Editable headstock outline point in neck-local mm (closed loop, nut bass → tip → nut treble). */
@@ -52,11 +64,15 @@ export const NUT_TREBLE_ID = 'nutTreble';
 export const DEFAULT_HEADSTOCK_SETTINGS: HeadstockSettings = {
   type: 'paddle',
   length: 175,
-  tipWidth: 72,
+  tipWidth: 93,
   earWidth: 28,
   showTuners: true,
   tunerLayout: '6-inline',
   tunerInset: 12,
+  tunerTipClearance: 0.13,
+  tunerNutClearance: 0.22,
+  tunerEndMargin: 8,
+  tunerPegAngleOffset: 0,
 };
 
 /** Preserved look for designs that were authored before headed necks existed. */
@@ -68,6 +84,10 @@ export const LEGACY_HEADLESS_SETTINGS: HeadstockSettings = {
   showTuners: true,
   tunerLayout: 'headless',
   tunerInset: 12,
+  tunerTipClearance: 0.14,
+  tunerNutClearance: 0.12,
+  tunerEndMargin: 8,
+  tunerPegAngleOffset: 0,
 };
 
 /** Keep at least this many free (non-nut) outline points. */
@@ -78,36 +98,74 @@ export const HEADSTOCK_TYPE_META: {
   label: string;
   description: string;
   defaultTunerLayout: TunerLayout;
+  /**
+   * Tip clearance that keeps the peg row on the straight tuner edge for this
+   * silhouette (slanted / pointed ends need more room before the first peg).
+   */
+  defaultTipClearance: number;
+  /** Flank fraction between the nut and the first peg (clears the nut flare). */
+  defaultNutClearance: number;
+  /** Natural nut→tip length and overall width of the traced reference, mm. */
+  defaultDims: { length: number; tipWidth: number };
 }[] = [
   {
     id: 'headless',
     label: 'Headless',
     description: 'No headstock — tuners live at the bridge end of the body.',
     defaultTunerLayout: 'headless',
+    defaultTipClearance: 0.14,
+    defaultNutClearance: 0.12,
+    defaultDims: { length: 40, tipWidth: 40 },
   },
   {
     id: 'paddle',
-    label: 'Paddle',
-    description: 'Rounded paddle — Tele / Strat family. Drag free points to reshape.',
+    label: 'Strat',
+    description:
+      'Fender Strat-style: angled straight tuner edge, bulb tip swelling to the treble side, scoop and bump below. Drag free points to reshape.',
     defaultTunerLayout: '6-inline',
+    defaultTipClearance: 0.13,
+    defaultNutClearance: 0.22,
+    defaultDims: { length: 175, tipWidth: 93 },
+  },
+  {
+    id: 'tele',
+    label: 'Tele',
+    description:
+      'Fender Tele-style: slimmer head with a hooked tip and gentler treble scoop. Drag free points to reshape.',
+    defaultTunerLayout: '6-inline',
+    defaultTipClearance: 0.12,
+    defaultNutClearance: 0.17,
+    defaultDims: { length: 174, tipWidth: 79 },
   },
   {
     id: '6-inline',
-    label: 'Asymmetric',
-    description: 'Scooped treble, bass tuner ledge. Drag free points to reshape.',
+    label: 'Shark fin',
+    description:
+      'Superstrat-style: straight tuner edge, slanted end, sharp point on the treble side. Drag free points to reshape.',
     defaultTunerLayout: '6-inline',
+    defaultTipClearance: 0.17,
+    defaultNutClearance: 0.17,
+    defaultDims: { length: 191, tipWidth: 80 },
   },
   {
     id: '3x3',
-    label: 'Symmetrical',
-    description: 'Winged split-tuner shape. Drag free points to reshape.',
+    label: 'Open book',
+    description:
+      'Gibson-style 3×3: flared trapezoid, sharp ear tips, two crown humps meeting at a centre notch. Drag free points to reshape.',
     defaultTunerLayout: '3x3',
+    defaultTipClearance: 0.24,
+    defaultNutClearance: 0.12,
+    defaultDims: { length: 178, tipWidth: 82 },
   },
   {
     id: 'pointy',
     label: 'Pointy',
-    description: 'Tapered tip with solid shoulders. Drag free points to reshape.',
+    description:
+      'Metal-style: hooked bass shoulder, long straight tuner edge out to a treble-side spike. Drag free points to reshape.',
     defaultTunerLayout: '6-inline',
+    defaultTipClearance: 0.28,
+    defaultNutClearance: 0.24,
+    defaultDims: { length: 185, tipWidth: 134 },
   },
 ];
 
@@ -128,7 +186,8 @@ export function isHeadstockDirty(anchors: HeadstockAnchor[]): boolean {
 
 /**
  * Map fretted string index (0 = treble / high E) to a tuner mark index.
- * Inline layouts share the same order; 3×3 puts bass-side pegs first, then treble.
+ * Inline: tip→nut matches string 0→N−1 (high E at tip, low E at nut).
+ * 3×3: bass-side pegs first (tip→nut), then treble-side pegs (tip→nut).
  */
 export function mapStringIndexToTunerIndex(
   stringIndex: number,
@@ -140,6 +199,8 @@ export function mapStringIndexToTunerIndex(
   if (layout !== '3x3') return i;
   const bassCount = Math.ceil(n / 2);
   const trebleCount = Math.floor(n / 2);
+  // Treble strings (0…) → treble-side pegs; bass strings → bass-side pegs.
+  // Within each side, tip-first layout: highest of the side at tip index 0.
   if (i < trebleCount) return bassCount + i;
   return i - trebleCount;
 }
@@ -197,9 +258,9 @@ export function seedHeadstockAnchors(
   stringCount = 6,
 ): HeadstockAnchor[] {
   if (settings.type === 'headless') return [];
-  const poly = parametricOutline(neckParams, settings, stringCount);
-  if (!poly || poly.length < 3) return [];
-  return polygonToAnchors(poly);
+  const authored = authorHeadstockAnchors(neckParams, settings, stringCount);
+  if (!authored || authored.length < 3) return [];
+  return syncHeadstockNutCorners(authored, neckParams);
 }
 
 /** Keep nut corners glued to the nut face / fan line. */
@@ -210,28 +271,30 @@ export function syncHeadstockNutCorners(
   if (anchors.length < 2) return anchors;
   const nutHalf = neckParams.nutWidth / 2;
   const fan = trebleFanOffset(neckParams);
+  // Handles ride along with the corner so the preset's first/last segment
+  // keeps its shape; degenerate handles fall back to a tangent along the neck.
+  const glue = (a: HeadstockAnchor, id: string, position: Point, fallbackIn: Point, fallbackOut: Point) => {
+    const dx = position.x - a.position.x;
+    const dy = position.y - a.position.y;
+    const shift = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
+    const ok = (p: Point) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
+    return {
+      ...a,
+      id,
+      locked: true,
+      position,
+      handleIn: ok(a.handleIn) ? shift(a.handleIn) : fallbackIn,
+      handleOut: ok(a.handleOut) ? shift(a.handleOut) : fallbackOut,
+    };
+  };
   return anchors.map((a, i) => {
     if (i === 0 || a.id === NUT_BASS_ID) {
-      const position = { x: 0, y: nutHalf };
-      return {
-        ...a,
-        id: NUT_BASS_ID,
-        locked: true,
-        position,
-        handleIn: { x: position.x - 8, y: position.y },
-        handleOut: { x: position.x - 10, y: position.y + 2 },
-      };
+      const p = { x: 0, y: nutHalf };
+      return glue(a, NUT_BASS_ID, p, { x: p.x, y: p.y - 4 }, { x: p.x - 10, y: p.y + 2 });
     }
     if (i === anchors.length - 1 || a.id === NUT_TREBLE_ID) {
-      const position = { x: fan, y: -nutHalf };
-      return {
-        ...a,
-        id: NUT_TREBLE_ID,
-        locked: true,
-        position,
-        handleIn: { x: position.x - 10, y: position.y - 2 },
-        handleOut: { x: position.x - 8, y: position.y },
-      };
+      const p = { x: fan, y: -nutHalf };
+      return glue(a, NUT_TREBLE_ID, p, { x: p.x - 10, y: p.y - 2 }, { x: p.x, y: p.y + 4 });
     }
     return a;
   });
@@ -255,7 +318,8 @@ export function headstockAnchorsToPathD(anchors: HeadstockAnchor[]): string {
 
 /**
  * Neck-local outline samples for tuners/bounds.
- * Prefers editable anchors when present; otherwise parametric preset.
+ * Prefers editable anchors when present — densely samples the cubic Bezier
+ * path (not just control points), so pegs follow the drawn silhouette.
  */
 export function computeHeadstockOutlineLocal(
   neckParams: NeckParams,
@@ -265,9 +329,48 @@ export function computeHeadstockOutlineLocal(
 ): Point[] | null {
   if (settings.type === 'headless') return null;
   if (anchors && anchors.length >= 3) {
-    return anchors.map((a) => ({ ...a.position }));
+    return sampleHeadstockBezierOutline(anchors, 14);
   }
-  return parametricOutline(neckParams, settings, stringCount);
+  const seeded = seedHeadstockAnchors(neckParams, settings, stringCount);
+  return seeded.length >= 3 ? sampleHeadstockBezierOutline(seeded, 14) : null;
+}
+
+/** Flatten closed cubic headstock anchors into a dense polyline (includes nut face). */
+export function sampleHeadstockBezierOutline(
+  anchors: HeadstockAnchor[],
+  stepsPerSegment = 14,
+): Point[] {
+  const n = anchors.length;
+  if (n < 2) return [];
+  const steps = Math.max(4, Math.floor(stepsPerSegment));
+  const out: Point[] = [{ ...anchors[0].position }];
+  for (let i = 0; i < n; i++) {
+    const cur = anchors[i];
+    const next = anchors[(i + 1) % n];
+    // Emit t = 1 (the joint itself) so sharp corners survive sampling.
+    for (let s = 1; s <= steps; s++) {
+      out.push(cubicBezierPoint(cur.position, cur.handleOut, next.handleIn, next.position, s / steps));
+    }
+  }
+  // Close onto the first nut-bass point.
+  const first = out[0];
+  const last = out[out.length - 1];
+  if (!last || Math.hypot(last.x - first.x, last.y - first.y) > 0.2) {
+    out.push({ ...first });
+  }
+  return out;
+}
+
+function cubicBezierPoint(p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  const uuu = uu * u;
+  const ttt = tt * t;
+  return {
+    x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+    y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y,
+  };
 }
 
 export function computeHeadstockOutlineBody(
@@ -296,112 +399,31 @@ export function headstockAnchorsToBody(
   }));
 }
 
-function parametricOutline(
+const TRACED_HEAD_FOR_TYPE: Partial<Record<HeadstockType, TracedHeadId>> = {
+  paddle: 'strat',
+  tele: 'tele',
+  '6-inline': 'sharkFin',
+  '3x3': 'openBook',
+  pointy: 'pointy',
+};
+
+/**
+ * Preset outline for a head type at the requested dimensions. Presets are
+ * traced silhouettes (see headstockOutlines.ts) scaled to `length` × `tipWidth`
+ * (multi-string necks grow both) and blended onto the real nut width.
+ */
+function authorHeadstockAnchors(
   neckParams: NeckParams,
   settings: HeadstockSettings,
   stringCount: number,
-): Point[] | null {
+): HeadstockAnchor[] | null {
+  const traced = TRACED_HEAD_FOR_TYPE[settings.type];
+  if (!traced) return null;
   const nutHalf = neckParams.nutWidth / 2;
-  const tipGrow = Math.max(0, stringCount - 6) * 3.5;
-  const tipHalf = Math.max(nutHalf + 4, settings.tipWidth / 2 + tipGrow * 0.35);
-  const L = Math.max(40, settings.length + tipGrow * 2.5);
-  const ear = settings.earWidth + tipGrow * 0.4;
-  const outline = computeOutlineShape(settings.type, L, nutHalf, tipHalf, ear);
-  if (!outline) return null;
-  const fanOffset = trebleFanOffset(neckParams);
-  if (fanOffset === 0) return outline;
-  return outline.map((p, i) => (i === outline.length - 1 ? { ...p, x: fanOffset } : p));
-}
-
-/** Editable control polygons (~8–10 points) — smooth handles do the rest. */
-function computeOutlineShape(
-  type: HeadstockType,
-  L: number,
-  nutHalf: number,
-  tipHalf: number,
-  ear: number,
-): Point[] | null {
-  switch (type) {
-    case 'paddle':
-      return [
-        { x: 0, y: nutHalf },
-        { x: -L * 0.2, y: tipHalf * 0.55 },
-        { x: -L * 0.55, y: tipHalf + 2 },
-        { x: -L * 0.88, y: tipHalf * 0.75 },
-        { x: -L, y: 0 },
-        { x: -L * 0.88, y: -tipHalf * 0.7 },
-        { x: -L * 0.55, y: -tipHalf },
-        { x: -L * 0.2, y: -tipHalf * 0.45 },
-        { x: 0, y: -nutHalf },
-      ];
-    case '6-inline':
-      return [
-        { x: 0, y: nutHalf },
-        { x: -L * 0.15, y: nutHalf + 12 },
-        { x: -L * 0.45, y: tipHalf + 14 },
-        { x: -L * 0.82, y: tipHalf + 6 },
-        { x: -L, y: tipHalf * 0.15 },
-        { x: -L * 0.75, y: -tipHalf * 0.65 },
-        { x: -L * 0.35, y: -nutHalf - 4 },
-        { x: 0, y: -nutHalf },
-      ];
-    case '3x3':
-      return [
-        { x: 0, y: nutHalf },
-        { x: -L * 0.12, y: nutHalf + ear * 0.55 },
-        { x: -L * 0.38, y: nutHalf + ear },
-        { x: -L * 0.7, y: tipHalf + 4 },
-        { x: -L, y: 0 },
-        { x: -L * 0.7, y: -tipHalf - 4 },
-        { x: -L * 0.38, y: -nutHalf - ear },
-        { x: -L * 0.12, y: -nutHalf - ear * 0.55 },
-        { x: 0, y: -nutHalf },
-      ];
-    case 'pointy': {
-      const shoulder = Math.max(tipHalf + 6, nutHalf + 16);
-      return [
-        { x: 0, y: nutHalf },
-        { x: -L * 0.18, y: shoulder },
-        { x: -L * 0.45, y: shoulder - 4 },
-        { x: -L * 0.72, y: tipHalf * 0.45 },
-        { x: -L, y: 0 },
-        { x: -L * 0.72, y: -tipHalf * 0.4 },
-        { x: -L * 0.45, y: -shoulder + 6 },
-        { x: -L * 0.18, y: -shoulder + 2 },
-        { x: 0, y: -nutHalf },
-      ];
-    }
-    default:
-      return null;
-  }
-}
-
-function polygonToAnchors(poly: Point[]): HeadstockAnchor[] {
-  const n = poly.length;
-  return poly.map((pos, i) => {
-    const prev = poly[(i - 1 + n) % n];
-    const next = poly[(i + 1) % n];
-    const distIn = Math.hypot(pos.x - prev.x, pos.y - prev.y);
-    const distOut = Math.hypot(next.x - pos.x, next.y - pos.y);
-    // Catmull-Rom-ish tangent through neighbors.
-    const tx = next.x - prev.x;
-    const ty = next.y - prev.y;
-    const tlen = Math.hypot(tx, ty) || 1;
-    const ux = tx / tlen;
-    const uy = ty / tlen;
-    const inLen = distIn * 0.28;
-    const outLen = distOut * 0.28;
-    const locked = i === 0 || i === n - 1;
-    return {
-      id: i === 0 ? NUT_BASS_ID : i === n - 1 ? NUT_TREBLE_ID : `hs-${i}`,
-      position: { ...pos },
-      handleIn: { x: pos.x - ux * inLen, y: pos.y - uy * inLen },
-      handleOut: { x: pos.x + ux * outLen, y: pos.y + uy * outLen },
-      locked,
-      manuallyEdited: false,
-      mirrorHandles: true,
-    };
-  });
+  const grow = Math.max(0, stringCount - 6) * 3.5;
+  const length = Math.max(40, settings.length + grow * 2.5);
+  const width = Math.max(nutHalf * 2 + 8, settings.tipWidth + grow * 0.7);
+  return tracedHeadAnchors(TRACED_HEADS[traced], length, width, nutHalf);
 }
 
 export interface TunerMark {
@@ -421,9 +443,13 @@ export function computeTunerPositions(
 ): TunerMark[] {
   if (!settings.showTuners || settings.tunerLayout === 'none') return [];
   const n = Math.max(1, stringCount);
+  const angleOffset = Number.isFinite(settings.tunerPegAngleOffset) ? settings.tunerPegAngleOffset : 0;
 
   if (settings.tunerLayout === 'headless') {
-    return placeHeadlessTuners(neckParams, placement, saddles, n);
+    return placeHeadlessTuners(neckParams, placement, saddles, n).map((t) => ({
+      ...t,
+      pegAngleDeg: t.pegAngleDeg + angleOffset,
+    }));
   }
 
   const outline = computeHeadstockOutlineLocal(neckParams, settings, n, anchors);
@@ -433,7 +459,7 @@ export function computeTunerPositions(
     index,
     position: neckToBodySpace(local, neckParams, placement),
     radius: n > 8 ? 3.6 : 4.2,
-    pegAngleDeg: pegAngleDeg + neckParams.neckAngle,
+    pegAngleDeg: pegAngleDeg + neckParams.neckAngle + angleOffset,
   });
 
   const inset =
@@ -442,18 +468,58 @@ export function computeTunerPositions(
       : settings.type === '3x3'
         ? 11
         : 12;
+  const tipClearance =
+    typeof settings.tunerTipClearance === 'number' && Number.isFinite(settings.tunerTipClearance)
+      ? clamp(settings.tunerTipClearance, 0.05, 0.45)
+      : headstockTypeMeta(settings.type).defaultTipClearance;
+  const nutClearance =
+    typeof settings.tunerNutClearance === 'number' && Number.isFinite(settings.tunerNutClearance)
+      ? clamp(settings.tunerNutClearance, 0.05, 0.45)
+      : headstockTypeMeta(settings.type).defaultNutClearance;
+  const endMargin =
+    typeof settings.tunerEndMargin === 'number' && Number.isFinite(settings.tunerEndMargin)
+      ? clamp(settings.tunerEndMargin, 0, 24)
+      : 8;
 
+  const trims = { inset, tipClearance, nutClearance, endMargin };
   if (settings.tunerLayout === '6-inline') {
-    return placeAlongSide(outline, 'bass', n, settings.type, inset).map((p, i) => toBody(p, 90, i));
+    return placeAlongSide(outline, 'bass', n, trims, 'tip').map((p, i) => toBody(p.position, p.outAngleDeg, i));
   }
 
   const bassCount = Math.ceil(n / 2);
   const trebleCount = Math.floor(n / 2);
-  const bass = placeAlongSide(outline, 'bass', bassCount, settings.type, inset);
-  const treble = placeAlongSide(outline, 'treble', trebleCount, settings.type, inset);
-  const marks: TunerMark[] = bass.map((p, i) => toBody(p, 90, i));
-  for (let i = 0; i < treble.length; i++) marks.push(toBody(treble[i], -90, bassCount + i));
+  const bass = placeAlongSide(outline, 'bass', bassCount, trims, 'centre');
+  const treble = placeAlongSide(outline, 'treble', trebleCount, trims, 'centre');
+  const marks: TunerMark[] = bass.map((p, i) => toBody(p.position, p.outAngleDeg, i));
+  for (let i = 0; i < treble.length; i++) marks.push(toBody(treble[i].position, treble[i].outAngleDeg, bassCount + i));
   return marks;
+}
+
+/**
+ * Auto-layout tuners as hardware positions. Locked prior entries keep their
+ * x/y/rotation; unlocked slots follow the current outline/inset/layout.
+ */
+export function layoutTunersAsHardware(
+  neckParams: NeckParams,
+  settings: HeadstockSettings,
+  placement: NeckPlacement,
+  saddles: HardwarePosition[],
+  stringCount = 6,
+  anchors?: HeadstockAnchor[] | null,
+  prior?: HardwarePosition[] | null,
+): HardwarePosition[] {
+  const marks = computeTunerPositions(neckParams, settings, placement, saddles, stringCount, anchors);
+  return marks.map((m, i) => {
+    const prev = prior?.[i];
+    if (prev?.locked) return { ...prev };
+    return {
+      x: m.position.x,
+      y: m.position.y,
+      rotation: m.pegAngleDeg,
+      visible: prev?.visible ?? true,
+      locked: false,
+    };
+  });
 }
 
 function placeHeadlessTuners(
@@ -478,82 +544,234 @@ function placeHeadlessTuners(
   });
 }
 
+interface RowTrims {
+  inset: number;
+  tipClearance: number;
+  nutClearance: number;
+  endMargin: number;
+}
+
+interface PlacedPeg {
+  position: Point;
+  /** Neck-local degrees; glyph +X aims outboard, perpendicular to the peg row. */
+  outAngleDeg: number;
+}
+
 function placeAlongSide(
   outline: Point[],
   side: 'bass' | 'treble',
   count: number,
-  type: HeadstockType,
-  inset: number,
-): Point[] {
+  { inset, tipClearance, nutClearance, endMargin }: RowTrims,
+  splitAt: 'tip' | 'centre',
+): PlacedPeg[] {
   if (count <= 0) return [];
-  const edge = extractSideEdge(outline, side);
+  // nut → tip along the chosen flank of the closed outline.
+  const edge = extractSideEdge(outline, side, splitAt);
   if (edge.length < 2) return [];
 
-  const xs = edge.map((p) => p.x);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
-  const tipPad = type === 'pointy' ? 0.28 : 0.12;
-  const nutPad = 0.14;
-  const usableMin = xMin * (1 - tipPad);
-  const usableMax = xMax - Math.abs(xMin) * nutPad;
-  const lo = Math.min(usableMin, usableMax);
-  const hi = Math.max(usableMin, usableMax);
-  const clipped = clipPolylineToXRange(edge, lo, hi);
-  const densified = densifyPolyline(clipped.length >= 2 ? clipped : edge, 48);
+  const densified = densifyPolyline(edge, 64);
   if (densified.length < 2) return [];
+  const total = polylineLength(densified);
+  if (total < 1e-3) return [];
 
-  return sampleArcLength(densified, count).map((p) => ({
-    x: p.x,
-    y: p.y - Math.sign(p.y || (side === 'bass' ? 1 : -1)) * inset,
-  }));
+  // Tip-first: index 0 near tip (high E for inline). Trim tip/nut by fraction of
+  // arc length — more stable than x-range clipping on scooped/curved flanks.
+  const tipFirst = [...densified].reverse();
+  const tipTrim = total * tipClearance;
+  const nutTrim = total * nutClearance;
+  const pad = Math.min(endMargin, total * 0.08);
+  const start = Math.min(tipTrim + pad, total * 0.42);
+  const end = Math.max(total - nutTrim - pad, start + total * 0.2);
+  const span = end - start;
+
+  const raw = Array.from({ length: count }, (_, i) => {
+    const t = count === 1 ? 0.5 : i / (count - 1);
+    const edgePt = pointAtArcLength(tipFirst, start + t * span);
+    return insetFromEdge(edgePt, tipFirst, inset, outline);
+  });
+  const pts = straightenRow(raw, outline);
+  const outAngleDeg = rowOutwardAngle(pts, outline);
+  return pts.map((position) => ({ position, outAngleDeg }));
 }
 
-function extractSideEdge(outline: Point[], side: 'bass' | 'treble'): Point[] {
-  const tipIdx = outline.reduce((best, p, i) => (p.x < outline[best].x ? i : best), 0);
-  if (side === 'bass') return outline.slice(0, tipIdx + 1);
-  return outline.slice(tipIdx).reverse();
-}
-
-function clipPolylineToXRange(pts: Point[], xLo: number, xHi: number): Point[] {
-  const lo = Math.min(xLo, xHi);
-  const hi = Math.max(xLo, xHi);
-  const out: Point[] = [];
-  const pushUnique = (p: Point) => {
-    const prev = out[out.length - 1];
-    if (!prev || Math.hypot(p.x - prev.x, p.y - prev.y) > 0.25) out.push(p);
+/**
+ * Outward normal of a drilled peg row, in neck-local degrees. Keys share one
+ * angle so a straight tuner edge gets a matching bank of parallel pegs.
+ */
+function rowOutwardAngle(pts: Point[], outline: Point[]): number {
+  const c = polygonCentroid(outline);
+  if (pts.length === 0) return 90;
+  if (pts.length === 1) {
+    return (Math.atan2(pts[0].y - c.y, pts[0].x - c.x) * 180) / Math.PI;
+  }
+  const mid = {
+    x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+    y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
   };
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i];
-    const b = pts[i + 1];
-    if (a.x >= lo && a.x <= hi) pushUnique(a);
-    if (Math.abs(b.x - a.x) > 1e-9) {
-      for (const xb of [lo, hi]) {
-        const u = (xb - a.x) / (b.x - a.x);
-        if (u > 0 && u < 1) pushUnique({ x: xb, y: a.y + u * (b.y - a.y) });
-      }
+  let sxx = 0;
+  let sxy = 0;
+  let syy = 0;
+  for (const p of pts) {
+    const dx = p.x - mid.x;
+    const dy = p.y - mid.y;
+    sxx += dx * dx;
+    sxy += dx * dy;
+    syy += dy * dy;
+  }
+  const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const u = { x: Math.cos(theta), y: Math.sin(theta) };
+  let nx = -u.y;
+  let ny = u.x;
+  if (nx * (mid.x - c.x) + ny * (mid.y - c.y) < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  return (Math.atan2(ny, nx) * 180) / Math.PI;
+}
+
+/**
+ * Real tuner rows are drilled on a straight line even when the edge curves
+ * (Fender bulb, flared ears). Fit a line through the nut-side pegs — the
+ * ones on the straight part of the flank — and project every peg onto it,
+ * nudging toward the centerline if that would leave the silhouette.
+ */
+function straightenRow(pts: Point[], outline: Point[]): Point[] {
+  if (pts.length < 3) return pts;
+  const ref = pts.slice(Math.floor(pts.length / 3));
+  const c = polygonCentroid(ref);
+  let sxx = 0;
+  let sxy = 0;
+  let syy = 0;
+  for (const p of ref) {
+    const dx = p.x - c.x;
+    const dy = p.y - c.y;
+    sxx += dx * dx;
+    sxy += dx * dy;
+    syy += dy * dy;
+  }
+  // Principal axis of the reference pegs.
+  const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const u = { x: Math.cos(theta), y: Math.sin(theta) };
+  return pts.map((p) => {
+    const along = (p.x - c.x) * u.x + (p.y - c.y) * u.y;
+    const onLine = { x: c.x + u.x * along, y: c.y + u.y * along };
+    if (pointInPolygon(onLine, outline)) return onLine;
+    // Slide toward the centerline (y = 0) until the peg is back on the wood.
+    for (const k of [0.9, 0.8, 0.7, 0.6, 0.5, 0.4]) {
+      const q = { x: onLine.x, y: onLine.y * k };
+      if (pointInPolygon(q, outline)) return q;
+    }
+    return p;
+  });
+}
+
+/**
+ * Offset a point on the edge into the headstock interior along the local
+ * inward normal. Shrinks the offset if needed so the post stays inside the
+ * silhouette (fixes pegs flying off scooped / pointy tips).
+ */
+function insetFromEdge(edgePt: Point, edge: Point[], inset: number, outline: Point[]): Point {
+  const { index } = nearestPointOnPolyline(edge, edgePt);
+  const prev = edge[Math.max(0, index - 1)];
+  const next = edge[Math.min(edge.length - 1, index + 1)];
+  let tx = next.x - prev.x;
+  let ty = next.y - prev.y;
+  const len = Math.hypot(tx, ty) || 1;
+  tx /= len;
+  ty /= len;
+  // Candidate normals (perpendicular to tangent).
+  let nx = -ty;
+  let ny = tx;
+  const probe = { x: edgePt.x + nx * Math.min(inset, 4), y: edgePt.y + ny * Math.min(inset, 4) };
+  if (!pointInPolygon(probe, outline)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  for (const scale of [1, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15]) {
+    const pt = { x: edgePt.x + nx * inset * scale, y: edgePt.y + ny * inset * scale };
+    if (pointInPolygon(pt, outline)) return pt;
+  }
+  // Last resort: nudge toward outline centroid.
+  const c = polygonCentroid(outline);
+  let dx = c.x - edgePt.x;
+  let dy = c.y - edgePt.y;
+  const dlen = Math.hypot(dx, dy) || 1;
+  dx /= dlen;
+  dy /= dlen;
+  for (const d of [inset, inset * 0.5, 3, 2, 1]) {
+    const pt = { x: edgePt.x + dx * d, y: edgePt.y + dy * d };
+    if (pointInPolygon(pt, outline)) return pt;
+  }
+  return { x: edgePt.x + dx * 2, y: edgePt.y + dy * 2 };
+}
+
+function nearestPointOnPolyline(pts: Point[], p: Point): { index: number; dist: number } {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const d = Math.hypot(pts[i].x - p.x, pts[i].y - p.y);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
     }
   }
-  const last = pts[pts.length - 1];
-  if (last.x >= lo && last.x <= hi) pushUnique(last);
-  if (out.length >= 2) return out;
-  return pts.filter((p) => p.x >= lo - 1e-6 && p.x <= hi + 1e-6);
+  return { index: best, dist: bestD };
+}
+
+function pointInPolygon(pt: Point, poly: Point[]): boolean {
+  if (poly.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x;
+    const yi = poly[i].y;
+    const xj = poly[j].x;
+    const yj = poly[j].y;
+    const intersect = yi > pt.y !== yj > pt.y && pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi || 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function polygonCentroid(poly: Point[]): Point {
+  let x = 0;
+  let y = 0;
+  for (const p of poly) {
+    x += p.x;
+    y += p.y;
+  }
+  const n = poly.length || 1;
+  return { x: x / n, y: y / n };
+}
+
+/**
+ * Split the closed outline into its bass / treble flanks (nut → far end).
+ * `'tip'` splits at the farthest point (inline rows run all the way out to
+ * it); `'centre'` splits where the far end crosses the centerline so a split
+ * layout gets two equal flanks even when the crown has off-centre humps.
+ */
+function extractSideEdge(outline: Point[], side: 'bass' | 'treble', splitAt: 'tip' | 'centre' = 'tip'): Point[] {
+  // Drop the closing duplicate if present so tip search stays on the flank.
+  const pts =
+    outline.length > 2 &&
+    Math.hypot(outline[0].x - outline[outline.length - 1].x, outline[0].y - outline[outline.length - 1].y) < 0.5
+      ? outline.slice(0, -1)
+      : outline;
+  const minX = Math.min(...pts.map((p) => p.x));
+  const cost = (p: Point) => (splitAt === 'tip' ? p.x : p.x - minX + Math.abs(p.y));
+  const tipIdx = pts.reduce((best, p, i) => (cost(p) < cost(pts[best]) ? i : best), 0);
+  if (side === 'bass') return pts.slice(0, tipIdx + 1);
+  // The closed loop ends by running back across the nut face (x ≈ 0); strip
+  // it so the treble flank starts at the treble nut corner, not the bass one.
+  const treble = pts.slice(tipIdx).reverse();
+  let skip = 0;
+  while (skip < treble.length - 2 && treble[skip].x > -1) skip++;
+  return treble.slice(Math.max(0, skip - 1));
 }
 
 function densifyPolyline(pts: Point[], segments: number): Point[] {
   const total = polylineLength(pts);
   if (total < 1e-6) return pts;
   return Array.from({ length: segments + 1 }, (_, i) => pointAtArcLength(pts, (i / segments) * total));
-}
-
-function sampleArcLength(pts: Point[], count: number): Point[] {
-  const total = polylineLength(pts);
-  if (count === 1) return [pointAtArcLength(pts, total * 0.5)];
-  const margin = Math.min(total * 0.06, 8);
-  const usable = Math.max(total - 2 * margin, total * 0.5);
-  return Array.from({ length: count }, (_, i) => {
-    const t = i / (count - 1);
-    return pointAtArcLength(pts, margin + t * usable);
-  });
 }
 
 function polylineLength(pts: Point[]): number {
@@ -578,4 +796,8 @@ function pointAtArcLength(pts: Point[], dist: number): Point {
     remaining -= seg;
   }
   return pts[pts.length - 1];
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
 }

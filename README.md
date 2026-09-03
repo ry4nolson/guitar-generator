@@ -1,4 +1,4 @@
-# FretForge
+# Guitloft
 
 A browser-based, parametric editor for electric guitar designs — headed or
 headless. Three inspired starting silhouettes ship out of the box (Tele, Strat,

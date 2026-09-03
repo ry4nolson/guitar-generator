@@ -238,7 +238,8 @@ const TELE_NECK = { ...DEFAULT_NECK_PARAMS };
 /** Hardware layout from fretforge-design.json (matches the seeded body + neck). */
 const TELE_HARDWARE: HardwareState = {
   pickups: [
-    { x: 134.693, y: 0, rotation: 0, visible: true, locked: false },
+    // Heel ends at 104.7; leave >20 mm of wood past the pocket route overhang.
+    { x: 142.693, y: 0, rotation: 0, visible: true, locked: false },
     { x: 191.043, y: 0, rotation: 0, visible: false, locked: false },
     { x: 247.393, y: 0, rotation: 0, visible: true, locked: false },
   ],
@@ -261,15 +262,23 @@ const TELE_HARDWARE: HardwareState = {
     { x: 52.693, y: 19, rotation: 0, visible: true, locked: false },
     { x: 52.693, y: -19, rotation: 0, visible: true, locked: false },
   ],
+  tuners: [],
 };
 
 export const TELE_TEMPLATE: BodyTemplate = {
   id: 'tele',
   name: 'Tele-inspired',
+  family: 'classic',
   description: 'Traced compact single-cut: rounded upper bout, modest horn, shallow waist, broad lower bout.',
   defaultParams: DEFAULT_PARAMS,
   paramMeta: PARAM_META,
   buildAnchorSpecs,
   defaultNeckParams: TELE_NECK,
+  presets: {
+    pickups: { neck: 'single-coil', middle: 'none', bridge: 'single-coil' },
+    controls: { volumes: 1, tones: 1, selector: 'blade-3' },
+    bridgeType: 'hardtail',
+    headstockType: 'tele',
+  },
   defaultHardware: structuredClone(TELE_HARDWARE),
 };

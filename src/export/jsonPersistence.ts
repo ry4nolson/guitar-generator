@@ -16,7 +16,7 @@ export function deserializeDocument(json: string): DesignDocument {
   return migrated as unknown as DesignDocument;
 }
 
-export function downloadJson(doc: DesignDocument, filename = 'fretforge-design.json') {
+export function downloadJson(doc: DesignDocument, filename = 'guitloft-design.json') {
   const blob = new Blob([serializeDocument(doc)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

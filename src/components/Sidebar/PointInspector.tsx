@@ -100,6 +100,18 @@ export function PointInspector() {
     );
   }
 
+  if (selected.kind === 'reference') {
+    return (
+      <section className="sidebar-section" id="sidebar-inspector">
+        <h3>Selected point</h3>
+        <p>
+          <strong>Reference overlay</strong>
+        </p>
+        <p className="muted">Use the Reference overlay panel to adjust opacity, scale, flip, and placement.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="sidebar-section" id="sidebar-inspector">
       <h3>Selected point</h3>

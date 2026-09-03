@@ -10,7 +10,8 @@ import { Dimensions } from './Dimensions';
 import { useDesignStore } from '../../state/store';
 import { Strings } from './Strings';
 import { NutHardware } from './NutHardware';
-import { HeadstockOutline, Tuners } from './Headstock';
+import { HeadstockOutline, TunersBack, TunersFront } from './Headstock';
+import { ReferenceOverlayHitTargets } from './ReferenceImageOverlay';
 
 /**
  * Reference/build geometry: body + neck + hardware for context, plus
@@ -29,6 +30,7 @@ export function ConstructionView({ stageRef }: { stageRef: React.RefObject<SVGGE
         <BodyOutline variant="top" />
       </LayerGroup>
       <LayerGroup id="neck">
+        <TunersBack />
         <NeckOutline />
         <HeadstockOutline />
         <NutHardware />
@@ -36,12 +38,13 @@ export function ConstructionView({ stageRef }: { stageRef: React.RefObject<SVGGE
       <LayerGroup id="frets">
         <FretLines />
       </LayerGroup>
+      <ReferenceOverlayHitTargets />
       <LayerGroup id="strings">
         <Strings />
       </LayerGroup>
       <LayerGroup id="hardware">
         <Hardware stageRef={stageRef} />
-        <Tuners />
+        <TunersFront stageRef={stageRef} />
       </LayerGroup>
       <g opacity={dimGuides ? 0.28 : 1}>
         <LayerGroup id="centerlines">

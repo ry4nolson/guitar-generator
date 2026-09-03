@@ -2,18 +2,121 @@
 
 ## Unreleased
 
+### Changed
+
+- Product name is **Guitloft** (toolbar, page title, package, export
+  filenames). Existing FretForge autosave and overlay keys still load.
+- Inspector stations: **Gear** is split into **Bridge** (type, spacing,
+  saddles) and **Pickups** (pickups, knobs, selector). Neck bolts live
+  under Neck. Hover a station icon for its label; toolbar buttons use
+  native tooltips so the header does not grow scrollbars.
+- Bridge hardware now draws real-footprint plates instead of generic
+  rectangles: Tele-style hardtail with brass saddles and string-through
+  holes, Tune-o-matic with thumbwheels and a stopbar, Floyd Rose with
+  pivot posts and fine tuners, and a Strat synchronized tremolo with
+  six screws, stamped saddles, and a trem arm. The same glyphs go out
+  in SVG export.
+- Editor chrome redesign: warm workshop palette (amber accent), document-only
+  toolbar (undo/redo, reset menu, save/load, export menu, theme), floating
+  finish dock + body picker on the canvas, silhouette gallery grouped by
+  family (Classic / V / Superstrat), and a right inspector with sticky
+  selection + luthier stations (Shape / Neck / Head / Bridge / Pickups /
+  Trace / Stage). Top / Back / Construction and fit/zoom live on the
+  canvas HUD. Headstock
+  color is now a saved finish setting (defaults to maple).
+- Default finish is now a vintage amber burst with a rosewood fretboard and
+  maple headstock (was flat CAD plywood + matching tan neck). Outlines are a
+  dark wood edge instead of white, frets read as nickel, strings as steel, and
+  hardware has a bit more chrome / cream. Appearance has amber / butterscotch /
+  black / Olympic-white chips; custom body colors still get a light burst from
+  the picked fill. Saved designs that still had the old plywood defaults pick
+  up the new look on load.
+- Strat-inspired template is now a traced silhouette: 16 tangent-continuous
+  anchors fitted to a straight-on photo of a standard 461 × 324 mm body (long
+  bass horn, deep treble cutaway, sculpted waist, flowing lower bout). Feature
+  sliders (horn reach, waist depth/position, lower bout fullness, hip cutout,
+  lower horn reach) apply as deltas from the traced seed, like the Tele.
+- Flying-V-inspired template is built analytically from '58-style proportions
+  (424 mm tip-to-tip, 121 mm front, crotch ~63% back): razor-straight wing
+  edges with two-anchor G1 fillets at the tips, crotch and shoulders, so the
+  rounded tips land exactly on the declared length/width. New sliders for
+  front width, shoulder / tip / crotch radius, and crotch position.
+- Five Jackson-inspired body presets, traced from the outline drawings in
+  Wikimedia Commons' [Guitar outlines](https://commons.wikimedia.org/wiki/Category:Guitar_outlines)
+  category (neck + headstock clipped at the pocket mouth): **Soloist**
+  (superstrat, Floyd + two humbuckers, shark-fin head), **Kelly** (offset V),
+  **Rhoads** (extra-long bass wing), **King V** (symmetrical pointed V), and
+  **Warrior** (hooked bass wing / explorer-like). The template gallery wraps
+  so the extra cards stay usable.
+- Templates carry family presets applied on switch: Strat → three single coils,
+  5-way blade, tremolo, paddle head; Tele → two single coils, 3-way, hardtail;
+  V → two humbuckers, 2V/1T + toggle on the treble wing, TOM bridge, 3×3 head;
+  Soloist → HH + Floyd + shark-fin; Kelly / Rhoads / King V / Warrior → HH +
+  TOM + pointy head. Multi-string bridge spacing is preserved across template
+  switches.
+- Default neck-pickup placement is footprint-aware so fresh designs no longer
+  trip the "minimum wood around the neck pocket" warning; the Strat bridge coil
+  ships slanted 10° like the real thing.
+- Headstock presets are now traced silhouettes instead of hand-drawn guesses.
+  Each is our own G1 Bézier loop fitted (≤ ~1.3 mm) to a reference outline of
+  the classic shape, with proportions measured from the drawings in Wikimedia
+  Commons' "Guitar headstock outlines" category: **Strat** (was "Paddle") has
+  the angled straight tuner edge with the bulb swelling to the *treble* side and
+  the scoop + bump beneath it; new **Tele** type is the slimmer hooked-tip
+  Fender head; **Shark fin** is the superstrat slant-and-point; **Open book** is
+  the Gibson flared trapezoid with sharp ear tips and two crown humps meeting at
+  a centre notch (mirrored for exact symmetry); **Pointy** is the metal head
+  with the hooked bass shoulder and treble-side spike. Every type carries its
+  natural length / width (Strat 175 × 93, Tele 174 × 79, Shark fin 191 × 80,
+  Open book 178 × 82, Pointy 185 × 134) and applies it when you pick the type
+  or a template with that head; a hand-sculpted outline is kept unless the type
+  changes. The "Tip width" slider is now "Head width" (overall widest point) and
+  the 3×3 "Ear width" slider is gone (the traced flare replaces it).
+- Peg rows are tuned per head: each type has a **nut clearance** (new setting +
+  slider) as well as its tip clearance, so the first peg lands past the nut
+  flare on the straight tuner edge and the last one sits just short of the tip
+  corner, like the factory drilling. Split (3×3) rows are measured from where
+  the crown crosses the centreline, so both sides line up on heads with
+  off-centre humps.
+- Inline tuner pegs are drilled on a straight line (fitted through the pegs on
+  the straight part of the flank) rather than tracing the curved edge. Keys
+  rotate with that row so they sit perpendicular to the mounting edge instead
+  of always pointing at 90°.
+
 ### Fixed
 
+- Saved designs whose headstock outline was never hand-edited pick up the new
+  traced silhouettes (at their natural proportions) on load instead of keeping
+  the old blob shapes.
+- Sampled headstock outlines now include the anchor points themselves, so
+  sharp tips and corners survive flattening (previously they were shaved off).
+- The treble tuner row on split (3×3) heads was measured from the wrong nut
+  corner (the flank included the nut face), pushing its first peg onto the nut.
+- Moving the nut corners (nut width / fan changes) now carries their Bézier
+  handles along instead of resetting them, so the preset's flare survives.
+
+- Newly added reference photos appear upright on the canvas (the top-view stage
+  is a 180° turn of body space, so they previously landed upside-down).
+- Tuner auto-layout follows the Bezier headstock silhouette (not control
+  points) and insets along the inward edge normal so pegs stay on the wood.
+- Sealed-tuner glyph uses a centered oval key (cleaner top-view read).
 - Strings continue past the nut to each tuner peg on headed headstocks (inline and
   3×3 layouts map correctly to treble/bass sides).
 - Pickups drag along the string axis only (X); Y stays on the centerline.
 
 ### Added
 
-- Multiple reference overlay images (add/replace/remove per image; session-only
-  bitmaps, settings saved locally).
+- Multiple reference overlay images (add/replace/remove per image; embedded as
+  base64 in Save JSON, transform settings also saved locally). Horizontal and
+  vertical flip per image; drag-and-drop an image onto the canvas to add one.
+  Clicking a reference on the canvas selects it and scrolls/highlights its
+  controls in the sidebar.
 - Neck and headstock tracing opacity sliders, grouped with body opacity next to
   the reference overlay controls.
+- Draggable tuner pegs with per-peg lock/angle, plus tip clearance, end margin,
+  and peg angle offset sliders under Headstock → Tuners.
+- Sealed-tuner glyph drawn in two layers: keys/housing under the headstock
+  (tips stick past the edge), bushings/posts on top; oval key on the post axis.
 - Headstock outline add/remove point controls, plus a tuner inset slider.
 - Per-pickup angle controls (−45°…45°) in the Pickups sidebar; routes and SVG
   export respect the rotation.

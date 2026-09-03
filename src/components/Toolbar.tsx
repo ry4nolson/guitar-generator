@@ -2,18 +2,21 @@ import { useRef } from 'react';
 import { useDesignStore, type DesignDocument } from '../state/store';
 import { downloadJson, deserializeDocument } from '../export/jsonPersistence';
 import { buildSvgDocument, downloadSvg } from '../export/svgExport';
-import { TemplateGallery } from './Toolbar/TemplateGallery';
-import type { ViewMode } from '../geometry/types';
-
-const VIEWS: { key: ViewMode; label: string }[] = [
-  { key: 'top', label: 'Top' },
-  { key: 'back', label: 'Back' },
-  { key: 'construction', label: 'Construction' },
-];
+import { useReferenceOverlayContext } from '../state/ReferenceOverlayContext';
+import { SplitMenu } from './chrome/SplitMenu';
+import {
+  IconExport,
+  IconLoad,
+  IconMark,
+  IconMoon,
+  IconRedo,
+  IconReset,
+  IconSave,
+  IconSun,
+  IconUndo,
+} from './chrome/icons';
 
 export function Toolbar() {
-  const view = useDesignStore((s) => s.settings.view);
-  const setView = useDesignStore((s) => s.setView);
   const theme = useDesignStore((s) => s.settings.theme);
   const setTheme = useDesignStore((s) => s.setTheme);
   const undo = useDesignStore((s) => s.undo);
@@ -23,10 +26,8 @@ export function Toolbar() {
   const loadDocument = useDesignStore((s) => s.loadDocument);
   const past = useDesignStore((s) => s.past);
   const future = useDesignStore((s) => s.future);
-  const templateId = useDesignStore((s) => s.templateId);
-  const setTemplate = useDesignStore((s) => s.setTemplate);
-  const isBodyDirty = useDesignStore((s) => s.isBodyDirty);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { toDocument: referenceOverlaysToDocument, hydrateFromDocument } = useReferenceOverlayContext();
 
   const currentDocument = (): DesignDocument => {
     const s = useDesignStore.getState();
@@ -45,6 +46,7 @@ export function Toolbar() {
       controlSettings: s.controlSettings,
       settings: s.settings,
       layers: s.layers,
+      referenceOverlays: referenceOverlaysToDocument(),
     };
   };
 
@@ -57,7 +59,9 @@ export function Toolbar() {
     if (!file) return;
     try {
       const text = await file.text();
-      loadDocument(deserializeDocument(text));
+      const doc = deserializeDocument(text);
+      loadDocument(doc);
+      hydrateFromDocument(doc.referenceOverlays);
     } catch (err) {
       alert(`Could not load design: ${(err as Error).message}`);
     } finally {
@@ -67,75 +71,84 @@ export function Toolbar() {
 
   const exportSvg = (flavor: 'clean' | 'blueprint' | 'fabrication') => {
     const svg = buildSvgDocument(currentDocument(), flavor);
-    downloadSvg(svg, `fretforge-${flavor}.svg`);
-  };
-
-  const handleTemplateChange = (id: string) => {
-    if (id === templateId) return;
-    if (isBodyDirty()) {
-      const ok = confirm(
-        'You have manual body edits. Switching templates will discard those edits and reset body geometry/hardware.\n\nSwitch and discard edits?',
-      );
-      if (!ok) return;
-    }
-    setTemplate(id);
+    downloadSvg(svg, `guitloft-${flavor}.svg`);
   };
 
   return (
     <header className="toolbar">
       <div className="toolbar-group">
-        <span className="brand">FretForge</span>
+        <span className="brand">
+          <IconMark />
+          Guitloft
+        </span>
       </div>
 
-      <div className="toolbar-group template-gallery-wrap">
-        <TemplateGallery onSelect={handleTemplateChange} />
-      </div>
-
-      <div className="toolbar-group">
-        {VIEWS.map((v) => (
-          <button key={v.key} className={view === v.key ? 'active' : ''} onClick={() => setView(v.key)}>
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <span className="toolbar-divider" />
 
       <div className="toolbar-group">
-        <button onClick={undo} disabled={past.length === 0} title="Undo">
-          ↶ Undo
+        <button type="button" className="toolbar-btn" onClick={undo} disabled={past.length === 0} title="Undo (⌘Z)">
+          <IconUndo />
+          <span className="toolbar-btn-label">Undo</span>
         </button>
-        <button onClick={redo} disabled={future.length === 0} title="Redo">
-          ↷ Redo
+        <button type="button" className="toolbar-btn" onClick={redo} disabled={future.length === 0} title="Redo (⌘⇧Z)">
+          <IconRedo />
+          <span className="toolbar-btn-label">Redo</span>
         </button>
-        <button
-          onClick={() => confirm('Reset the body to the current template defaults?') && resetBodyToTemplate()}
-          title="Reset body shape/params to the active template's defaults; leaves neck/hardware/settings alone"
-        >
-          Reset body
-        </button>
-        <button
-          onClick={() =>
-            confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') && resetToDefaults()
-          }
-        >
-          Reset all
-        </button>
+        <SplitMenu
+          label="Reset"
+          icon={<IconReset />}
+          title="Reset body or entire design"
+          items={[
+            {
+              label: 'Reset body',
+              onClick: () =>
+                confirm('Reset the body to the current template defaults?') && resetBodyToTemplate(),
+            },
+            {
+              label: 'Reset all',
+              onClick: () =>
+                confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') &&
+                resetToDefaults(),
+            },
+          ]}
+        />
       </div>
 
+      <span className="toolbar-divider" />
+
       <div className="toolbar-group">
-        <button onClick={handleSave}>Save JSON</button>
-        <button onClick={handleLoadClick}>Load JSON</button>
+        <button type="button" className="toolbar-btn" onClick={handleSave} title="Save JSON">
+          <IconSave />
+          <span className="toolbar-btn-label">Save</span>
+        </button>
+        <button type="button" className="toolbar-btn" onClick={handleLoadClick} title="Load JSON">
+          <IconLoad />
+          <span className="toolbar-btn-label">Load</span>
+        </button>
         <input ref={fileInputRef} type="file" accept="application/json" hidden onChange={handleFileChange} />
+        <SplitMenu
+          label="Export"
+          icon={<IconExport />}
+          title="Export SVG"
+          items={[
+            { label: 'Clean SVG', onClick: () => exportSvg('clean') },
+            { label: 'Blueprint', onClick: () => exportSvg('blueprint') },
+            { label: 'Fabrication (1:1 mm)', onClick: () => exportSvg('fabrication') },
+          ]}
+        />
       </div>
 
-      <div className="toolbar-group">
-        <button onClick={() => exportSvg('clean')}>Export SVG</button>
-        <button onClick={() => exportSvg('blueprint')}>Export blueprint</button>
-        <button onClick={() => exportSvg('fabrication')}>Export fabrication (1:1 mm)</button>
-      </div>
+      <span className="toolbar-spacer" />
 
       <div className="toolbar-group">
-        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-          {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
+        <button
+          type="button"
+          className="toolbar-btn icon-only"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          {theme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>
       </div>
     </header>

@@ -16,6 +16,7 @@ export function useNeckGeometry() {
   const headstockAnchors = useDesignStore((s) => s.headstockAnchors);
   const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
   const saddles = useDesignStore((s) => s.hardware.saddles);
+  const storedTuners = useDesignStore((s) => s.hardware.tuners);
 
   const joinPoint = useMemo<Point>(() => neckJoinPoint(bodyAnchors, neckParams), [bodyAnchors, neckParams]);
   const frets = useMemo(() => computeFanFrets(neckParams), [neckParams]);
@@ -32,18 +33,20 @@ export function useNeckGeometry() {
     [neckParams, headstockSettings, joinPoint, stringCount, headstockAnchors],
   );
 
-  const tunerPoints = useMemo(
-    () =>
-      computeTunerPositions(
-        neckParams,
-        headstockSettings,
-        { joinPoint },
-        saddles,
-        stringCount,
-        headstockAnchors,
-      ).map((t) => t.position),
-    [neckParams, headstockSettings, joinPoint, saddles, stringCount, headstockAnchors],
-  );
+  const tunerPoints = useMemo(() => {
+    if (storedTuners && storedTuners.length > 0) {
+      // Keep index alignment for string→tuner mapping (even if a peg is hidden).
+      return storedTuners.map((t) => ({ x: t.x, y: t.y }));
+    }
+    return computeTunerPositions(
+      neckParams,
+      headstockSettings,
+      { joinPoint },
+      saddles,
+      stringCount,
+      headstockAnchors,
+    ).map((t) => t.position);
+  }, [storedTuners, neckParams, headstockSettings, joinPoint, saddles, stringCount, headstockAnchors]);
 
   const placedFrets = useMemo(
     () =>

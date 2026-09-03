@@ -1,7 +1,6 @@
-// Session-only reference images + lightweight overlay settings persisted in
-// localStorage. Bitmaps are never written to disk/autosave — they live as
-// object URLs for the current tab only. SVG export builds documents from
-// geometry alone and never consults this module.
+// Reference overlay settings (localStorage) + document serialization helpers.
+// Bitmaps are embedded as base64 data URLs in saved design JSON; SVG export
+// builds from geometry alone and never consults this module.
 
 export interface ReferenceOverlaySettings {
   visible: boolean;
@@ -14,17 +13,37 @@ export interface ReferenceOverlaySettings {
   offsetX: number;
   /** Vertical center of the image (mm). */
   offsetY: number;
+  /** Mirror left↔right in the image's local frame (after rotation). */
+  flipH: boolean;
+  /** Mirror top↔bottom in the image's local frame (after rotation). */
+  flipV: boolean;
 }
 
-/** One persisted overlay slot (image bytes are session-only). */
+/** One overlay slot (settings only — used by localStorage prefs). */
 export interface ReferenceOverlayItem extends ReferenceOverlaySettings {
   id: string;
+}
+
+/** Overlay entry as stored inside a design JSON file (settings + optional bitmap). */
+export interface ReferenceOverlayDocumentItem extends ReferenceOverlayItem {
+  /** data:image/png|jpeg|webp;base64,... */
+  imageDataUrl?: string;
 }
 
 export interface ReferenceOverlaysState {
   overlays: ReferenceOverlayItem[];
   activeId: string | null;
 }
+
+export interface ReferenceOverlaysDocument {
+  overlays: ReferenceOverlayDocumentItem[];
+  activeId: string | null;
+}
+
+export const EMPTY_REFERENCE_OVERLAYS: ReferenceOverlaysDocument = {
+  overlays: [],
+  activeId: null,
+};
 
 export const DEFAULT_REFERENCE_SETTINGS: ReferenceOverlaySettings = {
   visible: true,
@@ -34,11 +53,25 @@ export const DEFAULT_REFERENCE_SETTINGS: ReferenceOverlaySettings = {
   rotation: 0,
   offsetX: 0,
   offsetY: 0,
+  flipH: false,
+  flipV: false,
 };
 
-const SETTINGS_KEY_V3 = 'fretforge-reference-overlay-v3';
+const SETTINGS_KEY_V3 = 'guitloft-reference-overlay-v3';
+const LEGACY_SETTINGS_KEY_V3 = 'fretforge-reference-overlay-v3';
 const SETTINGS_KEY_V2 = 'fretforge-reference-overlay-v2';
 const SETTINGS_KEY_V1 = 'fretforge-reference-overlay-v1';
+
+const IMAGE_DATA_URL_RE = /^data:image\/(png|jpeg|jpg|webp);base64,/i;
+
+export function isAllowedImageDataUrl(value: string): boolean {
+  return IMAGE_DATA_URL_RE.test(value);
+}
+
+/** PNG / JPEG / WebP by MIME type or filename extension. */
+export function isAllowedReferenceImageFile(file: File): boolean {
+  return /^image\/(png|jpeg|jpg|webp)$/i.test(file.type) || /\.(png|jpe?g|webp)$/i.test(file.name);
+}
 
 export function createOverlayId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -61,6 +94,8 @@ export function createReferenceOverlayItem(
       : DEFAULT_REFERENCE_SETTINGS.rotation,
     offsetX: Number.isFinite(partial?.offsetX) ? (partial!.offsetX as number) : 0,
     offsetY: Number.isFinite(partial?.offsetY) ? (partial!.offsetY as number) : 0,
+    flipH: partial?.flipH === true,
+    flipV: partial?.flipV === true,
   };
 }
 
@@ -75,9 +110,34 @@ function parseLegacySingle(raw: string): ReferenceOverlaysState {
   return { overlays: [item], activeId: item.id };
 }
 
+/** Normalize/validate the design-file `referenceOverlays` section. */
+export function normalizeReferenceOverlaysDocument(raw: unknown): ReferenceOverlaysDocument {
+  if (!raw || typeof raw !== 'object') return { overlays: [], activeId: null };
+  const obj = raw as Partial<ReferenceOverlaysDocument>;
+  const overlays: ReferenceOverlayDocumentItem[] = [];
+  if (Array.isArray(obj.overlays)) {
+    for (const entry of obj.overlays) {
+      if (!entry || typeof entry !== 'object') continue;
+      const item = normalizeItem(entry);
+      if (!item) continue;
+      const dataUrl = (entry as ReferenceOverlayDocumentItem).imageDataUrl;
+      if (typeof dataUrl === 'string' && isAllowedImageDataUrl(dataUrl)) {
+        overlays.push({ ...item, imageDataUrl: dataUrl });
+      } else {
+        overlays.push(item);
+      }
+    }
+  }
+  const activeId =
+    typeof obj.activeId === 'string' && overlays.some((o) => o.id === obj.activeId)
+      ? obj.activeId
+      : (overlays[0]?.id ?? null);
+  return { overlays, activeId };
+}
+
 export function loadReferenceOverlays(): ReferenceOverlaysState {
   try {
-    const rawV3 = localStorage.getItem(SETTINGS_KEY_V3);
+    const rawV3 = localStorage.getItem(SETTINGS_KEY_V3) ?? localStorage.getItem(LEGACY_SETTINGS_KEY_V3);
     if (rawV3) {
       const parsed = JSON.parse(rawV3) as Partial<ReferenceOverlaysState>;
       const overlays = Array.isArray(parsed.overlays)
@@ -87,7 +147,9 @@ export function loadReferenceOverlays(): ReferenceOverlaysState {
         typeof parsed.activeId === 'string' && overlays.some((o) => o.id === parsed.activeId)
           ? parsed.activeId
           : (overlays[0]?.id ?? null);
-      return { overlays, activeId };
+      const state = { overlays, activeId };
+      if (!localStorage.getItem(SETTINGS_KEY_V3)) saveReferenceOverlays(state);
+      return state;
     }
 
     const legacy = localStorage.getItem(SETTINGS_KEY_V2) ?? localStorage.getItem(SETTINGS_KEY_V1);
@@ -113,7 +175,25 @@ export function loadReferenceSettings(): ReferenceOverlaySettings {
 
 export function saveReferenceOverlays(state: ReferenceOverlaysState): void {
   try {
-    localStorage.setItem(SETTINGS_KEY_V3, JSON.stringify(state));
+    // Settings only — never write image payloads into this localStorage key.
+    const slim: ReferenceOverlaysState = {
+      activeId: state.activeId,
+      overlays: state.overlays.map(
+        ({ id, visible, locked, opacity, scale, rotation, offsetX, offsetY, flipH, flipV }) => ({
+          id,
+          visible,
+          locked,
+          opacity,
+          scale,
+          rotation,
+          offsetX,
+          offsetY,
+          flipH,
+          flipV,
+        }),
+      ),
+    };
+    localStorage.setItem(SETTINGS_KEY_V3, JSON.stringify(slim));
   } catch {
     // private mode / quota — ignore
   }

@@ -12,6 +12,9 @@ import {
   DEFAULT_HEADSTOCK_SETTINGS,
   LEGACY_HEADLESS_SETTINGS,
   seedHeadstockAnchors,
+  layoutTunersAsHardware,
+  headstockTypeMeta,
+  isHeadstockDirty,
   type HeadstockSettings,
   type HeadstockAnchor,
 } from '../geometry/headstock';
@@ -28,8 +31,20 @@ import type { BodyAnchor, HardwarePosition } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
 
+import {
+  EMPTY_REFERENCE_OVERLAYS,
+  normalizeReferenceOverlaysDocument,
+} from '../state/referenceOverlay';
+import {
+  DEFAULT_BODY_COLOR,
+  DEFAULT_FRETBOARD_COLOR,
+  DEFAULT_HEADSTOCK_COLOR,
+  LEGACY_BODY_COLOR,
+  LEGACY_FRETBOARD_COLOR,
+} from '../geometry/color';
+
 /** Current design-document schema version. Bump when the shape changes. */
-export const DESIGN_DOCUMENT_VERSION = 9;
+export const DESIGN_DOCUMENT_VERSION = 11;
 
 /** Pre-v6 hardware shape (single fixed pickup + volume knob). */
 interface LegacyHardware {
@@ -185,6 +200,21 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     parsed.version = 9;
   }
 
+  // v9 → v10: optional referenceOverlays (settings + base64 images) on the document.
+  if (version === 9) {
+    parsed.referenceOverlays = parsed.referenceOverlays
+      ? normalizeReferenceOverlaysDocument(parsed.referenceOverlays)
+      : { ...EMPTY_REFERENCE_OVERLAYS, overlays: [] };
+    version = 10;
+    parsed.version = 10;
+  }
+
+  // v10 → v11: persist tuner pegs as hardware positions (auto + lockable overrides).
+  if (version === 10) {
+    version = 11;
+    parsed.version = 11;
+  }
+
   if (version !== DESIGN_DOCUMENT_VERSION) {
     throw new Error(
       `This file was saved with design format v${version}, but this build expects v${DESIGN_DOCUMENT_VERSION}.`,
@@ -204,12 +234,67 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     if (typeof hs.tunerInset !== 'number' || !Number.isFinite(hs.tunerInset)) {
       hs.tunerInset = DEFAULT_HEADSTOCK_SETTINGS.tunerInset;
     }
+    if (typeof hs.tunerTipClearance !== 'number' || !Number.isFinite(hs.tunerTipClearance)) {
+      hs.tunerTipClearance = headstockTypeMeta(hs.type).defaultTipClearance;
+    }
+    if (typeof hs.tunerNutClearance !== 'number' || !Number.isFinite(hs.tunerNutClearance)) {
+      hs.tunerNutClearance = headstockTypeMeta(hs.type).defaultNutClearance;
+    }
+    if (typeof hs.tunerEndMargin !== 'number' || !Number.isFinite(hs.tunerEndMargin)) {
+      hs.tunerEndMargin = DEFAULT_HEADSTOCK_SETTINGS.tunerEndMargin;
+    }
+    if (typeof hs.tunerPegAngleOffset !== 'number' || !Number.isFinite(hs.tunerPegAngleOffset)) {
+      hs.tunerPegAngleOffset = DEFAULT_HEADSTOCK_SETTINGS.tunerPegAngleOffset;
+    }
   }
-  if (!Array.isArray(parsed.headstockAnchors)) {
+  {
     const hs = parsed.headstockSettings as HeadstockSettings;
     const neck = parsed.neckParams as NeckParams | undefined;
     const count = (parsed.bridgeSettings as BridgeSettings | undefined)?.stringCount ?? 6;
-    parsed.headstockAnchors = neck ? seedHeadstockAnchors(neck, hs, count) : [];
+    const existing = parsed.headstockAnchors as HeadstockAnchor[] | undefined;
+    // A pristine outline (never hand-edited) is just the preset — re-seed so
+    // saved designs pick up the current authored silhouettes and peg rows.
+    const pristine = Array.isArray(existing) && !isHeadstockDirty(existing);
+    if (!Array.isArray(existing) || pristine) {
+      const meta = headstockTypeMeta(hs.type);
+      if (pristine && hs.type !== 'headless') {
+        // Untouched preset: adopt the traced silhouette's natural proportions
+        // and peg-row clearance rather than stretching it to legacy defaults.
+        hs.length = meta.defaultDims.length;
+        hs.tipWidth = meta.defaultDims.tipWidth;
+        if ([0.14, 0.16, 0.2, 0.22, 0.28, 0.3].includes(hs.tunerTipClearance)) {
+          hs.tunerTipClearance = meta.defaultTipClearance;
+        }
+      }
+      parsed.headstockAnchors = neck ? seedHeadstockAnchors(neck, hs, count) : [];
+    }
+  }
+  // Ensure tuner hardware array exists and unlocked pegs follow tip→nut layout.
+  {
+    const hardware = (parsed.hardware ?? {}) as {
+      tuners?: HardwarePosition[];
+      saddles?: HardwarePosition[];
+      [k: string]: unknown;
+    };
+    if (!Array.isArray(hardware.tuners)) hardware.tuners = [];
+    const hs = parsed.headstockSettings as HeadstockSettings;
+    const neck = parsed.neckParams as NeckParams | undefined;
+    const anchors = parsed.headstockAnchors as HeadstockAnchor[] | undefined;
+    const count = (parsed.bridgeSettings as BridgeSettings | undefined)?.stringCount ?? 6;
+    if (neck && hs) {
+      const bodyAnchors = parsed.bodyAnchors as BodyAnchor[] | undefined;
+      const joinPoint = bodyAnchors ? neckJoinPoint(bodyAnchors, neck) : { x: 0, y: 0 };
+      hardware.tuners = layoutTunersAsHardware(
+        neck,
+        hs,
+        { joinPoint },
+        hardware.saddles ?? [],
+        count,
+        anchors,
+        hardware.tuners,
+      );
+    }
+    parsed.hardware = hardware;
   }
   if (!parsed.pickupSettings) parsed.pickupSettings = { ...DEFAULT_PICKUP_SETTINGS };
   if (!parsed.controlSettings) {
@@ -223,8 +308,15 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   if (!layers.strings) layers.strings = { visible: false, locked: false };
   parsed.layers = layers;
   const settings = (parsed.settings as Record<string, unknown> | undefined) ?? {};
-  if (typeof settings.bodyColor !== 'string') settings.bodyColor = '#d9c9a8';
-  if (typeof settings.fretboardColor !== 'string') settings.fretboardColor = '#caa46a';
+  if (typeof settings.bodyColor !== 'string' || settings.bodyColor === LEGACY_BODY_COLOR) {
+    settings.bodyColor = DEFAULT_BODY_COLOR;
+  }
+  if (typeof settings.fretboardColor !== 'string' || settings.fretboardColor === LEGACY_FRETBOARD_COLOR) {
+    settings.fretboardColor = DEFAULT_FRETBOARD_COLOR;
+  }
+  if (typeof settings.headstockColor !== 'string') {
+    settings.headstockColor = DEFAULT_HEADSTOCK_COLOR;
+  }
   if (typeof settings.bodyOpacity !== 'number' || !Number.isFinite(settings.bodyOpacity)) {
     settings.bodyOpacity = 1;
   } else {
@@ -242,6 +334,7 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
   }
   if (typeof settings.symmetricEditing !== 'boolean') settings.symmetricEditing = true;
   parsed.settings = settings;
+  parsed.referenceOverlays = normalizeReferenceOverlaysDocument(parsed.referenceOverlays);
 
   return parsed;
 }

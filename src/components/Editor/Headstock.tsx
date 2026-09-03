@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { useDesignStore, DEFAULT_HEADSTOCK_OPACITY } from '../../state/store';
 import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 import {
-  computeTunerPositions,
   headstockAnchorsToBody,
   headstockAnchorsToPathD,
 } from '../../geometry/headstock';
+import { useSvgDrag } from '../../hooks/useSvgDrag';
+import { snapToGrid } from '../../geometry/snapping';
+import { tunerGlyphSvgMarkup, tunerHitRadius, type TunerGlyphPart } from '../../geometry/tunerGlyph';
 
 /** Headstock silhouette past the nut (hidden when style is headless). */
 export function HeadstockOutline() {
@@ -25,50 +27,153 @@ export function HeadstockOutline() {
     <g id="headstock">
       <path
         d={d}
-        fill="var(--neck-fill)"
+        fill="var(--headstock-fill)"
         fillOpacity={headstockOpacity}
         stroke="var(--outline-stroke)"
-        strokeWidth={1}
+        strokeWidth={0.7}
       />
     </g>
   );
 }
 
-/** Tuner posts on the headstock (or bridge-end for headless). */
-export function Tuners() {
+function useTunerDrawState() {
   const headstock = useDesignStore((s) => s.headstockSettings);
-  const anchors = useDesignStore((s) => s.headstockAnchors);
-  const saddles = useDesignStore((s) => s.hardware.saddles);
+  const tuners = useDesignStore((s) => s.hardware.tuners ?? []);
   const stringCount = useDesignStore((s) => s.bridgeSettings.stringCount ?? 6);
-  const { neckParams, joinPoint } = useNeckGeometry();
+  const show =
+    headstock.showTuners && headstock.tunerLayout !== 'none' && tuners.length > 0;
+  const radius = stringCount > 8 ? 3.6 : headstock.tunerLayout === 'headless' ? 3.2 : 4.2;
+  const showButton = headstock.tunerLayout !== 'headless';
+  return { headstock, tuners, show, radius, showButton };
+}
 
-  const tuners = useMemo(
-    () => computeTunerPositions(neckParams, headstock, { joinPoint }, saddles, stringCount, anchors),
-    [neckParams, headstock, joinPoint, saddles, stringCount, anchors],
-  );
-
-  if (tuners.length === 0) return null;
+/**
+ * Rear of the machines (housing + shaft + key) — draw UNDER the headstock fill
+ * so only the keys stick out past the outline edge.
+ */
+export function TunersBack() {
+  const { tuners, show, radius, showButton } = useTunerDrawState();
+  if (!show || !showButton) return null;
 
   return (
-    <g id="tuners" style={{ pointerEvents: 'none' }}>
-      {tuners.map((t) => (
-        <g key={t.index} transform={`translate(${t.position.x}, ${t.position.y}) rotate(${t.pegAngleDeg})`}>
-          <circle r={t.radius} fill="#c8c8c8" stroke="#222" strokeWidth={0.6} />
-          <circle r={t.radius * 0.35} fill="#333" />
-          {headstock.tunerLayout !== 'headless' && (
-            <rect
-              x={t.radius * 0.85}
-              y={-1.15}
-              width={t.radius * 1.7}
-              height={2.3}
-              rx={0.6}
-              fill="#b0b0b0"
-              stroke="#222"
-              strokeWidth={0.4}
+    <g id="tuners-back" style={{ pointerEvents: 'none' }}>
+      {tuners.map((t, i) => {
+        if (!t.visible) return null;
+        return (
+          <g key={i} transform={`translate(${t.x},${t.y}) rotate(${t.rotation})`}>
+            <g
+              dangerouslySetInnerHTML={{
+                __html: tunerGlyphSvgMarkup(radius, { showButton: true, part: 'back' }),
+              }}
             />
-          )}
-        </g>
-      ))}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/**
+ * Face bushings + posts (and drag handles) — draw ABOVE the headstock.
+ */
+export function TunersFront({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
+  const { tuners, show, radius, showButton } = useTunerDrawState();
+  const move = useDesignStore((s) => s.moveHardware);
+  const select = useDesignStore((s) => s.select);
+  const selected = useDesignStore((s) => s.selected);
+  const settings = useDesignStore((s) => s.settings);
+
+  if (!show) return null;
+
+  return (
+    <g id="tuners-front">
+      {tuners.map((t, i) => {
+        if (!t.visible) return null;
+        const isSelected =
+          selected?.kind === 'hardware' && selected.name === 'tuners' && selected.index === i;
+        return (
+          <TunerPeg
+            key={i}
+            index={i}
+            x={t.x}
+            y={t.y}
+            rotation={t.rotation}
+            radius={radius}
+            selected={isSelected}
+            showButton={showButton}
+            part="front"
+            layoutLocked={t.locked}
+            stageRef={stageRef}
+            onSelect={() => select({ kind: 'hardware', name: 'tuners', index: i })}
+            onMove={(p) => {
+              const snapped = snapToGrid(p, settings.gridSize, settings.gridSnapEnabled);
+              move('tuners', snapped, i);
+            }}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+/** @deprecated Prefer TunersBack + TunersFront for correct headstock occlusion. */
+export function Tuners({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
+  return (
+    <>
+      <TunersBack />
+      <TunersFront stageRef={stageRef} />
+    </>
+  );
+}
+
+function TunerPeg({
+  index,
+  x,
+  y,
+  rotation,
+  radius,
+  selected,
+  showButton,
+  part,
+  layoutLocked,
+  stageRef,
+  onSelect,
+  onMove,
+}: {
+  index: number;
+  x: number;
+  y: number;
+  rotation: number;
+  radius: number;
+  selected: boolean;
+  showButton: boolean;
+  part: TunerGlyphPart;
+  layoutLocked: boolean;
+  stageRef: React.RefObject<SVGGElement | null>;
+  onSelect: () => void;
+  onMove: (p: { x: number; y: number }) => void;
+}) {
+  const drag = useSvgDrag(stageRef, onMove);
+  const hitR = tunerHitRadius(radius, showButton);
+  const markup = tunerGlyphSvgMarkup(radius, { showButton, selected, part });
+
+  return (
+    <g
+      transform={`translate(${x},${y}) rotate(${rotation})`}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onSelect();
+        drag(e);
+      }}
+      style={{ cursor: 'grab' }}
+    >
+      <title>
+        {layoutLocked
+          ? `Tuner ${index + 1} (manual — unlock to follow outline)`
+          : `Tuner ${index + 1} (drag to place)`}
+      </title>
+      <circle r={hitR} fill="transparent" />
+      <g dangerouslySetInnerHTML={{ __html: markup }} />
     </g>
   );
 }

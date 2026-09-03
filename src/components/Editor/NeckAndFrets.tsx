@@ -18,7 +18,7 @@ export const NeckOutline = memo(function NeckOutline({ variant = 'top' }: { vari
         fill="var(--neck-fill)"
         fillOpacity={fillOpacity}
         stroke="var(--outline-stroke)"
-        strokeWidth={1}
+        strokeWidth={0.7}
       />
     </g>
   );
@@ -35,9 +35,10 @@ export const FretLines = memo(function FretLines() {
           cx={d.center.x}
           cy={d.center.y}
           r={d.radius}
-          fill="#e8e0ca"
-          stroke="#00000033"
-          strokeWidth={0.4}
+          fill="#e8dfc4"
+          stroke="#2a2018"
+          strokeWidth={0.25}
+          opacity={0.92}
         />
       ))}
       {placedFrets.map((f) => {
@@ -50,8 +51,8 @@ export const FretLines = memo(function FretLines() {
             y1={f.bass.y}
             x2={f.treble.x}
             y2={f.treble.y}
-            stroke={isNut ? 'var(--outline-stroke)' : isNeutral ? '#ff8844' : '#888'}
-            strokeWidth={isNut ? 1.4 : 0.5}
+            stroke={isNut ? '#f3ead8' : isNeutral ? '#ff8844' : '#c9c4b8'}
+            strokeWidth={isNut ? 1.6 : 0.65}
           />
         );
       })}

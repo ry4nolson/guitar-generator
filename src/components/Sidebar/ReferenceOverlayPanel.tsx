@@ -21,6 +21,8 @@ export function ReferenceOverlayPanel() {
     hasAnyImage,
   } = useReferenceOverlayContext();
 
+  const selected = useDesignStore((s) => s.selected);
+  const select = useDesignStore((s) => s.select);
   const settings = useDesignStore((s) => s.settings);
   const setBodyOpacity = useDesignStore((s) => s.setBodyOpacity);
   const setNeckOpacity = useDesignStore((s) => s.setNeckOpacity);
@@ -33,11 +35,16 @@ export function ReferenceOverlayPanel() {
   const neckOpacity = settings.neckOpacity ?? DEFAULT_NECK_OPACITY;
   const headstockOpacity = settings.headstockOpacity ?? DEFAULT_HEADSTOCK_OPACITY;
 
-  const onAddFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const selectOverlay = (id: string) => {
+    setActiveId(id);
+    select({ kind: 'reference', id });
+  };
+
+  const onAddFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      addImageFile(file);
+      await addImageFile(file);
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -45,11 +52,11 @@ export function ReferenceOverlayPanel() {
     }
   };
 
-  const onReplaceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeId) return;
     try {
-      replaceImageFile(activeId, file);
+      await replaceImageFile(activeId, file);
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -59,12 +66,15 @@ export function ReferenceOverlayPanel() {
 
   const withImages = overlays.filter((o) => o.imageUrl);
   const overlayIndex = (id: string) => overlays.findIndex((o) => o.id === id) + 1;
+  const isOverlaySelected = (id: string) => selected?.kind === 'reference' && selected.id === id;
 
   return (
-    <section className="sidebar-section">
+    <section className="sidebar-section" id="sidebar-reference">
       <h3>Reference overlay</h3>
       <p className="muted">
-        Optional PNG/JPEG/WebP images behind the outline for tracing. Not included in SVG exports.
+        Optional PNG/JPEG/WebP images behind the outline for tracing. Drag an
+        image onto the canvas to add one. Embedded in Save JSON; not included in
+        SVG exports.
       </p>
 
       <div className="button-row">
@@ -100,14 +110,17 @@ export function ReferenceOverlayPanel() {
       {withImages.length > 1 && (
         <div className="reference-overlay-list" role="list">
           {withImages.map((o) => {
-            const selected = o.id === activeId;
+            const selectedItem = isOverlaySelected(o.id) || o.id === activeId;
             return (
               <button
                 key={o.id}
+                id={`sidebar-ref-${o.id}`}
                 type="button"
                 role="listitem"
-                className={`reference-overlay-item${selected ? ' active' : ''}`}
-                onClick={() => setActiveId(o.id)}
+                className={`reference-overlay-item${selectedItem ? ' active' : ''}${
+                  isOverlaySelected(o.id) ? ' reference-overlay-item-selected' : ''
+                }`}
+                onClick={() => selectOverlay(o.id)}
               >
                 Reference {overlayIndex(o.id)}
                 {!o.settings.visible ? ' (hidden)' : o.settings.locked ? ' (locked)' : ''}
@@ -118,7 +131,12 @@ export function ReferenceOverlayPanel() {
       )}
 
       {activeOverlay?.imageUrl && (
-        <>
+        <div
+          id={withImages.length <= 1 ? `sidebar-ref-${activeOverlay.id}` : undefined}
+          className={
+            isOverlaySelected(activeOverlay.id) ? 'reference-overlay-controls-selected' : undefined
+          }
+        >
           {withImages.length === 1 && (
             <p className="muted" style={{ marginBottom: 4 }}>
               Reference 1
@@ -138,6 +156,24 @@ export function ReferenceOverlayPanel() {
               type="checkbox"
               checked={activeOverlay.settings.locked}
               onChange={(e) => updateOverlay(activeOverlay.id, { locked: e.target.checked })}
+            />
+          </label>
+          <label className="row-inline checkbox">
+            <span>Flip horizontal</span>
+            <input
+              type="checkbox"
+              checked={activeOverlay.settings.flipH}
+              disabled={activeOverlay.settings.locked}
+              onChange={(e) => updateOverlay(activeOverlay.id, { flipH: e.target.checked })}
+            />
+          </label>
+          <label className="row-inline checkbox">
+            <span>Flip vertical</span>
+            <input
+              type="checkbox"
+              checked={activeOverlay.settings.flipV}
+              disabled={activeOverlay.settings.locked}
+              onChange={(e) => updateOverlay(activeOverlay.id, { flipV: e.target.checked })}
             />
           </label>
           <label className="param-slider">
@@ -224,10 +260,10 @@ export function ReferenceOverlayPanel() {
             />
           </label>
           <p className="muted">
-            Unlocked: drag the blue frame to move, blue handle to rotate. Images are session-only;
-            settings save locally.
+            Unlocked: drag the blue frame to move, blue handle to rotate. Images embed in Save
+            JSON; transform settings also save locally.
           </p>
-        </>
+        </div>
       )}
 
       <h4 className="sidebar-subsection-title">Tracing opacity</h4>

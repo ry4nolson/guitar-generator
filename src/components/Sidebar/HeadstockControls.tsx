@@ -18,6 +18,7 @@ export function HeadstockControls() {
   const setSetting = useDesignStore((s) => s.setHeadstockSetting);
   const setTunerLayout = useDesignStore((s) => s.setTunerLayout);
   const resetShape = useDesignStore((s) => s.resetHeadstockShape);
+  const resetTunerPositions = useDesignStore((s) => s.resetTunerPositions);
   const insertAnchor = useDesignStore((s) => s.insertHeadstockAnchor);
   const removeAnchor = useDesignStore((s) => s.removeHeadstockAnchor);
   const unit = useDesignStore((s) => s.settings.unit);
@@ -69,27 +70,15 @@ export function HeadstockControls() {
             onChange={(v) => setSetting('length', v)}
           />
           <ParamSlider
-            label="Tip width"
+            label="Head width"
             value={hs.tipWidth}
-            min={40}
-            max={100}
+            min={50}
+            max={150}
             step={1}
             unit="mm"
             displayUnit={unit}
             onChange={(v) => setSetting('tipWidth', v)}
           />
-          {hs.type === '3x3' && (
-            <ParamSlider
-              label="Ear width"
-              value={hs.earWidth}
-              min={12}
-              max={45}
-              step={1}
-              unit="mm"
-              displayUnit={unit}
-              onChange={(v) => setSetting('earWidth', v)}
-            />
-          )}
           <div className="bridge-type-grid" style={{ marginTop: 8 }}>
             <button type="button" onClick={() => insertAnchor(selectedId ?? NUT_BASS_ID)}>
               Add outline point
@@ -130,18 +119,67 @@ export function HeadstockControls() {
           </div>
           <p className="muted">{TUNER_LAYOUT_META.find((t) => t.id === hs.tunerLayout)?.description}</p>
           {headed && hs.tunerLayout !== 'headless' && (
-            <ParamSlider
-              label="Tuner inset"
-              value={hs.tunerInset ?? 12}
-              min={4}
-              max={28}
-              step={0.5}
-              unit="mm"
-              displayUnit={unit}
-              onChange={(v) => setSetting('tunerInset', v)}
-            />
+            <>
+              <ParamSlider
+                label="Tuner inset"
+                value={hs.tunerInset ?? 12}
+                min={4}
+                max={28}
+                step={0.5}
+                unit="mm"
+                displayUnit={unit}
+                onChange={(v) => setSetting('tunerInset', v)}
+              />
+              <ParamSlider
+                label="Tip clearance"
+                value={hs.tunerTipClearance ?? 0.14}
+                min={0.05}
+                max={0.4}
+                step={0.01}
+                unit="ratio"
+                displayUnit={unit}
+                onChange={(v) => setSetting('tunerTipClearance', v)}
+              />
+              <ParamSlider
+                label="Nut clearance"
+                value={hs.tunerNutClearance ?? 0.12}
+                min={0.05}
+                max={0.4}
+                step={0.01}
+                unit="ratio"
+                displayUnit={unit}
+                onChange={(v) => setSetting('tunerNutClearance', v)}
+              />
+              <ParamSlider
+                label="End margin"
+                value={hs.tunerEndMargin ?? 8}
+                min={0}
+                max={20}
+                step={0.5}
+                unit="mm"
+                displayUnit={unit}
+                onChange={(v) => setSetting('tunerEndMargin', v)}
+              />
+            </>
           )}
-          <p className="muted">Tuner count follows Strings under Bridge &amp; nut (6–12).</p>
+          <ParamSlider
+            label="Peg angle offset"
+            value={hs.tunerPegAngleOffset ?? 0}
+            min={-90}
+            max={90}
+            step={1}
+            unit="deg"
+            displayUnit={unit}
+            onChange={(v) => setSetting('tunerPegAngleOffset', v)}
+          />
+          <button type="button" onClick={() => resetTunerPositions()}>
+            Reset tuner positions
+          </button>
+          <p className="muted">
+            Drag pegs on the canvas to fine-tune. Dragged pegs stay put when you reshape the
+            outline; unlock them (or reset) to follow auto layout again. Count follows Strings
+            under Bridge &amp; nut (6–12).
+          </p>
         </>
       )}
     </section>
