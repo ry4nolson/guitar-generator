@@ -27,7 +27,7 @@ import {
 } from '../geometry/bodyModel';
 import { getBodyTemplate, TELE_TEMPLATE } from '../geometry/templates';
 import type { NeckParams } from '../geometry/neckParams';
-import type { HardwareState } from './hardwareDefaults';
+import { seatAshtrayBridgePickup, type HardwareState } from './hardwareDefaults';
 import { LAYER_IDS, defaultLayers, type LayerId, type LayerState } from './layers';
 import type { BodyFeatureId } from '../geometry/bodyFeatures';
 import {
@@ -202,6 +202,7 @@ function defaultDocument(): DesignDocument {
     headstockAnchors,
     hardware.tuners,
   );
+  const bridgeType = template.presets?.bridgeType ?? DEFAULT_BRIDGE_SETTINGS.type;
   return {
     version: DESIGN_DOCUMENT_VERSION,
     templateId: template.id,
@@ -209,7 +210,11 @@ function defaultDocument(): DesignDocument {
     bodyAnchors,
     neckParams,
     hardware,
-    bridgeSettings: { ...DEFAULT_BRIDGE_SETTINGS },
+    bridgeSettings: {
+      ...DEFAULT_BRIDGE_SETTINGS,
+      type: bridgeType,
+      stringSpacing: bridgeTypeMeta(bridgeType).defaultSpacing,
+    },
     nutSettings: { ...DEFAULT_NUT_SETTINGS },
     headstockSettings,
     headstockAnchors,
@@ -650,10 +655,16 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       type === 'floyd-rose' && get().nutSettings.type === 'standard'
         ? { ...get().nutSettings, type: 'locking' as const }
         : get().nutSettings;
+    let pickupSettings = get().pickupSettings;
+    if (type === 'tele-ashtray' && pickupSettings.bridge === 'none') {
+      pickupSettings = { ...pickupSettings, bridge: 'single-coil' };
+    }
+    const hardware = seatAshtrayBridgePickup({ ...get().hardware, saddles }, bridgeSettings);
     set({
       bridgeSettings,
       nutSettings,
-      hardware: { ...get().hardware, saddles },
+      pickupSettings,
+      hardware,
       past: pushPast(get().past, before),
       future: [],
     });
@@ -960,7 +971,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       // Re-seat the pickup at its slot default when it was previously empty,
       // so it doesn't reappear wherever it was last dragged for another config.
       const placement = { joinPoint: neckJoinPoint(get().bodyAnchors, get().neckParams) };
-      const pos = wasNone ? defaultPickupPositions(get().neckParams, placement, pickupSettings)[idx] : prev;
+      const pos = wasNone
+        ? defaultPickupPositions(get().neckParams, placement, pickupSettings, get().bridgeSettings.type)[idx]
+        : prev;
       pickups[idx] = { ...prev, x: pos.x, y: pos.y, visible: true };
     }
     set({

@@ -8,7 +8,11 @@
 
 import { buildHardwareDefaults } from '../../state/hardwareDefaults';
 import { DEFAULT_NECK_PARAMS } from '../neckParams';
-import type { BodyTemplate } from './types';
+import type { Point } from '../types';
+import type { BodyTemplate, TemplateFamily } from './types';
+import type { PickupSettings, ControlSettings } from '../pickups';
+import type { BridgeType } from '../bridgeTypes';
+import type { HeadstockType } from '../headstock';
 import {
   buildTracedSpecs,
   tracedDefaultParams,
@@ -110,8 +114,17 @@ const WARRIOR: TracedBody = {
   ],
 };
 
-const HH = { neck: 'humbucker', middle: 'none', bridge: 'humbucker' } as const;
-const V_CONTROLS = { volumes: 2, tones: 1, selector: 'toggle' } as const;
+const HH: PickupSettings = { neck: 'humbucker', middle: 'none', bridge: 'humbucker' };
+const V_CONTROLS: Pick<ControlSettings, 'volumes' | 'tones' | 'selector'> = {
+  volumes: 2,
+  tones: 1,
+  selector: 'toggle',
+};
+const SUPERSTRAT_CONTROLS: Pick<ControlSettings, 'volumes' | 'tones' | 'selector'> = {
+  volumes: 1,
+  tones: 1,
+  selector: 'blade-3',
+};
 const METAL_NECK = { ...DEFAULT_NECK_PARAMS, fretCount: 24, neckInset: 60, neckLength: 470 };
 
 function jacksonTemplate(opts: {
@@ -119,14 +132,19 @@ function jacksonTemplate(opts: {
   name: string;
   description: string;
   body: TracedBody;
-  headstockType: '6-inline' | 'pointy';
-  bridgeType: 'floyd-rose' | 'tom';
+  family?: TemplateFamily;
+  headstockType: Extract<HeadstockType, '6-inline' | 'pointy'>;
+  bridgeType: Extract<BridgeType, 'floyd-rose' | 'tom'>;
+  controls?: Pick<ControlSettings, 'volumes' | 'tones' | 'selector'>;
+  selectorOverride?: { position: Point; rotation: number };
+  controlOverrides?: Point[];
 }): BodyTemplate {
   const neck = opts.bridgeType === 'floyd-rose' ? { ...METAL_NECK, neckInset: 70 } : METAL_NECK;
+  const controls = opts.controls ?? V_CONTROLS;
   return {
     id: opts.id,
     name: opts.name,
-    family: 'superstrat',
+    family: opts.family ?? 'superstrat',
     description: opts.description,
     defaultParams: tracedDefaultParams(opts.body),
     paramMeta: tracedParamMeta(opts.body.anchors.length),
@@ -134,7 +152,7 @@ function jacksonTemplate(opts: {
     defaultNeckParams: neck,
     presets: {
       pickups: HH,
-      controls: V_CONTROLS,
+      controls,
       bridgeType: opts.bridgeType,
       headstockType: opts.headstockType,
     },
@@ -143,7 +161,9 @@ function jacksonTemplate(opts: {
       neckParams: neck,
       bridgeType: opts.bridgeType,
       pickupSettings: HH,
-      controlSettings: V_CONTROLS,
+      controlSettings: controls,
+      selectorOverride: opts.selectorOverride,
+      controlOverrides: opts.controlOverrides,
       neckBoltSpanX: 42,
       neckBoltSpanY: 16,
     }),
@@ -157,6 +177,12 @@ export const SOLOIST_TEMPLATE = jacksonTemplate({
   body: SOLOIST,
   headstockType: '6-inline',
   bridgeType: 'floyd-rose',
+  controls: SUPERSTRAT_CONTROLS,
+  controlOverrides: [
+    { x: 286, y: -86 },
+    { x: 312, y: -100 },
+  ],
+  selectorOverride: { position: { x: 242, y: -90 }, rotation: 82 },
 });
 
 export const KELLY_TEMPLATE = jacksonTemplate({
@@ -164,8 +190,15 @@ export const KELLY_TEMPLATE = jacksonTemplate({
   name: 'Kelly-inspired',
   description: 'Traced offset V: long bass wing, hooked treble horn, sharp crotch.',
   body: KELLY,
+  family: 'v',
   headstockType: 'pointy',
   bridgeType: 'tom',
+  controlOverrides: [
+    { x: 210, y: -88 },
+    { x: 238, y: -104 },
+    { x: 262, y: -118 },
+  ],
+  selectorOverride: { position: { x: 178, y: -82 }, rotation: 0 },
 });
 
 export const RHOADS_TEMPLATE = jacksonTemplate({
@@ -173,8 +206,15 @@ export const RHOADS_TEMPLATE = jacksonTemplate({
   name: 'Rhoads-inspired',
   description: 'Traced offset V: extra-long bass wing, shorter treble wing, deep crotch.',
   body: RHOADS,
+  family: 'v',
   headstockType: 'pointy',
   bridgeType: 'tom',
+  controlOverrides: [
+    { x: 255, y: -68 },
+    { x: 282, y: -88 },
+    { x: 305, y: -106 },
+  ],
+  selectorOverride: { position: { x: 328, y: -128 }, rotation: 0 },
 });
 
 export const KING_V_TEMPLATE = jacksonTemplate({
@@ -182,8 +222,15 @@ export const KING_V_TEMPLATE = jacksonTemplate({
   name: 'King-V-inspired',
   description: 'Traced symmetrical pointed V: sharp tips, deep crotch, straight wings.',
   body: KING_V,
+  family: 'v',
   headstockType: 'pointy',
   bridgeType: 'tom',
+  controlOverrides: [
+    { x: 285, y: -72 },
+    { x: 312, y: -90 },
+    { x: 338, y: -108 },
+  ],
+  selectorOverride: { position: { x: 372, y: -138 }, rotation: 0 },
 });
 
 export const WARRIOR_TEMPLATE = jacksonTemplate({
@@ -193,6 +240,12 @@ export const WARRIOR_TEMPLATE = jacksonTemplate({
   body: WARRIOR,
   headstockType: 'pointy',
   bridgeType: 'tom',
+  controlOverrides: [
+    { x: 208, y: -42 },
+    { x: 230, y: -56 },
+    { x: 248, y: -72 },
+  ],
+  selectorOverride: { position: { x: 48, y: 52 }, rotation: 0 },
 });
 
 export const JACKSON_TEMPLATES: BodyTemplate[] = [

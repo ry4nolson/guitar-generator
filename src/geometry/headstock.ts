@@ -488,8 +488,10 @@ export function computeTunerPositions(
 
   const bassCount = Math.ceil(n / 2);
   const trebleCount = Math.floor(n / 2);
-  const bass = placeAlongSide(outline, 'bass', bassCount, trims, 'centre');
-  const treble = placeAlongSide(outline, 'treble', trebleCount, trims, 'centre');
+  // Follow the flared ears at constant inset — a straight row pulls the tip
+  // pegs inward off the open-book silhouette.
+  const bass = placeAlongSide(outline, 'bass', bassCount, trims, 'centre', false);
+  const treble = placeAlongSide(outline, 'treble', trebleCount, trims, 'centre', false);
   const marks: TunerMark[] = bass.map((p, i) => toBody(p.position, p.outAngleDeg, i));
   for (let i = 0; i < treble.length; i++) marks.push(toBody(treble[i].position, treble[i].outAngleDeg, bassCount + i));
   return marks;
@@ -563,6 +565,7 @@ function placeAlongSide(
   count: number,
   { inset, tipClearance, nutClearance, endMargin }: RowTrims,
   splitAt: 'tip' | 'centre',
+  straighten = true,
 ): PlacedPeg[] {
   if (count <= 0) return [];
   // nut → tip along the chosen flank of the closed outline.
@@ -589,7 +592,7 @@ function placeAlongSide(
     const edgePt = pointAtArcLength(tipFirst, start + t * span);
     return insetFromEdge(edgePt, tipFirst, inset, outline);
   });
-  const pts = straightenRow(raw, outline);
+  const pts = straighten ? straightenRow(raw, outline) : raw;
   const outAngleDeg = rowOutwardAngle(pts, outline);
   return pts.map((position) => ({ position, outAngleDeg }));
 }
@@ -671,17 +674,15 @@ function straightenRow(pts: Point[], outline: Point[]): Point[] {
  * silhouette (fixes pegs flying off scooped / pointy tips).
  */
 function insetFromEdge(edgePt: Point, edge: Point[], inset: number, outline: Point[]): Point {
-  const { index } = nearestPointOnPolyline(edge, edgePt);
-  const prev = edge[Math.max(0, index - 1)];
-  const next = edge[Math.min(edge.length - 1, index + 1)];
-  let tx = next.x - prev.x;
-  let ty = next.y - prev.y;
-  const len = Math.hypot(tx, ty) || 1;
-  tx /= len;
-  ty /= len;
+  const { tx, ty } = closestOnPolyline(edge, edgePt);
+  let txx = tx;
+  let tyy = ty;
+  const len = Math.hypot(txx, tyy) || 1;
+  txx /= len;
+  tyy /= len;
   // Candidate normals (perpendicular to tangent).
-  let nx = -ty;
-  let ny = tx;
+  let nx = -tyy;
+  let ny = txx;
   const probe = { x: edgePt.x + nx * Math.min(inset, 4), y: edgePt.y + ny * Math.min(inset, 4) };
   if (!pointInPolygon(probe, outline)) {
     nx = -nx;
@@ -705,17 +706,29 @@ function insetFromEdge(edgePt: Point, edge: Point[], inset: number, outline: Poi
   return { x: edgePt.x + dx * 2, y: edgePt.y + dy * 2 };
 }
 
-function nearestPointOnPolyline(pts: Point[], p: Point): { index: number; dist: number } {
-  let best = 0;
+function closestOnPolyline(pts: Point[], p: Point): { point: Point; dist: number; tx: number; ty: number } {
+  let best = pts[0] ?? { x: 0, y: 0 };
   let bestD = Infinity;
-  for (let i = 0; i < pts.length; i++) {
-    const d = Math.hypot(pts[i].x - p.x, pts[i].y - p.y);
+  let tx = 1;
+  let ty = 0;
+  const last = pts.length - 1;
+  for (let i = 0; i < last; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+    const q = { x: a.x + t * dx, y: a.y + t * dy };
+    const d = Math.hypot(p.x - q.x, p.y - q.y);
     if (d < bestD) {
       bestD = d;
-      best = i;
+      best = q;
+      tx = dx;
+      ty = dy;
     }
   }
-  return { index: best, dist: bestD };
+  return { point: best, dist: bestD, tx, ty };
 }
 
 function pointInPolygon(pt: Point, poly: Point[]): boolean {

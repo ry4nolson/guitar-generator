@@ -166,7 +166,7 @@ describe('fretboard contains all frets', () => {
 
 describe('inlay dots', () => {
   it('marks the standard frets, with doubles at the octaves', () => {
-    const dots = computeInlayDots(DEFAULT_NECK_PARAMS); // 24 frets
+    const dots = computeInlayDots({ ...DEFAULT_NECK_PARAMS, fretCount: 24 });
     const byFret = new Map<number, number>();
     for (const d of dots) byFret.set(d.fret, (byFret.get(d.fret) ?? 0) + 1);
     expect([...byFret.keys()]).toEqual([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);

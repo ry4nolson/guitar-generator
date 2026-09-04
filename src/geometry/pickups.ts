@@ -4,6 +4,7 @@
 import type { Point, HardwarePosition } from './types';
 import type { NeckParams } from './neckParams';
 import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
+import { bridgePickupAlongOffset, type BridgeType } from './bridgeTypes';
 
 export type PickupType = 'humbucker' | 'single-coil' | 'p90';
 /** A pickup slot can also be empty. */
@@ -86,7 +87,8 @@ const NECK_PICKUP_POCKET_GAP_MM = 28;
 
 /**
  * Default pickup centers in body space, ordered [neck, middle, bridge].
- * Bridge pickup ~45 mm in front of the bridge line; neck pickup sits just
+ * Bridge pickup sits ~45 mm in front of the scale line, or nested in an
+ * ashtray plate when that bridge type is active. Neck pickup sits just
  * past the fretboard end with enough wood left around the pocket route for
  * its footprint; middle halfway between.
  */
@@ -94,10 +96,11 @@ export function defaultPickupPositions(
   neckParams: NeckParams,
   placement: NeckPlacement,
   settings: PickupSettings = DEFAULT_PICKUP_SETTINGS,
+  bridgeType?: BridgeType,
 ): Point[] {
   const neckType = settings.neck === 'none' ? 'single-coil' : settings.neck;
   const neckX = neckParams.neckLength + NECK_PICKUP_POCKET_GAP_MM + PICKUP_DIMENSIONS[neckType].along / 2;
-  const bridgeX = neckParams.bassScale - 45;
+  const bridgeX = neckParams.bassScale + bridgePickupAlongOffset(bridgeType ?? 'hardtail');
   const middleX = (neckX + bridgeX) / 2;
   return [neckX, middleX, bridgeX].map((x) => neckToBodySpace({ x, y: 0 }, neckParams, placement));
 }
@@ -121,7 +124,9 @@ export function layoutControlKnobs(
       out.push(prev);
       continue;
     }
-    const local = { x: neckParams.bassScale + 28 + i * 24, y: -60 - i * 11 };
+    // Strat-like cluster: volume just past the bridge on the treble side, tones
+    // stepping toward the tail/rim — a tight triangle, not a long diagonal.
+    const local = { x: neckParams.bassScale + 6 + i * 18, y: -50 - i * 14 };
     const p = neckToBodySpace(local, neckParams, placement);
     out.push({ x: p.x, y: p.y, rotation: 0, visible: true, locked: false });
   }
@@ -149,9 +154,9 @@ export function defaultSelectorPosition(
     };
   }
   // Blade: treble side between the middle/bridge pickups and the knobs.
-  // Long axis roughly parallel to the strings (Strat-style), slight rake.
+  // Glyph is tall along +y at 0°; ~82° puts the long axis nearly along the strings.
   return {
-    position: neckToBodySpace({ x: neckParams.bassScale - 70, y: -78 }, neckParams, placement),
-    rotation: 65,
+    position: neckToBodySpace({ x: neckParams.bassScale - 90, y: -52 }, neckParams, placement),
+    rotation: 82,
   };
 }

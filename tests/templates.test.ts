@@ -358,6 +358,11 @@ describe('template switching', () => {
     expect(s.bridgeSettings.type).toBe('strat-tremolo');
     expect(s.headstockSettings.type).toBe('paddle');
 
+    useDesignStore.getState().setTemplate('tele');
+    s = useDesignStore.getState();
+    expect(s.bridgeSettings.type).toBe('tele-ashtray');
+    expect(s.pickupSettings.bridge).toBe('single-coil');
+
     useDesignStore.getState().setTemplate('flying-v');
     s = useDesignStore.getState();
     expect(s.pickupSettings).toEqual({ neck: 'humbucker', middle: 'none', bridge: 'humbucker' });

@@ -200,9 +200,6 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
   const fab = flavor === 'fabrication';
   const cluster = saddleClusterCenter(hardware.saddles);
   const bridgeRot = hardware.saddles[0]?.rotation ?? 0;
-  hw.push(
-    `<g id="bridge-assembly" transform="translate(${pad(cluster.x)},${pad(cluster.y)}) rotate(${pad(bridgeRot)})">${bridgePlateSvgMarkup(bridge, { fabrication: fab })}</g>`,
-  );
   const drawCircle = (p: { x: number; y: number; visible: boolean }, r: number, fill: string) => {
     if (!p.visible) return;
     hw.push(`<circle cx="${pad(p.x)}" cy="${pad(p.y)}" r="${r}" fill="${fill}" stroke="#111" stroke-width="0.8"/>`);
@@ -219,6 +216,9 @@ export function buildSvgDocument(doc: DesignDocument, flavor: ExportFlavor): str
       )}" rx="${dims.radius}" fill="${flavor === 'fabrication' ? 'none' : fill}" stroke="#111" stroke-width="0.8"${rot}/>`,
     );
   });
+  hw.push(
+    `<g id="bridge-assembly" transform="translate(${pad(cluster.x)},${pad(cluster.y)}) rotate(${pad(bridgeRot)})">${bridgePlateSvgMarkup(bridge, { fabrication: fab })}</g>`,
+  );
   for (const c of hardware.controls) drawCircle(c, 9.5, '#333');
   if (controlSettings.selector !== 'none' && hardware.selector.visible) {
     const s = hardware.selector;

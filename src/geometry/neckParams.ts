@@ -23,7 +23,7 @@ export const DEFAULT_NECK_PARAMS: NeckParams = {
   bassScale: 647.7,
   trebleScale: 628.65,
   neutralFret: 8,
-  fretCount: 24,
+  fretCount: 22,
   nutWidth: 43,
   heelWidth: 56,
   neckLength: 460,

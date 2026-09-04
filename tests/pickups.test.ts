@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DEFAULT_NECK_PARAMS } from '../src/geometry/neckParams';
-import { DEFAULT_BRIDGE_SETTINGS } from '../src/geometry/bridgeTypes';
+import { DEFAULT_BRIDGE_SETTINGS, ASHTRAY_PICKUP_OFFSET_X } from '../src/geometry/bridgeTypes';
 import {
   PICKUP_DIMENSIONS,
   DEFAULT_CONTROL_SETTINGS,
@@ -46,6 +46,12 @@ describe('default pickup placement', () => {
     expect(bridgePos.x - nutX).toBeCloseTo(neck.bassScale - 45, 5);
   });
 
+  it('nests the bridge pickup in an ashtray plate', () => {
+    const [, , bridgePos] = defaultPickupPositions(neck, { joinPoint: join }, undefined, 'tele-ashtray');
+    const nutX = join.x - neck.neckLength;
+    expect(bridgePos.x - nutX).toBeCloseTo(neck.bassScale + ASHTRAY_PICKUP_OFFSET_X, 5);
+  });
+
   it('keeps the neck pickup clear of the fretboard end', () => {
     const [neckPos] = defaultPickupPositions(neck, { joinPoint: join });
     const nutX = join.x - neck.neckLength;
@@ -88,7 +94,7 @@ describe('control knob layout', () => {
     expect(toggle.position.y).toBeGreaterThan(0);
     expect(blade.position.y).toBeLessThan(0);
     // Blade long axis roughly parallel to the strings (not across-body).
-    expect(blade.rotation).toBe(65);
+    expect(blade.rotation).toBe(82);
   });
 });
 
@@ -133,9 +139,12 @@ describe('pickup/control store actions', () => {
     useDesignStore.getState().setPickupType('middle', 'p90');
     let s = useDesignStore.getState();
     expect(s.hardware.pickups[1].visible).toBe(true);
-    const [, expectedMiddle] = defaultPickupPositions(s.neckParams, {
-      joinPoint: neckJoinPoint(s.bodyAnchors, s.neckParams),
-    });
+    const [, expectedMiddle] = defaultPickupPositions(
+      s.neckParams,
+      { joinPoint: neckJoinPoint(s.bodyAnchors, s.neckParams) },
+      s.pickupSettings,
+      s.bridgeSettings.type,
+    );
     expect(s.hardware.pickups[1].x).toBeCloseTo(expectedMiddle.x, 5);
 
     useDesignStore.getState().setPickupType('middle', 'none');

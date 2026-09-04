@@ -12,10 +12,10 @@
   native tooltips so the header does not grow scrollbars.
 - Bridge hardware now draws real-footprint plates instead of generic
   rectangles: Tele-style hardtail with brass saddles and string-through
-  holes, Tune-o-matic with thumbwheels and a stopbar, Floyd Rose with
-  pivot posts and fine tuners, and a Strat synchronized tremolo with
-  six screws, stamped saddles, and a trem arm. The same glyphs go out
-  in SVG export.
+  holes, vintage Tele ashtray with a pickup window in the plate, Tune-o-matic
+  with thumbwheels and a stopbar, Floyd Rose with pivot posts and fine tuners,
+  and a Strat synchronized tremolo with six screws, stamped saddles, and a
+  trem arm. The same glyphs go out in SVG export.
 - Editor chrome redesign: warm workshop palette (amber accent), document-only
   toolbar (undo/redo, reset menu, save/load, export menu, theme), floating
   finish dock + body picker on the canvas, silhouette gallery grouped by

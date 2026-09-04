@@ -2,7 +2,12 @@
 // Pure data + helpers — no React. String endpoints and saddle layouts are
 // derived from these settings together with neck/hardware positions.
 
-export type BridgeType = 'hardtail' | 'tom' | 'floyd-rose' | 'strat-tremolo';
+export type BridgeType = 'hardtail' | 'tele-ashtray' | 'tom' | 'floyd-rose' | 'strat-tremolo';
+
+/** Local +X is toward the tail. Ashtray pickup window sits this far toward the nut from the saddle cluster. */
+export const ASHTRAY_PICKUP_OFFSET_X = -48.3;
+/** Treble side of the window leans toward the tail, like a vintage Tele plate. */
+export const ASHTRAY_PICKUP_ANGLE_DEG = 14;
 
 export type NutType = 'standard' | 'locking' | 'compensated';
 
@@ -57,7 +62,13 @@ export const BRIDGE_TYPE_META: {
   {
     id: 'hardtail',
     label: 'Hardtail',
-    description: 'Fixed bridge plate with individual saddles (Tele / modern hardtail family).',
+    description: 'Fixed bridge plate with individual saddles (modern hardtail / no pickup in the plate).',
+    defaultSpacing: 52.5,
+  },
+  {
+    id: 'tele-ashtray',
+    label: 'Ashtray',
+    description: 'Vintage Tele chrome plate with a slanted pickup window, raised rim, and string-through holes.',
     defaultSpacing: 52.5,
   },
   {
@@ -122,4 +133,9 @@ export function intonationStagger(count: number): number[] {
 
 export function bridgeTypeMeta(type: BridgeType) {
   return BRIDGE_TYPE_META.find((t) => t.id === type) ?? BRIDGE_TYPE_META[0];
+}
+
+/** Distance from the saddle cluster toward the nut for a nested bridge pickup, or -45 when the pickup is separate. */
+export function bridgePickupAlongOffset(type: BridgeType): number {
+  return type === 'tele-ashtray' ? ASHTRAY_PICKUP_OFFSET_X : -45;
 }

@@ -255,7 +255,6 @@ export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement |
 
   return (
     <g id="hardware">
-      <BridgeAssembly />
       {hardware.pickups.map((p, i) => {
         const type = pickupSettings[PICKUP_SLOTS[i]];
         if (type === 'none') return null;
@@ -272,6 +271,7 @@ export function Hardware({ stageRef }: { stageRef: React.RefObject<SVGGElement |
           />
         );
       })}
+      <BridgeAssembly />
       {hardware.controls.map((c, i) => (
         <DraggablePart
           key={`control-${i}`}

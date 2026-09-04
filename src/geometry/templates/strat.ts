@@ -262,8 +262,9 @@ function buildAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
   return specs;
 }
 
-/** Real Strat pockets are ~3" deep; the pocket mouth is the neckJoint anchor. */
-const STRAT_NECK = { ...DEFAULT_NECK_PARAMS, neckInset: 70 };
+/** Real Strat pockets are ~3" deep; the pocket mouth is the neckJoint anchor.
+ *  neckLength is parked at the 22nd fret so the last fret meets the heel/cutaway. */
+const STRAT_NECK = { ...DEFAULT_NECK_PARAMS, neckInset: 70, neckLength: 466 };
 
 export const STRAT_TEMPLATE: BodyTemplate = {
   id: 'strat',
@@ -286,7 +287,13 @@ export const STRAT_TEMPLATE: BodyTemplate = {
     bridgeType: 'strat-tremolo',
     pickupSettings: { neck: 'single-coil', middle: 'single-coil', bridge: 'single-coil' },
     controlSettings: { volumes: 1, tones: 2, selector: 'blade-5' },
-    // Classic slanted bridge single coil (treble side toward the bridge).
     pickupRotations: [0, 0, 10],
+    // Pickguard triangle: volume by the bridge pickup, tones stepping toward the jack.
+    controlOverrides: [
+      { x: 328, y: -50 },
+      { x: 348, y: -64 },
+      { x: 366, y: -78 },
+    ],
+    selectorOverride: { position: { x: 258, y: -54 }, rotation: 82 },
   }),
 };

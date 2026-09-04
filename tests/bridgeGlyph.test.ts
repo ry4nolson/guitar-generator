@@ -34,6 +34,15 @@ describe('bridgePlateLocalBounds', () => {
     expect(b.maxX - b.minX).toBeLessThan(52);
   });
 
+  it('makes an ashtray ~98 × 80 mm so the slanted pickup window fits', () => {
+    const hard = bridgePlateLocalBounds(settings({ type: 'hardtail' }));
+    const ash = bridgePlateLocalBounds(settings({ type: 'tele-ashtray' }));
+    expect(ash.maxX - ash.minX).toBeGreaterThan(hard.maxX - hard.minX + 40);
+    expect(ash.maxX - ash.minX).toBeCloseTo(98, 0);
+    expect(ash.maxY - ash.minY).toBeCloseTo(80.5, 0);
+    expect(ash.minX).toBeLessThan(-70);
+  });
+
   it('extends a TOM assembly back to the stopbar', () => {
     const b = bridgePlateLocalBounds(settings({ type: 'tom', stopbarOffset: 30, postSpacing: 74 }));
     expect(b.maxX).toBeGreaterThan(30);
@@ -76,6 +85,17 @@ describe('bridgePlateSvgMarkup', () => {
     expect(countPart(svg, 'string-hole')).toBe(6);
     expect(countPart(svg, 'mount-screw')).toBe(4);
     expect(countPart(svg, 'string-tail')).toBe(6);
+  });
+
+  it('cuts a slanted pickup window in the ashtray plate', () => {
+    const svg = bridgePlateSvgMarkup(settings({ type: 'tele-ashtray', stringCount: 6 }));
+    expect(svg).toContain('data-bridge="tele-ashtray"');
+    expect(countPart(svg, 'pickup-window')).toBe(1);
+    expect(countPart(svg, 'pickup-mount')).toBe(3);
+    expect(countPart(svg, 'string-hole')).toBe(6);
+    expect(countPart(svg, 'mount-screw')).toBe(4);
+    expect(svg).toContain('fill-rule="evenodd"');
+    expect(svg).toMatch(/A [\d.]+ [\d.]+ 14\.00/);
   });
 
   it('scales hole count with string count', () => {
@@ -136,6 +156,9 @@ describe('saddle glyphs', () => {
     expect(countPart(strat, 'height-screw')).toBe(2);
     expect(hardtail).toContain('#c9a24a');
     expect(hardtail).toMatch(/ellipse/i);
+    const ashtray = saddleGlyphSvgMarkup(settings({ type: 'tele-ashtray' }));
+    expect(ashtray).toContain('data-saddle="tele-ashtray"');
+    expect(ashtray).toContain('#c9a24a');
   });
 
   it('paints a selection stroke when selected', () => {

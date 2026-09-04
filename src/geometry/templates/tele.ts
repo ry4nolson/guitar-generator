@@ -277,7 +277,7 @@ export const TELE_TEMPLATE: BodyTemplate = {
   presets: {
     pickups: { neck: 'single-coil', middle: 'none', bridge: 'single-coil' },
     controls: { volumes: 1, tones: 1, selector: 'blade-3' },
-    bridgeType: 'hardtail',
+    bridgeType: 'tele-ashtray',
     headstockType: 'tele',
   },
   defaultHardware: structuredClone(TELE_HARDWARE),

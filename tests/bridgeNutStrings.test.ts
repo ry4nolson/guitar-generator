@@ -3,6 +3,8 @@ import {
   stringSlotOffsets,
   DEFAULT_BRIDGE_SETTINGS,
   DEFAULT_NUT_SETTINGS,
+  ASHTRAY_PICKUP_ANGLE_DEG,
+  ASHTRAY_PICKUP_OFFSET_X,
   bridgeTypeMeta,
 } from '../src/geometry/bridgeTypes';
 import {
@@ -104,6 +106,17 @@ describe('bridge type switching', () => {
     expect(s.bridgeSettings.stringSpacing).toBe(bridgeTypeMeta('tom').defaultSpacing);
     const span = s.hardware.saddles[5].y - s.hardware.saddles[0].y;
     expect(span).toBeCloseTo(bridgeTypeMeta('tom').defaultSpacing, 5);
+  });
+
+  it('selecting ashtray seats the bridge pickup in the plate window', () => {
+    useDesignStore.getState().setBridgeType('tele-ashtray');
+    const s = useDesignStore.getState();
+    expect(s.bridgeSettings.type).toBe('tele-ashtray');
+    expect(s.pickupSettings.bridge).not.toBe('none');
+    const cluster = saddleClusterCenter(s.hardware.saddles);
+    expect(s.hardware.pickups[2].x).toBeCloseTo(cluster.x + ASHTRAY_PICKUP_OFFSET_X, 1);
+    expect(s.hardware.pickups[2].rotation).toBeCloseTo(ASHTRAY_PICKUP_ANGLE_DEG, 5);
+    expect(s.hardware.pickups[2].visible).toBe(true);
   });
 
   it('selecting Floyd Rose promotes a standard nut to locking', () => {

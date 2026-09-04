@@ -1,7 +1,15 @@
 import type { HardwarePosition, Point } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
-import { DEFAULT_BRIDGE_SETTINGS, bridgeTypeMeta, type BridgeType } from '../geometry/bridgeTypes';
+import {
+  ASHTRAY_PICKUP_ANGLE_DEG,
+  ASHTRAY_PICKUP_OFFSET_X,
+  DEFAULT_BRIDGE_SETTINGS,
+  bridgeTypeMeta,
+  type BridgeSettings,
+  type BridgeType,
+} from '../geometry/bridgeTypes';
 import { layoutNeckBolts, layoutSaddlesFromScale } from '../geometry/scaleLock';
+import { saddleClusterCenter } from '../geometry/strings';
 import {
   DEFAULT_CONTROL_SETTINGS,
   DEFAULT_PICKUP_SETTINGS,
@@ -49,6 +57,8 @@ export function buildHardwareDefaults(opts: {
   pickupRotations?: [number, number, number];
   /** Explicit body-space selector placement (e.g. V-style switch on the treble wing). */
   selectorOverride?: { position: Point; rotation: number };
+  /** Explicit body-space knob centers (volumes first, then tones). */
+  controlOverrides?: Point[];
   neckBoltSpanX?: number;
   neckBoltSpanY?: number;
 }): HardwareState {
@@ -60,16 +70,27 @@ export function buildHardwareDefaults(opts: {
   const pickupSettings = opts.pickupSettings ?? DEFAULT_PICKUP_SETTINGS;
   const controlSettings: ControlSettings = { ...DEFAULT_CONTROL_SETTINGS, ...opts.controlSettings };
 
-  const pickupPositions = defaultPickupPositions(opts.neckParams, placement, pickupSettings);
+  const pickupPositions = defaultPickupPositions(opts.neckParams, placement, pickupSettings, bridgeType);
   const pickups: HardwarePosition[] = pickupPositions.map((p, i) => ({
     x: p.x,
     y: p.y,
-    rotation: opts.pickupRotations?.[i] ?? 0,
+    rotation:
+      opts.pickupRotations?.[i] ??
+      (i === 2 && bridgeType === 'tele-ashtray' ? ASHTRAY_PICKUP_ANGLE_DEG : 0),
     visible: pickupSettings[PICKUP_SLOTS[i]] !== 'none',
     locked: false,
   }));
 
-  const controls = layoutControlKnobs(opts.neckParams, placement, controlSettings);
+  let controls = layoutControlKnobs(opts.neckParams, placement, controlSettings);
+  if (opts.controlOverrides && opts.controlOverrides.length > 0) {
+    const count = Math.max(0, controlSettings.volumes) + Math.max(0, controlSettings.tones);
+    controls = Array.from({ length: count }, (_, i) => {
+      const p = opts.controlOverrides![i];
+      const prev = controls[i];
+      if (!p) return prev ?? { x: 0, y: 0, rotation: 0, visible: true, locked: false };
+      return { x: p.x, y: p.y, rotation: 0, visible: true, locked: false };
+    });
+  }
   const sel = opts.selectorOverride ?? defaultSelectorPosition(controlSettings.selector, opts.neckParams, placement);
   const selector: HardwarePosition = {
     x: sel.position.x,
@@ -92,4 +113,22 @@ export function buildHardwareDefaults(opts: {
     neckBolts,
     tuners: [],
   };
+}
+
+/** Drop the bridge pickup into the ashtray window unless the user locked it. */
+export function seatAshtrayBridgePickup(hw: HardwareState, settings: BridgeSettings): HardwareState {
+  if (settings.type !== 'tele-ashtray') return hw;
+  const pickup = hw.pickups[2];
+  if (!pickup || pickup.locked) return hw;
+  const c = saddleClusterCenter(hw.saddles);
+  const rad = ((hw.saddles[0]?.rotation ?? 0) * Math.PI) / 180;
+  const pickups = [...hw.pickups];
+  pickups[2] = {
+    ...pickup,
+    x: c.x + ASHTRAY_PICKUP_OFFSET_X * Math.cos(rad),
+    y: c.y + ASHTRAY_PICKUP_OFFSET_X * Math.sin(rad),
+    rotation: (hw.saddles[0]?.rotation ?? 0) + ASHTRAY_PICKUP_ANGLE_DEG,
+    visible: true,
+  };
+  return { ...hw, pickups };
 }

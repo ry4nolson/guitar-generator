@@ -8,7 +8,7 @@
 
 import type { Point } from './types';
 import type { BridgeSettings } from './bridgeTypes';
-import { stringSlotOffsets } from './bridgeTypes';
+import { ASHTRAY_PICKUP_ANGLE_DEG, ASHTRAY_PICKUP_OFFSET_X, stringSlotOffsets } from './bridgeTypes';
 
 export interface BridgeGlyphOpts {
   fabrication?: boolean;
@@ -64,10 +64,10 @@ function hexagonPath(cx: number, cy: number, r: number): string {
   return `M ${pts.join(' L ')} Z`;
 }
 
-function slottedScrew(cx: number, cy: number, r: number, fab: boolean, angle = 0): string {
+function slottedScrew(cx: number, cy: number, r: number, fab: boolean, angle = 0, part = 'mount-screw'): string {
   const slotW = r * 0.22;
   const slotH = r * 1.35;
-  return `<g data-part="mount-screw" transform="translate(${n(cx)} ${n(cy)}) rotate(${n(angle)})">
+  return `<g data-part="${part}" transform="translate(${n(cx)} ${n(cy)}) rotate(${n(angle)})">
     <circle r="${n(r)}" fill="${paint('#9a968e', fab)}" stroke="#2a2824" stroke-width="0.35"/>
     <circle r="${n(r * 0.58)}" fill="${paint('#6e6a64', fab)}" stroke="#2a2824" stroke-width="0.2"/>
     <rect x="${n(-slotW / 2)}" y="${n(-slotH / 2)}" width="${n(slotW)}" height="${n(slotH)}" rx="0.12" fill="${paint('#1a1a1a', fab)}"/>
@@ -120,6 +120,28 @@ function tremArm(ferruleX: number, ferruleY: number, fab: boolean): string {
   </g>`;
 }
 
+function rotatedCapsulePath(cx: number, cy: number, along: number, across: number, angleDeg: number): string {
+  const r = along / 2;
+  const h = Math.max(0.01, across / 2 - r);
+  const rad = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const xf = (x: number, y: number) => ({ x: cx + x * cos - y * sin, y: cy + x * sin + y * cos });
+  const p1 = xf(-r, -h);
+  const p2 = xf(-r, h);
+  const p3 = xf(r, h);
+  const p4 = xf(r, -h);
+  const rot = n(angleDeg);
+  return [
+    `M ${n(p1.x)} ${n(p1.y)}`,
+    `L ${n(p2.x)} ${n(p2.y)}`,
+    `A ${n(r)} ${n(r)} ${rot} 0 0 ${n(p3.x)} ${n(p3.y)}`,
+    `L ${n(p4.x)} ${n(p4.y)}`,
+    `A ${n(r)} ${n(r)} ${rot} 0 0 ${n(p1.x)} ${n(p1.y)}`,
+    'Z',
+  ].join(' ');
+}
+
 function countOf(settings: BridgeSettings): number {
   return settings.stringCount ?? 6;
 }
@@ -146,6 +168,10 @@ export function bridgePlateLocalBounds(settings: BridgeSettings): RectBounds {
       const half = spacing / 2 + 12;
       return { minX: -14, maxX: 44, minY: -half - 28, maxY: half };
     }
+    case 'tele-ashtray': {
+      const half = Math.max(80.5, spacing + 26) / 2;
+      return { minX: -78, maxX: 20, minY: -half, maxY: half };
+    }
     case 'hardtail':
     default: {
       const half = spacing / 2 + 16;
@@ -158,18 +184,22 @@ export function bridgePlateLocalBounds(settings: BridgeSettings): RectBounds {
 /** World-space corners of the plate, for design bounds. */
 export function bridgeAssemblyPoints(center: Point, rotationDeg: number, settings: BridgeSettings): Point[] {
   const b = bridgePlateLocalBounds(settings);
-  const rad = (rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
   return [
     { x: b.minX, y: b.minY },
     { x: b.maxX, y: b.minY },
     { x: b.maxX, y: b.maxY },
     { x: b.minX, y: b.maxY },
-  ].map((p) => ({
-    x: center.x + p.x * cos - p.y * sin,
-    y: center.y + p.x * sin + p.y * cos,
-  }));
+  ].map((p) => plateLocalToWorld(center, rotationDeg, p));
+}
+
+export function plateLocalToWorld(center: Point, rotationDeg: number, local: Point): Point {
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: center.x + local.x * cos - local.y * sin,
+    y: center.y + local.x * sin + local.y * cos,
+  };
 }
 
 export function bridgePlateSvgMarkup(settings: BridgeSettings, opts: BridgeGlyphOpts = {}): string {
@@ -181,6 +211,8 @@ export function bridgePlateSvgMarkup(settings: BridgeSettings, opts: BridgeGlyph
       return floydPlate(settings, fab);
     case 'strat-tremolo':
       return stratPlate(settings, fab);
+    case 'tele-ashtray':
+      return ashtrayPlate(settings, fab);
     case 'hardtail':
     default:
       return hardtailPlate(settings, fab);
@@ -223,6 +255,68 @@ function hardtailPlate(settings: BridgeSettings, fab: boolean): string {
     ${ferrules}
     ${stringTails(ys, 4.5, holeX)}
     ${screws}
+  </g>`;
+}
+
+function ashtrayPlate(settings: BridgeSettings, fab: boolean): string {
+  const count = countOf(settings);
+  const ys = stringSlotOffsets(settings.stringSpacing, count);
+  const half = Math.max(80.5, settings.stringSpacing + 26) / 2;
+  const front = -78;
+  const back = 20;
+  const depth = back - front;
+  const winAlong = 20;
+  const winAcross = Math.min(72, settings.stringSpacing + 18);
+  const winCx = ASHTRAY_PICKUP_OFFSET_X;
+  const winCy = 0;
+  const angle = ASHTRAY_PICKUP_ANGLE_DEG;
+  const plate = roundedRectPath(front, -half, depth, half * 2, 4.2);
+  const floor = roundedRectPath(front + 3.8, -half + 3.8, depth - 7.6, half * 2 - 7.6, 2.4);
+  const window = rotatedCapsulePath(winCx, winCy, winAlong, winAcross, angle);
+  const holeX = 12;
+  const holes = ys.map((y) => ({ cx: holeX, cy: y, r: 1.7 }));
+  const holeD = holes.map((h) => circlePath(h.cx, h.cy, h.r)).join(' ');
+  const screwY = half - 4.75;
+  const plateScrews = [
+    slottedScrew(-71.25, -screwY, 1.75, fab, 16),
+    slottedScrew(-71.25, screwY, 1.75, fab, -14),
+    slottedScrew(13.25, -screwY, 1.75, fab, 10),
+    slottedScrew(13.25, screwY, 1.75, fab, -20),
+  ].join('');
+  const rad = (angle * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const mountLocal: [number, number][] = [
+    [0, -(winAcross / 2 + 3.6)],
+    [-(winAlong / 2 + 2.2), winAcross / 2 + 3.2],
+    [winAlong / 2 + 2.2, winAcross / 2 + 3.2],
+  ];
+  const mounts = mountLocal
+    .map(([x, y], i) => {
+      const mx = winCx + x * cos - y * sin;
+      const my = winCy + x * sin + y * cos;
+      return slottedScrew(mx, my, 1.35, fab, angle + (i === 0 ? -8 : 12), 'pickup-mount');
+    })
+    .join('');
+  const ferrules = holes
+    .map(
+      (h) =>
+        `<g data-part="string-hole">
+          <circle cx="${n(h.cx)}" cy="${n(h.cy)}" r="${n(h.r)}" fill="${paint('#2a2218', fab)}"/>
+          <circle cx="${n(h.cx)}" cy="${n(h.cy)}" r="${n(h.r + 0.95)}" fill="none" stroke="${paint('#b8b4ac', fab)}" stroke-width="0.75"/>
+        </g>`,
+    )
+    .join('');
+  return `<g data-bridge="tele-ashtray">
+    ${fab ? '' : `<rect x="${n(front + 1)}" y="${n(-half + 1)}" width="${n(depth)}" height="${n(half * 2)}" rx="4.2" fill="#000" opacity="0.18"/>`}
+    <path fill-rule="evenodd" d="${plate} ${window} ${holeD}" fill="${paint('#c8c4bc', fab)}" stroke="#3a3834" stroke-width="0.8"/>
+    <path fill-rule="evenodd" d="${floor} ${window} ${holeD}" fill="${paint('#e2ded6', fab)}" stroke="#8a8680" stroke-width="0.3"/>
+    <path data-part="pickup-window" d="${window}" fill="none" stroke="${paint('#9a968e', fab)}" stroke-width="0.85"/>
+    ${fab ? '' : `<rect x="${n(front + 2.8)}" y="${n(-half + 2.2)}" width="${n(depth * 0.22)}" height="1.6" rx="0.8" fill="#fff" opacity="0.22"/>`}
+    ${ferrules}
+    ${stringTails(ys, 2, holeX)}
+    ${plateScrews}
+    ${mounts}
   </g>`;
 }
 
@@ -352,6 +446,8 @@ export function saddleHitSize(settings: BridgeSettings): { along: number; across
       return { along: 12, across: Math.min(pitch * 0.9, 11) };
     case 'strat-tremolo':
       return { along: 16, across: Math.min(pitch * 0.92, 10.6) };
+    case 'tele-ashtray':
+      return { along: 12, across: Math.min(pitch * 0.9, 10.4) };
     case 'hardtail':
     default:
       return { along: 13, across: Math.min(pitch * 0.88, 10) };
@@ -371,6 +467,8 @@ export function saddleGlyphSvgMarkup(settings: BridgeSettings, opts: SaddleGlyph
       return floydSaddle(pitch, fab, stroke, sw);
     case 'strat-tremolo':
       return stratSaddle(pitch, settings.saddleTravel, fab, stroke, sw);
+    case 'tele-ashtray':
+      return ashtraySaddle(pitch, fab, stroke, sw);
     case 'hardtail':
     default:
       return hardtailSaddle(pitch, fab, stroke, sw);
@@ -399,6 +497,18 @@ function hardtailSaddle(pitch: number, fab: boolean, stroke: string, sw: number)
     ${heightScrew(-2.4, half - 1.35, fab)}
     <circle cx="6.5" cy="0" r="1.05" fill="${paint('#8a6a28', fab)}" stroke="${stroke}" stroke-width="0.28"/>
     <rect x="6.38" y="-0.8" width="0.24" height="1.6" fill="${paint('#1a1a1a', fab)}"/>
+  </g>`;
+}
+
+function ashtraySaddle(pitch: number, fab: boolean, stroke: string, sw: number): string {
+  const half = Math.min(pitch * 0.42, 4.7);
+  // Vintage Tele brass barrel — rounder than the modern 6-saddle block.
+  return `<g data-saddle="tele-ashtray">
+    <rect x="-3.8" y="${n(-half)}" width="10.4" height="${n(half * 2)}" rx="${n(half)}" fill="${paint('#c9a24a', fab)}" stroke="${stroke}" stroke-width="${sw}"/>
+    <ellipse cx="1.4" cy="0" rx="3.6" ry="${n(half * 0.72)}" fill="${paint('#b08638', fab)}" stroke="${stroke}" stroke-width="0.22"/>
+    ${groove(-2.8, 5.8, fab)}
+    <circle cx="5.8" cy="0" r="1.0" fill="${paint('#8a6a28', fab)}" stroke="${stroke}" stroke-width="0.28"/>
+    <rect x="5.68" y="-0.75" width="0.24" height="1.5" fill="${paint('#1a1a1a', fab)}"/>
   </g>`;
 }
 
