@@ -6,6 +6,7 @@ import { useReferenceOverlayContext } from '../state/ReferenceOverlayContext';
 import { SplitMenu } from './chrome/SplitMenu';
 import { ChangelogButton } from './chrome/ChangelogPanel';
 import { BodyPickerButton } from './chrome/TemplatePicker';
+import { useDeployUpdate } from '../hooks/useDeployUpdate';
 import {
   IconExport,
   IconLoad,
@@ -21,6 +22,7 @@ import {
 export function Toolbar() {
   const theme = useDesignStore((s) => s.appSettings.theme);
   const setTheme = useDesignStore((s) => s.setTheme);
+  const updateAvailable = useDeployUpdate();
   const undo = useDesignStore((s) => s.undo);
   const redo = useDesignStore((s) => s.redo);
   const resetToDefaults = useDesignStore((s) => s.resetToDefaults);
@@ -149,6 +151,19 @@ export function Toolbar() {
       <span className="toolbar-spacer" />
 
       <div className="toolbar-group">
+        {updateAvailable && (
+          <button
+            type="button"
+            className="toolbar-btn update-available"
+            title="A new version is live. Reload to get it — your guitar is saved in this browser."
+            onClick={() => {
+              useDesignStore.getState().autosave();
+              window.location.reload();
+            }}
+          >
+            Update
+          </button>
+        )}
         <ChangelogButton />
         <button
           type="button"

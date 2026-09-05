@@ -141,6 +141,17 @@
   justify-content: center;
 }
 
+.toolbar-btn.update-available {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #1a1208 !important;
+  font-weight: 700;
+}
+
+.theme-light .toolbar-btn.update-available {
+  color: #fff !important;
+}
+
 .toolbar button.active,
 .sidebar button.active,
 .segmented button.active,

@@ -4,6 +4,9 @@
 
 ### Added
 
+- Open tabs notice a new Netlify deploy (polls uncached `/version.json`) and
+  show an **Update** button next to What's new. Reload keeps the autosaved
+  guitar.
 - **What's new** panel next to the theme toggle, with a badge for unseen
   features. Opening it remembers what you've read in this browser.
 - Guitar designs are saved automatically in this browser (and flushed when
