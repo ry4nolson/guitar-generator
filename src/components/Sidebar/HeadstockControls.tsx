@@ -8,6 +8,7 @@ import {
 } from '../../geometry/headstock';
 import type { HeadstockType, TunerLayout } from '../../geometry/headstock';
 import { ParamSlider } from './ParamSlider';
+import { HEADSTOCK_LENGTH_LIMITS, HEADSTOCK_WIDTH_LIMITS } from '../../geometry/editLimits';
 
 /** Headstock style, dimensions, outline points, and tuner layout. */
 export function HeadstockControls() {
@@ -52,7 +53,8 @@ export function HeadstockControls() {
       <p className="muted">{HEADSTOCK_TYPE_META.find((t) => t.id === hs.type)?.description}</p>
       {headed && (
         <p className="muted">
-          Purple points drag freely; grey nut corners stay locked. Select a point to edit Bézier
+          Purple points drag within a practical headstock area — they cannot stretch down the
+          neck or off the canvas. Grey nut corners stay locked. Select a point to edit Bézier
           handles, or add/remove points below.
         </p>
       )}
@@ -62,8 +64,8 @@ export function HeadstockControls() {
           <ParamSlider
             label="Headstock length"
             value={hs.length}
-            min={120}
-            max={220}
+            min={HEADSTOCK_LENGTH_LIMITS.min}
+            max={HEADSTOCK_LENGTH_LIMITS.max}
             step={1}
             unit="mm"
             displayUnit={unit}
@@ -72,8 +74,8 @@ export function HeadstockControls() {
           <ParamSlider
             label="Head width"
             value={hs.tipWidth}
-            min={50}
-            max={150}
+            min={HEADSTOCK_WIDTH_LIMITS.min}
+            max={HEADSTOCK_WIDTH_LIMITS.max}
             step={1}
             unit="mm"
             displayUnit={unit}
@@ -176,9 +178,11 @@ export function HeadstockControls() {
             Reset tuner positions
           </button>
           <p className="muted">
-            Drag pegs on the canvas to fine-tune. Dragged pegs stay put when you reshape the
-            outline; unlock them (or reset) to follow auto layout again. Count follows Strings
-            under Bridge &amp; nut (6–12).
+            Auto layout keeps pegs in a compact row along the bass edge (or split ears), not
+            stretched along the whole outline. Drag pegs to fine-tune — they stay on the
+            headstock wood. Dragged pegs stay put when you reshape the outline; unlock them
+            (or reset) to follow auto layout again. Count follows Strings under Bridge &amp;
+            nut (6–12).
           </p>
         </>
       )}

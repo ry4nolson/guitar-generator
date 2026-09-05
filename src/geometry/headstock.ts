@@ -13,6 +13,7 @@ import { neckToBodySpace, type NeckPlacement } from './neckPlacement';
 import { saddleClusterCenter } from './strings';
 import type { HardwarePosition } from './types';
 import { TRACED_HEADS, tracedHeadAnchors, type TracedHeadId } from './headstockOutlines';
+import { clampHeadstockLocalPoint, maxTunerRowSpanMm } from './editLimits';
 
 export type HeadstockType = 'headless' | 'paddle' | 'tele' | '6-inline' | '3x3' | 'pointy';
 
@@ -427,6 +428,22 @@ function authorHeadstockAnchors(
   return tracedHeadAnchors(TRACED_HEADS[traced], length, width, nutHalf);
 }
 
+/**
+ * Keep a dragged peg on the wood. Points already inside stay put; anything
+ * off the silhouette snaps to the nearest interior (a few mm in from the
+ * edge so the post hole does not hang off).
+ */
+export function clampPointToHeadstockOutline(
+  local: Point,
+  outline: Point[] | null | undefined,
+  edgeInset = 5,
+): Point {
+  if (!outline || outline.length < 3) return clampHeadstockLocalPoint(local);
+  if (pointInPolygon(local, outline)) return local;
+  const { point: edgePt } = closestOnPolyline(outline, local);
+  return insetFromEdge(edgePt, outline, edgeInset, outline);
+}
+
 export interface TunerMark {
   index: number;
   position: Point;
@@ -586,7 +603,9 @@ function placeAlongSide(
   const pad = Math.min(endMargin, total * 0.08);
   const start = Math.min(tipTrim + pad, total * 0.42);
   const end = Math.max(total - nutTrim - pad, start + total * 0.2);
-  const span = end - start;
+  // Keep the bank compact near the tip. Spreading across a dragged-out
+  // hypotenuse is what parked pegs in the middle of a metre-long wedge.
+  const span = Math.min(end - start, maxTunerRowSpanMm(count));
 
   const raw = Array.from({ length: count }, (_, i) => {
     const t = count === 1 ? 0.5 : i / (count - 1);

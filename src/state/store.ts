@@ -52,6 +52,8 @@ import {
   insertHeadstockAnchorAfter,
   removeHeadstockAnchorById,
   layoutTunersAsHardware,
+  computeHeadstockOutlineLocal,
+  clampPointToHeadstockOutline,
   NUT_BASS_ID,
   type HeadstockSettings,
   type HeadstockType,
@@ -81,6 +83,15 @@ import {
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
 import { editOutlineWithSymmetry, findCenterlinePartnerId } from '../geometry/symmetricEdit';
+import {
+  clampBodyAnchors,
+  clampHardwareBodyPoint,
+  clampHeadstockAnchors,
+  clampNeckParam,
+  clampNumber,
+  HEADSTOCK_LENGTH_LIMITS,
+  HEADSTOCK_WIDTH_LIMITS,
+} from '../geometry/editLimits';
 import type { ReferenceOverlaysDocument } from './referenceOverlay';
 import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR, DEFAULT_HEADSTOCK_COLOR } from '../geometry/color';
 
@@ -247,6 +258,57 @@ function withRelayoutTuners(
       hardware.tuners,
     ),
   };
+}
+
+function clampHeadstockSettingValue<K extends keyof HeadstockSettings>(
+  key: K,
+  value: HeadstockSettings[K],
+  type: HeadstockType,
+): HeadstockSettings[K] {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return value;
+  if (key === 'length') {
+    const limits = type === 'headless' ? { min: 20, max: 80 } : HEADSTOCK_LENGTH_LIMITS;
+    return clampNumber(value, limits.min, limits.max) as HeadstockSettings[K];
+  }
+  if (key === 'tipWidth') {
+    return clampNumber(value, HEADSTOCK_WIDTH_LIMITS.min, HEADSTOCK_WIDTH_LIMITS.max) as HeadstockSettings[K];
+  }
+  if (key === 'tunerInset') return clampNumber(value, 4, 28) as HeadstockSettings[K];
+  if (key === 'tunerTipClearance' || key === 'tunerNutClearance') {
+    return clampNumber(value, 0.05, 0.45) as HeadstockSettings[K];
+  }
+  if (key === 'tunerEndMargin') return clampNumber(value, 0, 24) as HeadstockSettings[K];
+  if (key === 'tunerPegAngleOffset') return clampNumber(value, -90, 90) as HeadstockSettings[K];
+  return value;
+}
+
+function clampTunerBodyPoint(
+  point: Point,
+  get: () => {
+    headstockSettings: HeadstockSettings;
+    headstockAnchors: HeadstockAnchor[];
+    bodyAnchors: BodyAnchor[];
+    neckParams: NeckParams;
+    bridgeSettings: { stringCount?: number };
+  },
+): Point {
+  const s = get();
+  const headed =
+    s.headstockSettings.type !== 'headless' &&
+    s.headstockSettings.tunerLayout !== 'headless' &&
+    s.headstockSettings.tunerLayout !== 'none';
+  if (!headed) return clampHardwareBodyPoint(point);
+  const joinPoint = neckJoinPoint(s.bodyAnchors, s.neckParams);
+  const count = s.bridgeSettings.stringCount ?? 6;
+  const local = bodyToNeckSpace(point, s.neckParams, { joinPoint });
+  const outline = computeHeadstockOutlineLocal(
+    s.neckParams,
+    s.headstockSettings,
+    count,
+    s.headstockAnchors,
+  );
+  const clamped = clampPointToHeadstockOutline(local, outline);
+  return neckToBodySpace(clamped, s.neckParams, { joinPoint });
 }
 
 const HISTORY_LIMIT = 100;
@@ -524,7 +586,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setBodyParam: (key, value) => {
     const hist = historyForMutation(get);
     const template = getBodyTemplate(get().templateId);
-    const bodyParams = { ...get().bodyParams, [key]: value };
+    const meta = template.paramMeta.find((m) => m.key === key);
+    const nextValue = meta ? clampNumber(value, meta.min, meta.max) : value;
+    const bodyParams = { ...get().bodyParams, [key]: nextValue };
     const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = recomputeAnchorsPreservingEdits(template, bodyParams, get().bodyAnchors);
     const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX;
@@ -539,12 +603,14 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   moveAnchorPoint: (id, part, point) => {
     const hist = historyForMutation(get);
     const prevJointX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
-    const bodyAnchors = editOutlineWithSymmetry(
-      get().bodyAnchors,
-      id,
-      part,
-      point,
-      get().settings.symmetricEditing,
+    const bodyAnchors = clampBodyAnchors(
+      editOutlineWithSymmetry(
+        get().bodyAnchors,
+        id,
+        part,
+        point,
+        get().settings.symmetricEditing,
+      ),
     );
     // Neck joint x drives heel placement — keep bridge/nut assembly locked to scale
     // by translating hardware with the joint (y only reshapes the body pocket).
@@ -561,16 +627,18 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const hist = historyForMutation(get);
     const idSet = new Set(anchorIds);
     const movesJoint = idSet.has('neckJoint');
-    const bodyAnchors = get().bodyAnchors.map((a) => {
-      if (!idSet.has(a.id) || a.locked) return a;
-      return {
-        ...a,
-        position: { x: a.position.x + dx, y: a.position.y + dy },
-        handleIn: { x: a.handleIn.x + dx, y: a.handleIn.y + dy },
-        handleOut: { x: a.handleOut.x + dx, y: a.handleOut.y + dy },
-        manuallyEdited: true,
-      };
-    });
+    const bodyAnchors = clampBodyAnchors(
+      get().bodyAnchors.map((a) => {
+        if (!idSet.has(a.id) || a.locked) return a;
+        return {
+          ...a,
+          position: { x: a.position.x + dx, y: a.position.y + dy },
+          handleIn: { x: a.handleIn.x + dx, y: a.handleIn.y + dy },
+          handleOut: { x: a.handleOut.x + dx, y: a.handleOut.y + dy },
+          manuallyEdited: true,
+        };
+      }),
+    );
     const hardware = movesJoint ? translateHardware(get().hardware, dx, 0) : get().hardware;
     set(hist ? { bodyAnchors, hardware, ...hist } : { bodyAnchors, hardware });
     get().autosave();
@@ -622,7 +690,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   setNeckParam: (key, value) => {
     const hist = historyForMutation(get);
-    const neckParams = { ...get().neckParams, [key]: value };
+    const neckParams = { ...get().neckParams, [key]: clampNeckParam(key, value) };
     let hardware = get().hardware;
     if (isScaleLockNeckKey(key)) {
       // Note: the NEW neck params — neckInset/neckAngle move the heel itself.
@@ -805,7 +873,10 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   setHeadstockSetting: (key, value) => {
     const hist = historyForMutation(get);
-    const headstockSettings = { ...get().headstockSettings, [key]: value };
+    const headstockSettings = {
+      ...get().headstockSettings,
+      [key]: clampHeadstockSettingValue(key, value, get().headstockSettings.type),
+    };
     let headstockAnchors = get().headstockAnchors;
     // Dimensional knobs re-seed unless the user has already sculpted the outline.
     if ((key === 'length' || key === 'tipWidth' || key === 'earWidth') && !isHeadstockDirty(headstockAnchors)) {
@@ -889,12 +960,14 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const hist = historyForMutation(get);
     const joinPoint = neckJoinPoint(get().bodyAnchors, get().neckParams);
     const localPoint = bodyToNeckSpace(bodyPoint, get().neckParams, { joinPoint });
-    const headstockAnchors = editOutlineWithSymmetry(
-      get().headstockAnchors,
-      id,
-      part,
-      localPoint,
-      get().settings.symmetricEditing,
+    const headstockAnchors = clampHeadstockAnchors(
+      editOutlineWithSymmetry(
+        get().headstockAnchors,
+        id,
+        part,
+        localPoint,
+        get().settings.symmetricEditing,
+      ),
     );
     const hardware = withRelayoutTuners(
       get().hardware,
@@ -1041,15 +1114,22 @@ export const useDesignStore = create<StoreState>((set, get) => ({
           // no-op
         } else {
           // Pickups slide along the strings only — Y stays on the centerline.
-          const y = name === 'pickups' ? arr[index].y : point.y;
+          const clamped =
+            name === 'tuners'
+              ? clampTunerBodyPoint(point, get)
+              : clampHardwareBodyPoint(point);
+          const y = name === 'pickups' ? arr[index].y : clamped.y;
           const locked = name === 'tuners' ? true : arr[index].locked;
-          arr[index] = { ...arr[index], x: point.x, y, locked };
+          arr[index] = { ...arr[index], x: clamped.x, y, locked };
         }
       }
       hardware[name] = arr as never;
     } else {
       const item = field as HardwarePosition;
-      if (!item.locked) hardware[name] = { ...item, x: point.x, y: point.y } as never;
+      if (!item.locked) {
+        const clamped = clampHardwareBodyPoint(point);
+        hardware[name] = { ...item, x: clamped.x, y: clamped.y } as never;
+      }
     }
     set(hist ? { hardware, ...hist } : { hardware });
     get().autosave();

@@ -173,7 +173,7 @@ describe('layoutNeckBolts', () => {
 
   it('store relayouts bolts when neck angle changes', () => {
     useDesignStore.getState().resetToDefaults();
-    useDesignStore.getState().setNeckParam('neckAngle', 6);
+    useDesignStore.getState().setNeckParam('neckAngle', 5);
     const bolts = useDesignStore.getState().hardware.neckBolts;
     const expected = layoutNeckBolts(
       useDesignStore.getState().neckParams,

@@ -195,7 +195,10 @@ export function HardwareControls({
       {showTuners && (
         <>
           <h3>{showElectronics || showSaddles || showBolts ? 'Tuners' : 'Tuner positions'}</h3>
-          <p className="muted">X/Y + peg angle; lock keeps a peg from following outline auto-layout.</p>
+          <p className="muted">
+            X/Y + peg angle. Drag stays on the headstock wood; lock keeps a peg from following
+            outline auto-layout.
+          </p>
           {(hardware.tuners ?? []).map((t, i) => (
             <Row
               key={`tuner-${i}`}

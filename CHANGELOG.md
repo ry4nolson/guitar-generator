@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- Headstock outline points, body points, and hardware can no longer be
+  dragged (or typed) off into space. A yanked tip used to stretch the
+  head into a long triangle; auto-laid tuners then spaced themselves
+  along that whole edge, so the pegs sat in the middle of the wedge
+  instead of on the head. Pegs now stay in a compact row near the tip,
+  and dragging a tuner snaps it back onto the headstock wood.
 - Canvas pan on a Mac trackpad: two-finger scroll pans, pinch still zooms.
   Right-drag also pans (same idea as a mouse right-drag). Mouse-wheel notches
   and Ctrl/Cmd+scroll keep zooming at the cursor.

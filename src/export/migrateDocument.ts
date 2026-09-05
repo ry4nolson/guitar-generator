@@ -29,6 +29,7 @@ import {
 import { layoutNeckBolts, layoutSaddlesFromScale, neckJoinPoint } from '../geometry/scaleLock';
 import type { BodyAnchor, HardwarePosition } from '../geometry/types';
 import type { NeckParams } from '../geometry/neckParams';
+import { clampBodyAnchors, clampHeadstockAnchors } from '../geometry/editLimits';
 import { defaultLayers, type LayerId, type LayerState } from '../state/layers';
 
 import {
@@ -267,7 +268,12 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
         }
       }
       parsed.headstockAnchors = neck ? seedHeadstockAnchors(neck, hs, count) : [];
+    } else {
+      parsed.headstockAnchors = clampHeadstockAnchors(existing);
     }
+  }
+  if (Array.isArray(parsed.bodyAnchors)) {
+    parsed.bodyAnchors = clampBodyAnchors(parsed.bodyAnchors as BodyAnchor[]);
   }
   // Ensure tuner hardware array exists and unlocked pegs follow tip→nut layout.
   {
