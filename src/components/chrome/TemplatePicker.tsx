@@ -47,26 +47,28 @@ export function confirmTemplateSwitch(nextId: string): boolean {
 
 export function BodyPickerButton() {
   const templateId = useDesignStore((s) => s.templateId);
-  const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
   const bodyColor = useDesignStore((s) => s.settings.bodyColor) || DEFAULT_BODY_COLOR;
+  const galleryOpen = useUiStore((s) => s.galleryOpen);
   const setGalleryOpen = useUiStore((s) => s.setGalleryOpen);
   const template = BODY_TEMPLATES.find((t) => t.id === templateId) ?? BODY_TEMPLATES[0];
+  const presetAnchors = useMemo(
+    () => computeParametricAnchors(template, template.defaultParams),
+    [template],
+  );
 
   return (
     <button
       type="button"
-      className="body-picker-btn"
+      className="toolbar-btn body-picker-btn"
       aria-haspopup="dialog"
+      aria-expanded={galleryOpen}
       title={template.description}
       onClick={() => setGalleryOpen(true)}
     >
       <span className="body-picker-svg" style={{ color: bodyColor }}>
-        <Silhouette anchors={bodyAnchors} />
+        <Silhouette anchors={presetAnchors} />
       </span>
-      <span className="body-picker-meta">
-        <span className="body-picker-name">{shortTemplateName(template.name)}</span>
-        <span className="body-picker-hint">{templateHardwareHint(template)}</span>
-      </span>
+      <span className="body-picker-name">{shortTemplateName(template.name)}</span>
       <IconChevron />
     </button>
   );

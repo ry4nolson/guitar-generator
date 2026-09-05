@@ -3,6 +3,7 @@ import { useDesignStore, DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR, DEFAULT_HE
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { EditorCanvas } from './components/Editor/EditorCanvas';
+import { TemplateGalleryOverlay } from './components/chrome/TemplatePicker';
 import { ReferenceImageDropZone } from './components/Editor/ReferenceImageDropZone';
 import { ReferenceOverlayProvider } from './state/ReferenceOverlayContext';
 import { darkenHex } from './geometry/color';
@@ -34,6 +35,7 @@ export default function App() {
           </main>
           <Sidebar />
         </div>
+        <TemplateGalleryOverlay />
       </div>
     </ReferenceOverlayProvider>
   );

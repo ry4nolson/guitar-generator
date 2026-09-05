@@ -22,7 +22,6 @@ import { NutHardware } from './NutHardware';
 import { HeadstockOutline, TunersBack, TunersFront } from './Headstock';
 import { HeadstockAnchors } from './HeadstockAnchors';
 import { FinishDock } from '../chrome/FinishDock';
-import { BodyPickerButton, TemplateGalleryOverlay } from '../chrome/TemplatePicker';
 import { ViewModeHud, ViewportHud } from '../chrome/CanvasHud';
 
 /**
@@ -51,7 +50,7 @@ export function EditorCanvas() {
 
   const svgRootRef = useRef<SVGSVGElement | null>(null);
   const stageRef = useRef<SVGGElement | null>(null);
-  const { viewport, onPointerDown, onDoubleClick, fit, resetView, bindSpaceKeys, bindWheel, bindTouch, zoomBy } =
+  const { viewport, onDoubleClick, fit, resetView, bindSpaceKeys, bindWheel, bindTouch, bindPointerPan, zoomBy } =
     useViewport(svgRootRef);
 
   useKeyboardNudge();
@@ -59,6 +58,7 @@ export function EditorCanvas() {
   useEffect(() => bindSpaceKeys(), [bindSpaceKeys]);
   useEffect(() => bindWheel(), [bindWheel]);
   useEffect(() => bindTouch(), [bindTouch]);
+  useEffect(() => bindPointerPan(), [bindPointerPan]);
 
   // New template → re-fit so pan/zoom from the previous silhouette don't leave
   // the guitar off-screen. View-mode switches deliberately do NOT reset.
@@ -102,7 +102,6 @@ export function EditorCanvas() {
   return (
     <div className="editor-stage">
       <div className="canvas-identity">
-        <BodyPickerButton />
         <FinishDock />
       </div>
       <ViewModeHud />
@@ -119,7 +118,6 @@ export function EditorCanvas() {
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={`Guitloft ${view} view`}
-        onPointerDown={onPointerDown}
         onDoubleClick={onDoubleClick}
       >
         <defs>
@@ -189,7 +187,6 @@ export function EditorCanvas() {
           </g>
         </g>
       </svg>
-      <TemplateGalleryOverlay />
     </div>
   );
 }

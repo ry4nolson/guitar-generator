@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Les Paul-style body outline extracted from Piemaster's "Gibson Les Paul"
+  Openclipart #16769 (CC0 / public domain), 2008-05-16.
+  https://openclipart.org/detail/16769/gibson-les-paul
+  Same file on Wikimedia: File:Gibson Les Paul.svg (CC0)
+
+  Body path only (original path32016). Neck, headstock, and hardware removed.
+  Scaled to a 438 mm body length (classic ~17.25 in LP). Coordinates match
+  Guitloft body space: +x toward the tail, +y bass, neck-pocket mouth near x=0.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8.00 -207.65 454.00 378.02" width="454.0mm" height="378.0mm">
+  <path fill="#c9973d" stroke="#2a2218" stroke-width="1.2" d="M 0.000,-29.542 C 14.530,-33.957 27.959,-38.913 40.154,-39.723 C 88.707,-54.892 70.885,-84.842 43.233,-116.987 C 57.938,-129.701 79.733,-129.267 112.487,-108.749 C 136.553,-104.950 139.718,-93.321 175.310,-118.152 C 220.927,-149.991 263.098,-199.648 333.303,-173.995 C 375.526,-158.549 418.210,-138.871 429.724,-78.632 C 438.000,-35.361 437.227,6.912 424.577,49.314 C 412.772,88.751 390.657,114.115 362.413,133.417 C 320.083,162.368 280.696,157.853 245.506,140.790 C 212.793,124.935 187.643,94.147 151.911,83.356 C 118.932,82.594 97.981,101.606 72.886,108.119 C 49.059,114.296 28.559,102.594 18.591,82.000 C 13.257,70.265 8.086,54.267 14.448,41.526 C 17.287,35.860 26.871,35.425 31.964,31.244 Z"/>
+</svg>

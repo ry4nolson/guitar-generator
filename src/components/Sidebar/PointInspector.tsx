@@ -8,6 +8,7 @@ export function PointInspector() {
   const symmetricEditing = useDesignStore((s) => s.settings.symmetricEditing);
   const toggleLock = useDesignStore((s) => s.toggleAnchorLock);
   const toggleMirror = useDesignStore((s) => s.toggleMirrorHandles);
+  const togglePairOpposite = useDesignStore((s) => s.togglePairOpposite);
   const reset = useDesignStore((s) => s.resetAnchorPoint);
   const move = useDesignStore((s) => s.moveAnchorPoint);
 
@@ -59,9 +60,23 @@ export function PointInspector() {
           <span>Mirror handles (smooth tangent)</span>
           <input type="checkbox" checked={anchor.mirrorHandles} onChange={() => toggleMirror(anchor.id)} />
         </label>
+        {symmetricEditing && (
+          <label className="row-inline checkbox">
+            <span>Pair with opposite side</span>
+            <input
+              type="checkbox"
+              checked={anchor.pairOpposite !== false}
+              onChange={() => togglePairOpposite(anchor.id)}
+            />
+          </label>
+        )}
         <p className="muted">
           Arrow keys nudge the anchor position (Shift = 10x step).
-          {symmetricEditing ? ' Symmetric editing is on — the opposite side moves too.' : ''}
+          {symmetricEditing
+            ? anchor.pairOpposite === false
+              ? ' This point is unpaired — drag it without moving the opposite side.'
+              : ' Symmetric editing is on — uncheck Pair with opposite side to edit this point alone.'
+            : ''}
         </p>
       </section>
     );

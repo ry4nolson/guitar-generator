@@ -40,6 +40,11 @@ export interface BodyAnchor {
   locked: boolean;
   /** If true, dragging one handle mirrors the opposite handle to preserve tangency ("smooth point" editing behavior). Defaults from continuity !== 'corner'. */
   mirrorHandles: boolean;
+  /**
+   * When symmetric editing is on, pair this point with its centerline reflection.
+   * Unset / true = paired. False = edit this point (and its old partner) alone.
+   */
+  pairOpposite?: boolean;
 }
 
 export interface FretPoint {

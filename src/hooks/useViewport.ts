@@ -12,14 +12,43 @@
 // fixed viewBox. zoom=1, pan=(0,0) is exactly "fit to screen" — that's what
 // makes fit-to-screen a trivial reset rather than a recomputation.
 //
-// Input support: mouse wheel zooms (desktop), middle-mouse or space+drag pans
-// (desktop), double-click fits (both), and on touch devices a single finger
-// pans while two fingers pinch-zoom. `panBy`/`zoomBy` additionally expose a
-// gesture-independent path (on-screen D-pad/zoom buttons) for environments
-// that intercept swipe gestures for their own navigation before this page
-// ever sees them (e.g. some embedding preview webviews).
+// Input support: mouse-wheel ticks and pinch (ctrl+wheel) zoom; two-finger
+// trackpad scroll and right-drag / middle-mouse / space+drag pan; double-click
+// fits. Touch: one finger pans, two fingers pinch-zoom. `panBy`/`zoomBy` also
+// expose on-screen D-pad/zoom buttons for hosts that swallow swipe gestures.
 
 import { useCallback, useRef, useState } from 'react';
+
+/** Pixel-mode |deltaY| below this is a trackpad tick, not a mouse-wheel notch. */
+const TRACKPAD_PIXEL_TICK = 40;
+
+export type WheelGesture = 'zoom' | 'pan';
+
+/**
+ * Classify a wheel event: macOS pinch arrives as ctrl+wheel; two-finger
+ * trackpad scroll is pixel-mode (often with deltaX); discrete mouse wheels
+ * send large notches or line/page mode.
+ */
+export function wheelGesture(e: {
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey?: boolean;
+  deltaX: number;
+  deltaY: number;
+  deltaMode: number;
+}): WheelGesture {
+  if (e.ctrlKey || e.metaKey) return 'zoom';
+  if (e.shiftKey) return 'pan';
+  const pixelMode = e.deltaMode === 0;
+  const looksLikeTrackpad = pixelMode && (e.deltaX !== 0 || Math.abs(e.deltaY) < TRACKPAD_PIXEL_TICK);
+  return looksLikeTrackpad ? 'pan' : 'zoom';
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return true;
+  return target.isContentEditable;
+}
 
 export interface Viewport {
   zoom: number;
@@ -43,7 +72,7 @@ interface ActiveTouch {
 }
 
 /**
- * Wires wheel-zoom, middle-mouse/space+drag pan, touch pan/pinch-zoom, and
+ * Wires wheel zoom/pan, right/middle/space-drag pan, touch pan/pinch-zoom, and
  * double-click-to-fit onto an SVG root element. `svgRootRef` must point at
  * the outer <svg> (whose screen CTM is unaffected by the pan/zoom transform
  * itself), so pixel deltas convert to viewBox units independent of the
@@ -115,19 +144,28 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
     });
   }, []);
 
-  // --- Desktop: wheel zoom ---
+  // --- Desktop: wheel zoom / trackpad pan ---
   // Bound with a manual, non-passive native listener (via `bindWheel`,
   // called from a useEffect) rather than React's `onWheel` prop: React
   // registers wheel listeners as passive for scroll-performance reasons, and
   // a passive listener cannot call preventDefault() — we need to, so the
-  // page itself doesn't scroll while zooming the canvas.
+  // page itself doesn't scroll while zooming/panning the canvas.
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault();
+      if (wheelGesture(e) === 'pan') {
+        const scale = rootScale();
+        setViewport((prev) => ({
+          ...prev,
+          panX: prev.panX - e.deltaX / scale,
+          panY: prev.panY - e.deltaY / scale,
+        }));
+        return;
+      }
       const local = toLocal(e.clientX, e.clientY);
       zoomAround(local.x, local.y, Math.pow(1.0015, -e.deltaY));
     },
-    [toLocal, zoomAround],
+    [toLocal, zoomAround, rootScale],
   );
 
   const bindWheel = useCallback(() => {
@@ -137,9 +175,11 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
     return () => svg.removeEventListener('wheel', handleWheel);
   }, [svgRootRef, handleWheel]);
 
-  // --- Desktop: middle-mouse / space+drag pan ---
+  // --- Desktop: right-drag / middle-mouse / space+drag pan ---
+  // Capture-phase so a right-drag starting on an anchor/pickup still pans
+  // instead of moving geometry (children stopPropagation on pointerdown).
   const beginMousePan = useCallback(
-    (e: React.PointerEvent) => {
+    (e: PointerEvent) => {
       panState.current = { startClientX: e.clientX, startClientY: e.clientY, startPan: viewport };
       const handleMove = (ev: PointerEvent) => {
         if (!panState.current) return;
@@ -163,19 +203,31 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
     [rootScale, viewport],
   );
 
-  /** Attach to the SVG root's onPointerDown: starts a mouse pan on middle-click, or left-click while space is held. */
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent<SVGSVGElement>) => {
-      if (e.pointerType === 'touch') return; // touch is handled by the native touch listeners below
+  const bindPointerPan = useCallback(() => {
+    const svg = svgRootRef.current;
+    if (!svg) return () => {};
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       const isMiddle = e.button === 1;
+      const isRight = e.button === 2;
       const isSpaceDrag = e.button === 0 && spaceHeld.current;
-      if (isMiddle || isSpaceDrag) {
-        e.preventDefault();
-        beginMousePan(e);
-      }
-    },
-    [beginMousePan],
-  );
+      if (!isMiddle && !isRight && !isSpaceDrag) return;
+      e.preventDefault();
+      e.stopPropagation();
+      beginMousePan(e);
+    };
+    const onContextMenu = (e: Event) => {
+      e.preventDefault();
+    };
+
+    svg.addEventListener('pointerdown', onPointerDown, { capture: true });
+    svg.addEventListener('contextmenu', onContextMenu);
+    return () => {
+      svg.removeEventListener('pointerdown', onPointerDown, { capture: true });
+      svg.removeEventListener('contextmenu', onContextMenu);
+    };
+  }, [svgRootRef, beginMousePan]);
 
   const onDoubleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -296,7 +348,9 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
   // the SVG to have DOM focus.
   const bindSpaceKeys = useCallback(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.code === 'Space') spaceHeld.current = true;
+      if (e.code !== 'Space' || isTypingTarget(e.target)) return;
+      e.preventDefault();
+      spaceHeld.current = true;
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') spaceHeld.current = false;
@@ -311,13 +365,13 @@ export function useViewport(svgRootRef: React.RefObject<SVGSVGElement | null>) {
 
   return {
     viewport,
-    onPointerDown,
     onDoubleClick,
     fit,
     resetView,
     bindSpaceKeys,
     bindWheel,
     bindTouch,
+    bindPointerPan,
     panBy,
     zoomBy,
   };

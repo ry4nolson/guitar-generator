@@ -29,7 +29,7 @@ function pickupAbbrev(pickups?: PickupSettings): string {
   return [letter(pickups.neck), letter(pickups.middle), letter(pickups.bridge)].join('');
 }
 
-/** One-line hardware caption for gallery cards, e.g. "SSS · Strat tremolo · Strat". */
+/** One-line hardware caption for gallery cards, e.g. "SSS · Sync tremolo · Paddle". */
 export function templateHardwareHint(template: BodyTemplate): string {
   const p = template.presets;
   const parts: string[] = [];

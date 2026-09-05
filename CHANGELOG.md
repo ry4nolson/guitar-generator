@@ -2,8 +2,29 @@
 
 ## Unreleased
 
+### Fixed
+
+- Canvas pan on a Mac trackpad: two-finger scroll pans, pinch still zooms.
+  Right-drag also pans (same idea as a mouse right-drag). Mouse-wheel notches
+  and Ctrl/Cmd+scroll keep zooming at the cursor.
+
+### Added
+
+- **LP** Classic preset: single-cut body traced from a CC0 Openclipart
+  silhouette, with two humbuckers, 2V/2T + bass-side toggle, TOM, 3×3
+  open-book head, and a 24.75" scale. Horn / waist / bout / cutaway sliders
+  apply as deltas from the seed.
+
 ### Changed
 
+- Gallery and hardware labels drop trademarked model names: **T-style**,
+  **LP**, **S-style**, **V**, **Super-S**, **Offset V**, **Long V**, **Sym V**,
+  **Hooked**; headstocks **Paddle** / **Slim**; bridges **TOM**, **Double-lock**,
+  **Sync tremolo**. Internal template ids are unchanged so saved files still
+  load.
+- Body preset picker lives in the top toolbar (silhouette + name), not as a
+  floating canvas control. The icon is the stock preset outline, not the live
+  body. The template gallery still opens as a full-app overlay.
 - Product name is **Guitloft** (toolbar, page title, package, export
   filenames). Existing FretForge autosave and overlay keys still load.
 - Inspector stations: **Gear** is split into **Bridge** (type, spacing,

@@ -14,6 +14,12 @@ export interface SymAnchor {
   locked: boolean;
   manuallyEdited: boolean;
   mirrorHandles: boolean;
+  /** Unset / true = eligible for centerline pairing. False = stay independent. */
+  pairOpposite?: boolean;
+}
+
+export function isPairOppositeEnabled(anchor: Pick<SymAnchor, 'pairOpposite'>): boolean {
+  return anchor.pairOpposite !== false;
 }
 
 /** Points closer than this to y=0 are treated as on the centerline (self-partner). */
@@ -134,7 +140,12 @@ export function editOutlineWithSymmetry<T extends SymAnchor>(
   const primaryBefore = anchors[primaryIdx];
   if (primaryBefore.locked) return anchors.slice() as T[];
 
-  const partnerId = enabled ? findCenterlinePartnerId(anchors, id) : null;
+  let partnerId = enabled ? findCenterlinePartnerId(anchors, id) : null;
+  if (partnerId && !isPairOppositeEnabled(primaryBefore)) partnerId = null;
+  if (partnerId && partnerId !== id) {
+    const partnerBefore = anchors.find((a) => a.id === partnerId);
+    if (partnerBefore && !isPairOppositeEnabled(partnerBefore)) partnerId = null;
+  }
 
   let primaryPoint = point;
   // On-axis points: clamp position to the centerline when symmetry is on.

@@ -1,9 +1,9 @@
 # Guitloft
 
 A browser-based, parametric editor for electric guitar designs — headed or
-headless. Three inspired starting silhouettes ship out of the box (Tele, Strat,
-Flying V families — original outlines, not traced trademarked production
-shapes). Built with React + TypeScript + Vite, SVG for all drawing/interaction,
+headless. Starting silhouettes ship grouped as Classic / V / Superstrat
+(T-style, LP, S-style, V, and pointed variants — original outlines, not
+traced production shapes). Built with React + TypeScript + Vite, SVG for all drawing/interaction,
 Zustand for state, and Vitest for geometry tests. No canvas, no backend.
 
 This is a **working editor foundation** for a future build-ready SVG/CAD-style
@@ -18,7 +18,7 @@ src/
     bodyEngine.ts      Continuity modes (smooth/tangent/corner) → Bezier handles
     bodyModel.ts       Template + params → anchors; preserves manual edits
     bodyFeatures.ts    Semantic feature ids shared across templates
-    templates/         Tele / Strat / Flying-V inspired presets
+    templates/         T-style / LP / S-style / V / pointed presets
     frets.ts           Equal-temperament fret math + true multiscale fan
     neckPlacement.ts   Places neck-local geometry into body space
     headstock.ts       Headstock silhouettes + tuner layouts
@@ -51,7 +51,7 @@ src/
 - Parametric body templates with persistent manual Bézier edits
 - Multiscale (fanned) frets with independent bass/treble scale lengths
 - Scale-locked bridge: moving the neck joint keeps nut↔bridge distance
-- Bridge types: hardtail, TOM, Floyd Rose, Strat tremolo
+- Bridge types: hardtail, TOM, double-lock, sync tremolo
 - Headstock types: headless, paddle, 6-inline, 3×3, pointy — with tuner layouts
 - Optional string overlay, reference image tracing, construction view
 - JSON save/load + SVG export (clean / blueprint / fabrication)

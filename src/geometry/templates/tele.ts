@@ -267,7 +267,7 @@ const TELE_HARDWARE: HardwareState = {
 
 export const TELE_TEMPLATE: BodyTemplate = {
   id: 'tele',
-  name: 'Tele-inspired',
+  name: 'T-style',
   family: 'classic',
   description: 'Traced compact single-cut: rounded upper bout, modest horn, shallow waist, broad lower bout.',
   defaultParams: DEFAULT_PARAMS,

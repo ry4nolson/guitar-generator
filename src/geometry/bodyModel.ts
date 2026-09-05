@@ -19,8 +19,10 @@ export function computeParametricAnchors(template: BodyTemplate, params: Record<
   }
 
   const leanDeg = params.forwardLean ?? 0;
+  const pairOpposite = template.pairOppositeByDefault === true;
   return built.map((a) => ({
     ...a,
+    pairOpposite,
     position: applyForwardLean(a.position, leanDeg, pivot),
     handleIn: applyForwardLean(a.handleIn, leanDeg, pivot),
     handleOut: applyForwardLean(a.handleOut, leanDeg, pivot),
@@ -45,6 +47,14 @@ export function recomputeAnchorsPreservingEdits(
     if (prior && (prior.manuallyEdited || prior.locked)) {
       return prior;
     }
+    if (prior) {
+      return {
+        ...freshAnchor,
+        locked: prior.locked,
+        mirrorHandles: prior.mirrorHandles,
+        pairOpposite: prior.pairOpposite,
+      };
+    }
     return freshAnchor;
   });
 }
@@ -58,7 +68,11 @@ export function resetAnchor(
 ): BodyAnchor[] {
   const fresh = computeParametricAnchors(template, params);
   const freshAnchor = fresh.find((a) => a.id === id)!;
-  return existing.map((a) => (a.id === id ? { ...freshAnchor, locked: a.locked, mirrorHandles: a.mirrorHandles } : a));
+  return existing.map((a) =>
+    a.id === id
+      ? { ...freshAnchor, locked: a.locked, mirrorHandles: a.mirrorHandles, pairOpposite: a.pairOpposite }
+      : a,
+  );
 }
 
 /**
@@ -78,6 +92,6 @@ export function resetFeature(
     if (a.featureId !== featureId) return a;
     const freshAnchor = freshById.get(a.id);
     if (!freshAnchor) return a;
-    return { ...freshAnchor, locked: a.locked, mirrorHandles: a.mirrorHandles };
+    return { ...freshAnchor, locked: a.locked, mirrorHandles: a.mirrorHandles, pairOpposite: a.pairOpposite };
   });
 }

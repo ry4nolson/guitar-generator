@@ -80,7 +80,7 @@ import {
 } from '../geometry/scaleLock';
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
-import { editOutlineWithSymmetry } from '../geometry/symmetricEdit';
+import { editOutlineWithSymmetry, findCenterlinePartnerId } from '../geometry/symmetricEdit';
 import type { ReferenceOverlaysDocument } from './referenceOverlay';
 import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR, DEFAULT_HEADSTOCK_COLOR } from '../geometry/color';
 
@@ -310,6 +310,7 @@ interface StoreState extends DesignDocument {
   moveAnchorPoint: (id: BodyAnchorId, part: 'position' | 'handleIn' | 'handleOut', point: Point) => void;
   moveFeatureAnchors: (anchorIds: BodyAnchorId[], dx: number, dy: number) => void;
   toggleMirrorHandles: (id: BodyAnchorId) => void;
+  togglePairOpposite: (id: BodyAnchorId) => void;
   nudgeAnchorPoint: (id: BodyAnchorId, dx: number, dy: number) => void;
   toggleAnchorLock: (id: BodyAnchorId) => void;
   resetAnchorPoint: (id: BodyAnchorId) => void;
@@ -577,6 +578,19 @@ export const useDesignStore = create<StoreState>((set, get) => ({
 
   toggleMirrorHandles: (id) => {
     const bodyAnchors = get().bodyAnchors.map((a) => (a.id === id ? { ...a, mirrorHandles: !a.mirrorHandles } : a));
+    set({ bodyAnchors });
+    get().autosave();
+  },
+
+  togglePairOpposite: (id) => {
+    const anchors = get().bodyAnchors;
+    const self = anchors.find((a) => a.id === id);
+    if (!self) return;
+    const next = self.pairOpposite === false;
+    const partnerId = findCenterlinePartnerId(anchors, id);
+    const ids = new Set<string>([id]);
+    if (partnerId && partnerId !== id) ids.add(partnerId);
+    const bodyAnchors = anchors.map((a) => (ids.has(a.id) ? { ...a, pairOpposite: next } : a));
     set({ bodyAnchors });
     get().autosave();
   },

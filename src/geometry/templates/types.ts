@@ -53,4 +53,9 @@ export interface BodyTemplate {
   defaultHardware: HardwareState;
   /** Family-appropriate electronics/bridge/headstock applied on template switch. */
   presets?: TemplatePresets;
+  /**
+   * When true, fresh anchors pair across the centerline (Flying V, King V).
+   * Asymmetric bodies default to independent points.
+   */
+  pairOppositeByDefault?: boolean;
 }

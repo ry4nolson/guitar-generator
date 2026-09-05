@@ -363,6 +363,17 @@ describe('template switching', () => {
     expect(s.bridgeSettings.type).toBe('tele-ashtray');
     expect(s.pickupSettings.bridge).toBe('single-coil');
 
+    useDesignStore.getState().setTemplate('les-paul');
+    s = useDesignStore.getState();
+    expect(s.pickupSettings).toEqual({ neck: 'humbucker', middle: 'none', bridge: 'humbucker' });
+    expect(s.hardware.pickups[1].visible).toBe(false);
+    expect(s.controlSettings).toMatchObject({ volumes: 2, tones: 2, selector: 'toggle' });
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.bridgeSettings.type).toBe('tom');
+    expect(s.headstockSettings.type).toBe('3x3');
+    expect(s.headstockSettings.tunerLayout).toBe('3x3');
+    expect(s.hardware.tuners.length).toBe(6);
+
     useDesignStore.getState().setTemplate('flying-v');
     s = useDesignStore.getState();
     expect(s.pickupSettings).toEqual({ neck: 'humbucker', middle: 'none', bridge: 'humbucker' });

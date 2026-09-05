@@ -236,13 +236,14 @@ const V_CONTROLS = { volumes: 2, tones: 1, selector: 'toggle' } as const;
 
 export const FLYING_V_TEMPLATE: BodyTemplate = {
   id: 'flying-v',
-  name: 'Flying-V-inspired',
+  name: 'V',
   family: 'v',
   description: "Straight-edged wings with '58-style proportions: 424 mm tip-to-tip, rounded tips, shoulders and crotch.",
   defaultParams: DEFAULT_PARAMS,
   paramMeta: PARAM_META,
   buildAnchorSpecs,
   defaultNeckParams: V_NECK,
+  pairOppositeByDefault: true,
   presets: {
     pickups: V_PICKUPS,
     controls: V_CONTROLS,

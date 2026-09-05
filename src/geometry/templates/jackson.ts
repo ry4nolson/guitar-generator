@@ -138,6 +138,7 @@ function jacksonTemplate(opts: {
   controls?: Pick<ControlSettings, 'volumes' | 'tones' | 'selector'>;
   selectorOverride?: { position: Point; rotation: number };
   controlOverrides?: Point[];
+  pairOppositeByDefault?: boolean;
 }): BodyTemplate {
   const neck = opts.bridgeType === 'floyd-rose' ? { ...METAL_NECK, neckInset: 70 } : METAL_NECK;
   const controls = opts.controls ?? V_CONTROLS;
@@ -150,6 +151,7 @@ function jacksonTemplate(opts: {
     paramMeta: tracedParamMeta(opts.body.anchors.length),
     buildAnchorSpecs: (params) => buildTracedSpecs(opts.body, params),
     defaultNeckParams: neck,
+    pairOppositeByDefault: opts.pairOppositeByDefault,
     presets: {
       pickups: HH,
       controls,
@@ -172,8 +174,8 @@ function jacksonTemplate(opts: {
 
 export const SOLOIST_TEMPLATE = jacksonTemplate({
   id: 'soloist',
-  name: 'Soloist-inspired',
-  description: 'Traced superstrat: long bass horn, deep treble cutaway, flat tail, Floyd + two humbuckers.',
+  name: 'Super-S',
+  description: 'Traced superstrat: long bass horn, deep treble cutaway, flat tail, double-lock + two humbuckers.',
   body: SOLOIST,
   headstockType: '6-inline',
   bridgeType: 'floyd-rose',
@@ -187,7 +189,7 @@ export const SOLOIST_TEMPLATE = jacksonTemplate({
 
 export const KELLY_TEMPLATE = jacksonTemplate({
   id: 'kelly',
-  name: 'Kelly-inspired',
+  name: 'Offset V',
   description: 'Traced offset V: long bass wing, hooked treble horn, sharp crotch.',
   body: KELLY,
   family: 'v',
@@ -203,7 +205,7 @@ export const KELLY_TEMPLATE = jacksonTemplate({
 
 export const RHOADS_TEMPLATE = jacksonTemplate({
   id: 'rhoads',
-  name: 'Rhoads-inspired',
+  name: 'Long V',
   description: 'Traced offset V: extra-long bass wing, shorter treble wing, deep crotch.',
   body: RHOADS,
   family: 'v',
@@ -219,8 +221,9 @@ export const RHOADS_TEMPLATE = jacksonTemplate({
 
 export const KING_V_TEMPLATE = jacksonTemplate({
   id: 'king-v',
-  name: 'King-V-inspired',
+  name: 'Sym V',
   description: 'Traced symmetrical pointed V: sharp tips, deep crotch, straight wings.',
+  pairOppositeByDefault: true,
   body: KING_V,
   family: 'v',
   headstockType: 'pointy',
@@ -235,8 +238,8 @@ export const KING_V_TEMPLATE = jacksonTemplate({
 
 export const WARRIOR_TEMPLATE = jacksonTemplate({
   id: 'warrior',
-  name: 'Warrior-inspired',
-  description: 'Traced explorer-like: hooked bass wing, pointed treble horn, notched tail.',
+  name: 'Hooked',
+  description: 'Traced hooked bass wing, pointed treble horn, notched tail.',
   body: WARRIOR,
   headstockType: 'pointy',
   bridgeType: 'tom',

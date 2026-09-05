@@ -4,6 +4,7 @@ import { downloadJson, deserializeDocument } from '../export/jsonPersistence';
 import { buildSvgDocument, downloadSvg } from '../export/svgExport';
 import { useReferenceOverlayContext } from '../state/ReferenceOverlayContext';
 import { SplitMenu } from './chrome/SplitMenu';
+import { BodyPickerButton } from './chrome/TemplatePicker';
 import {
   IconExport,
   IconLoad,
@@ -81,6 +82,12 @@ export function Toolbar() {
           <IconMark />
           Guitloft
         </span>
+      </div>
+
+      <span className="toolbar-divider" />
+
+      <div className="toolbar-group">
+        <BodyPickerButton />
       </div>
 
       <span className="toolbar-divider" />

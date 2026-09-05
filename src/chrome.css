@@ -60,22 +60,14 @@
 }
 
 .body-picker-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px !important;
-  border-radius: 10px !important;
-  background: var(--dock-bg) !important;
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--panel-border) !important;
-  color: var(--text);
+  max-width: 220px;
+  padding-left: 6px !important;
   text-align: left;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
 .body-picker-svg {
-  width: 64px;
-  height: 40px;
+  width: 40px;
+  height: 22px;
   flex-shrink: 0;
   display: flex;
 }
@@ -85,26 +77,13 @@
   height: 100%;
 }
 
-.body-picker-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
 .body-picker-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1.15;
-}
-
-.body-picker-hint {
-  font-size: 10.5px;
-  color: var(--muted);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .finish-dock {
@@ -200,7 +179,7 @@
 }
 
 .gallery-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 30;
   display: flex;
@@ -311,10 +290,6 @@
 @media (max-width: 900px) {
   .canvas-identity {
     max-width: calc(100% - 20px);
-  }
-
-  .body-picker-hint {
-    display: none;
   }
 
   .view-hud button {

@@ -6,6 +6,8 @@ import {
   type SymAnchor,
 } from '../src/geometry/symmetricEdit';
 import { useDesignStore } from '../src/state/store';
+import { BODY_TEMPLATES, getBodyTemplate } from '../src/geometry/templates';
+import { computeParametricAnchors } from '../src/geometry/bodyModel';
 
 function anchor(
   id: string,
@@ -87,6 +89,17 @@ describe('symmetricEdit geometry', () => {
     expect(next.find((a) => a.id === 'treble')!.position).toEqual({ x: 100, y: -40 });
     expect(next.find((a) => a.id === 'bass')!.position).toEqual({ x: 120, y: 55 });
   });
+
+  it('does not move the partner when either point has pairOpposite disabled', () => {
+    const unpaired = anchors.map((a) => (a.id === 'bass' ? { ...a, pairOpposite: false } : a));
+    const next = editOutlineWithSymmetry(unpaired, 'bass', 'position', { x: 120, y: 55 }, true);
+    expect(next.find((a) => a.id === 'bass')!.position).toEqual({ x: 120, y: 55 });
+    expect(next.find((a) => a.id === 'treble')!.position).toEqual({ x: 100, y: -40 });
+
+    const fromPartner = editOutlineWithSymmetry(unpaired, 'treble', 'position', { x: 90, y: -30 }, true);
+    expect(fromPartner.find((a) => a.id === 'treble')!.position).toEqual({ x: 90, y: -30 });
+    expect(fromPartner.find((a) => a.id === 'bass')!.position).toEqual({ x: 100, y: 40 });
+  });
 });
 
 describe('symmetric editing in the store', () => {
@@ -122,6 +135,51 @@ describe('symmetric editing in the store', () => {
     // Sanity: partner actually changed
     expect(partner.position.y).not.toBeCloseTo(beforePartner.position.y, 5);
     void join;
+  });
+
+  it('ships unpaired body points except on the symmetrical V templates', () => {
+    const paired = new Set(['flying-v', 'king-v']);
+    for (const t of BODY_TEMPLATES) {
+      const anchors = computeParametricAnchors(t, t.defaultParams);
+      const expectPaired = paired.has(t.id);
+      expect(t.pairOppositeByDefault === true, t.id).toBe(expectPaired);
+      expect(
+        anchors.every((a) => a.pairOpposite === expectPaired),
+        t.id,
+      ).toBe(true);
+    }
+  });
+
+  it('lets a default Tele shoulder move without dragging the opposite side', () => {
+    const bass = useDesignStore.getState().bodyAnchors.find((a) => a.id === 'upperHornShoulder')!;
+    const treble = useDesignStore.getState().bodyAnchors.find((a) => a.id === 'lowerHornShoulder')!;
+    expect(bass.pairOpposite).toBe(false);
+    const beforeTreble = { ...treble.position };
+    useDesignStore.getState().moveAnchorPoint(bass.id, 'position', { x: bass.position.x + 12, y: bass.position.y + 8 });
+    expect(useDesignStore.getState().bodyAnchors.find((a) => a.id === treble.id)!.position).toEqual(beforeTreble);
+  });
+
+  it('still pairs King V wings until the user unchecks Pair with opposite side', () => {
+    useDesignStore.getState().setTemplate('king-v');
+    const king = getBodyTemplate('king-v');
+    const ids = computeParametricAnchors(king, king.defaultParams)
+      .filter((a) => Math.abs(a.position.y) > 20)
+      .map((a) => a.id);
+    const bass = ids.find((id) => {
+      const a = useDesignStore.getState().bodyAnchors.find((x) => x.id === id)!;
+      return a.position.y > 0;
+    })!;
+    const partnerId = findCenterlinePartnerId(useDesignStore.getState().bodyAnchors, bass);
+    expect(partnerId).toBeTruthy();
+    expect(useDesignStore.getState().bodyAnchors.find((a) => a.id === bass)!.pairOpposite).toBe(true);
+
+    const before = useDesignStore.getState().bodyAnchors.find((a) => a.id === partnerId)!.position;
+    const primary = useDesignStore.getState().bodyAnchors.find((a) => a.id === bass)!;
+    useDesignStore.getState().moveAnchorPoint(bass, 'position', { x: primary.position.x + 6, y: primary.position.y + 10 });
+    const moved = useDesignStore.getState().bodyAnchors.find((a) => a.id === bass)!;
+    const after = useDesignStore.getState().bodyAnchors.find((a) => a.id === partnerId)!;
+    expect(after.position.y).not.toBeCloseTo(before.y, 5);
+    expect(after.position.y).toBeCloseTo(-moved.position.y, 3);
   });
 
   it('can disable symmetric editing', () => {

@@ -91,9 +91,22 @@ describe('preset electronics match the body family', () => {
     useDesignStore.getState().resetToDefaults();
   });
 
+  it('LP is 2V/2T with the toggle on the bass upper bout', () => {
+    useDesignStore.getState().setTemplate('les-paul');
+    const s = useDesignStore.getState();
+    expect(s.controlSettings.volumes).toBe(2);
+    expect(s.controlSettings.tones).toBe(2);
+    expect(s.controlSettings.selector).toBe('toggle');
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.hardware.selector.y).toBeGreaterThan(40);
+    expect(s.bridgeSettings.type).toBe('tom');
+    expect(s.headstockSettings.type).toBe('3x3');
+  });
+
   it('Tele and Strat default to 22 frets so the last fret meets the cutaway', () => {
     expect(getBodyTemplate('tele').defaultNeckParams.fretCount).toBe(22);
     expect(getBodyTemplate('strat').defaultNeckParams.fretCount).toBe(22);
+    expect(getBodyTemplate('les-paul').defaultNeckParams.fretCount).toBe(22);
     useDesignStore.getState().setTemplate('tele');
     expect(useDesignStore.getState().neckParams.fretCount).toBe(22);
     useDesignStore.getState().resetToDefaults();

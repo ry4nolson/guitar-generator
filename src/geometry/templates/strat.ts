@@ -268,7 +268,7 @@ const STRAT_NECK = { ...DEFAULT_NECK_PARAMS, neckInset: 70, neckLength: 466 };
 
 export const STRAT_TEMPLATE: BodyTemplate = {
   id: 'strat',
-  name: 'Strat-inspired',
+  name: 'S-style',
   family: 'classic',
   description: 'Traced offset double cutaway: long bass horn, deep treble cutaway, sculpted waist, flowing lower bout.',
   defaultParams: DEFAULT_PARAMS,

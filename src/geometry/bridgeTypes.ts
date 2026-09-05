@@ -68,24 +68,24 @@ export const BRIDGE_TYPE_META: {
   {
     id: 'tele-ashtray',
     label: 'Ashtray',
-    description: 'Vintage Tele chrome plate with a slanted pickup window, raised rim, and string-through holes.',
+    description: 'Vintage chrome plate with a slanted pickup window, raised rim, and string-through holes.',
     defaultSpacing: 52.5,
   },
   {
     id: 'tom',
-    label: 'Tune-o-matic',
+    label: 'TOM',
     description: 'Arched TOM bridge on two posts with a separate stopbar tailpiece.',
     defaultSpacing: 51.5,
   },
   {
     id: 'floyd-rose',
-    label: 'Floyd Rose',
+    label: 'Double-lock',
     description: 'Double-locking tremolo with fine tuners and locking saddles.',
     defaultSpacing: 53,
   },
   {
     id: 'strat-tremolo',
-    label: 'Strat tremolo',
+    label: 'Sync tremolo',
     description: 'Synchronized tremolo plate with six screws and stamped saddles.',
     defaultSpacing: 52.5,
   },
@@ -93,7 +93,7 @@ export const BRIDGE_TYPE_META: {
 
 export const NUT_TYPE_META: { id: NutType; label: string; description: string }[] = [
   { id: 'standard', label: 'Standard', description: 'Bone / synthetic nut with one slot per string.' },
-  { id: 'locking', label: 'Locking', description: 'Floyd-style locking nut with clamp screws.' },
+  { id: 'locking', label: 'Locking', description: 'Clamp-screw locking nut (pairs with a double-lock bridge).' },
   { id: 'compensated', label: 'Compensated', description: 'Staggered slot positions for improved intonation.' },
 ];
 

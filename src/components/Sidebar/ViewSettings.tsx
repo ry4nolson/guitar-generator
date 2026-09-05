@@ -69,8 +69,9 @@ export function ViewSettings() {
         <input type="checkbox" checked={settings.showDebugOverlay} onChange={toggleDebugOverlay} />
       </label>
       <p className="muted">
-        Scroll = zoom at cursor · middle-click or space+drag = pan · Fit (F) / Reset View (0) · Esc clears
-        selection · Delete resets a manual override (with confirm).
+        Pinch or mouse-wheel = zoom · two-finger scroll or right-drag = pan · space+drag /
+        middle-click = pan · Fit (F) / Reset View (0) · Esc clears selection · Delete resets a
+        manual override (with confirm).
       </p>
     </section>
   );

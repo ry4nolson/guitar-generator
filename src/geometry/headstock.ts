@@ -56,6 +56,7 @@ export interface HeadstockAnchor {
   locked: boolean;
   manuallyEdited: boolean;
   mirrorHandles: boolean;
+  pairOpposite?: boolean;
 }
 
 export const NUT_BASS_ID = 'nutBass';
@@ -119,9 +120,9 @@ export const HEADSTOCK_TYPE_META: {
   },
   {
     id: 'paddle',
-    label: 'Strat',
+    label: 'Paddle',
     description:
-      'Fender Strat-style: angled straight tuner edge, bulb tip swelling to the treble side, scoop and bump below. Drag free points to reshape.',
+      'Angled straight tuner edge, bulb tip swelling to the treble side, scoop and bump below. Drag free points to reshape.',
     defaultTunerLayout: '6-inline',
     defaultTipClearance: 0.13,
     defaultNutClearance: 0.22,
@@ -129,9 +130,9 @@ export const HEADSTOCK_TYPE_META: {
   },
   {
     id: 'tele',
-    label: 'Tele',
+    label: 'Slim',
     description:
-      'Fender Tele-style: slimmer head with a hooked tip and gentler treble scoop. Drag free points to reshape.',
+      'Slimmer head with a hooked tip and gentler treble scoop. Drag free points to reshape.',
     defaultTunerLayout: '6-inline',
     defaultTipClearance: 0.12,
     defaultNutClearance: 0.17,
@@ -151,7 +152,7 @@ export const HEADSTOCK_TYPE_META: {
     id: '3x3',
     label: 'Open book',
     description:
-      'Gibson-style 3×3: flared trapezoid, sharp ear tips, two crown humps meeting at a centre notch. Drag free points to reshape.',
+      'Flared trapezoid, sharp ear tips, two crown humps meeting at a centre notch. Drag free points to reshape.',
     defaultTunerLayout: '3x3',
     defaultTipClearance: 0.24,
     defaultNutClearance: 0.12,
