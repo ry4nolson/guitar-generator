@@ -4,7 +4,15 @@
 import { PICKUP_SLOTS } from '../../geometry/pickups';
 import type { SelectedPoint } from '../../state/store';
 
-export type InspectorStation = 'shape' | 'neck' | 'head' | 'bridge' | 'pickups' | 'trace' | 'stage';
+export type InspectorStation =
+  | 'shape'
+  | 'neck'
+  | 'head'
+  | 'bridge'
+  | 'pickups'
+  | 'trace'
+  | 'stage'
+  | 'settings';
 
 /** Which inspector station owns a selection, or null if none. */
 export function stationFromSelection(selected: SelectedPoint): InspectorStation | null {

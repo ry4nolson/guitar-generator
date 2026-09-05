@@ -344,7 +344,7 @@ describe('template switching', () => {
   it('preserves unit preference across template switches', () => {
     useDesignStore.getState().setUnit('in');
     useDesignStore.getState().setTemplate('strat');
-    expect(useDesignStore.getState().settings.unit).toBe('in');
+    expect(useDesignStore.getState().appSettings.unit).toBe('in');
   });
 
   it('applies family presets: Strat gets 3 single coils, 5-way, tremolo; V gets 2 humbuckers, toggle, TOM, 3×3', () => {

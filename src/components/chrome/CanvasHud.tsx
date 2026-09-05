@@ -9,7 +9,7 @@ const VIEWS: { key: ViewMode; label: string }[] = [
 ];
 
 export function ViewModeHud() {
-  const view = useDesignStore((s) => s.settings.view);
+  const view = useDesignStore((s) => s.appSettings.view);
   const setView = useDesignStore((s) => s.setView);
 
   return (

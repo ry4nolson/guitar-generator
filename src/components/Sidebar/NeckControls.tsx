@@ -5,7 +5,7 @@ import { ParamSlider } from './ParamSlider';
 export function NeckControls() {
   const params = useDesignStore((s) => s.neckParams);
   const setParam = useDesignStore((s) => s.setNeckParam);
-  const unit = useDesignStore((s) => s.settings.unit);
+  const unit = useDesignStore((s) => s.appSettings.unit);
 
   return (
     <section className="sidebar-section">

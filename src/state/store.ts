@@ -1,7 +1,8 @@
 // Central Zustand store. This is the single source of truth for the entire
 // design: active template id + its params + persisted anchor geometry, neck
-// params, hardware layout, layer visibility/lock, view/unit/theme prefs, and
-// undo/redo history.
+// params, hardware layout, layer visibility/lock, finish colors, and
+// undo/redo history. Editor chrome (theme, units, grid, view) lives in
+// `appSettings` and is persisted separately — Reset all does not touch it.
 //
 // IMPORTANT product rule: controls never regenerate the design from scratch.
 // Body anchors are persisted state (`bodyAnchors`); changing a body param
@@ -94,20 +95,20 @@ import {
 } from '../geometry/editLimits';
 import type { ReferenceOverlaysDocument } from './referenceOverlay';
 import { DEFAULT_BODY_COLOR, DEFAULT_FRETBOARD_COLOR, DEFAULT_HEADSTOCK_COLOR } from '../geometry/color';
+import {
+  DEFAULT_APP_SETTINGS,
+  loadAppSettings,
+  persistAppSettings,
+  type AppSettings,
+} from './appSettings';
+
+export type { AppSettings } from './appSettings';
+export { DEFAULT_APP_SETTINGS, APP_SETTINGS_KEY } from './appSettings';
 
 export { DESIGN_DOCUMENT_VERSION };
 
-export interface EditorSettings {
-  unit: Unit;
-  theme: Theme;
-  view: ViewMode;
-  gridSize: number;
-  gridSnapEnabled: boolean;
-  showPointsAndHandles: boolean;
-  /** Debug overlay: anchor names, feature ownership, tangent vectors, continuity mode. */
-  showDebugOverlay: boolean;
-  /** Padding (mm) kept around the design's bounding box when fitting the canvas to the viewport. */
-  canvasPadding: number;
+/** Guitar finish — part of the saved design, reset with Reset all. */
+export interface FinishSettings {
   /** Top-view body fill (CSS hex). */
   bodyColor: string;
   /** Fretboard fill (CSS hex). */
@@ -120,12 +121,13 @@ export interface EditorSettings {
   neckOpacity: number;
   /** Headstock fill opacity (0–1). Useful when tracing over a reference image. */
   headstockOpacity: number;
-  /**
-   * When true, dragging a body/headstock outline point or handle also moves
-   * its mirror across the string centerline (y = 0).
-   */
-  symmetricEditing: boolean;
 }
+
+/**
+ * Saved JSON may still embed editor chrome prefs from older builds.
+ * Runtime chrome lives in `appSettings`; only finish fields are written back.
+ */
+export type EditorSettings = FinishSettings & Partial<AppSettings>;
 
 export {
   DEFAULT_BODY_COLOR,
@@ -136,23 +138,36 @@ export const DEFAULT_BODY_OPACITY = 1;
 export const DEFAULT_NECK_OPACITY = 1;
 export const DEFAULT_HEADSTOCK_OPACITY = 1;
 
-const DEFAULT_SETTINGS: EditorSettings = {
-  unit: 'mm',
-  theme: 'dark',
-  view: 'top',
-  gridSize: 5,
-  gridSnapEnabled: false,
-  showPointsAndHandles: true,
-  showDebugOverlay: false,
-  canvasPadding: 40,
+const DEFAULT_FINISH_SETTINGS: FinishSettings = {
   bodyColor: DEFAULT_BODY_COLOR,
   fretboardColor: DEFAULT_FRETBOARD_COLOR,
   headstockColor: DEFAULT_HEADSTOCK_COLOR,
   bodyOpacity: DEFAULT_BODY_OPACITY,
   neckOpacity: DEFAULT_NECK_OPACITY,
   headstockOpacity: DEFAULT_HEADSTOCK_OPACITY,
-  symmetricEditing: true,
 };
+
+function finishSettingsFrom(settings: Partial<EditorSettings> | undefined): FinishSettings {
+  return {
+    bodyColor: typeof settings?.bodyColor === 'string' ? settings.bodyColor : DEFAULT_FINISH_SETTINGS.bodyColor,
+    fretboardColor:
+      typeof settings?.fretboardColor === 'string' ? settings.fretboardColor : DEFAULT_FINISH_SETTINGS.fretboardColor,
+    headstockColor:
+      typeof settings?.headstockColor === 'string' ? settings.headstockColor : DEFAULT_FINISH_SETTINGS.headstockColor,
+    bodyOpacity:
+      typeof settings?.bodyOpacity === 'number' && Number.isFinite(settings.bodyOpacity)
+        ? settings.bodyOpacity
+        : DEFAULT_FINISH_SETTINGS.bodyOpacity,
+    neckOpacity:
+      typeof settings?.neckOpacity === 'number' && Number.isFinite(settings.neckOpacity)
+        ? settings.neckOpacity
+        : DEFAULT_FINISH_SETTINGS.neckOpacity,
+    headstockOpacity:
+      typeof settings?.headstockOpacity === 'number' && Number.isFinite(settings.headstockOpacity)
+        ? settings.headstockOpacity
+        : DEFAULT_FINISH_SETTINGS.headstockOpacity,
+  };
+}
 
 /** Bump this whenever DesignDocument's shape changes in a way old files can't be read as-is. */
 // DESIGN_DOCUMENT_VERSION is defined in export/migrateDocument.ts and re-exported above.
@@ -231,7 +246,7 @@ function defaultDocument(): DesignDocument {
     headstockAnchors,
     pickupSettings: { ...(template.presets?.pickups ?? DEFAULT_PICKUP_SETTINGS) },
     controlSettings: { ...DEFAULT_CONTROL_SETTINGS, ...template.presets?.controls },
-    settings: { ...DEFAULT_SETTINGS },
+    settings: { ...DEFAULT_FINISH_SETTINGS },
     layers: defaultLayers(),
   };
 }
@@ -354,6 +369,8 @@ export type SelectedPoint =
   | null;
 
 interface StoreState extends DesignDocument {
+  /** Editor chrome — persisted separately, not part of the guitar document. */
+  appSettings: AppSettings;
   past: HistoryEntry[];
   future: HistoryEntry[];
   selected: SelectedPoint;
@@ -444,16 +461,28 @@ interface StoreState extends DesignDocument {
   undo: () => void;
   redo: () => void;
   resetToDefaults: () => void;
+  /** Restore editor chrome prefs to defaults (tests / factory reset). Reset all does not call this. */
+  resetAppSettings: () => void;
   loadDocument: (doc: DesignDocument) => void;
   autosave: () => void;
 }
 
-function loadAutosave(): DesignDocument | null {
+function readAutosaveRaw(): Record<string, unknown> | null {
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY) ?? localStorage.getItem(LEGACY_AUTOSAVE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (!parsed.bodyParams || !parsed.bodyAnchors || !parsed.templateId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function loadAutosave(): DesignDocument | null {
+  try {
+    const parsed = readAutosaveRaw();
+    if (!parsed) return null;
     const migrated = migrateDesignDocument(parsed);
     return migrated as unknown as DesignDocument;
   } catch {
@@ -461,8 +490,24 @@ function loadAutosave(): DesignDocument | null {
   }
 }
 
+const initialAutosaveRaw = readAutosaveRaw();
+const initialDocument = loadAutosave() ?? defaultDocument();
+const initialAppSettings = loadAppSettings(initialAutosaveRaw?.settings);
+
+function patchAppSettings(
+  set: (partial: { appSettings: AppSettings }) => void,
+  get: () => Pick<StoreState, 'appSettings'>,
+  patch: Partial<AppSettings>,
+) {
+  const appSettings = { ...get().appSettings, ...patch };
+  set({ appSettings });
+  persistAppSettings(appSettings);
+}
+
 export const useDesignStore = create<StoreState>((set, get) => ({
-  ...(loadAutosave() ?? defaultDocument()),
+  ...initialDocument,
+  settings: finishSettingsFrom(initialDocument.settings),
+  appSettings: initialAppSettings,
   past: [],
   future: [],
   selected: null,
@@ -609,7 +654,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         id,
         part,
         point,
-        get().settings.symmetricEditing,
+        get().appSettings.symmetricEditing,
       ),
     );
     // Neck joint x drives heel placement — keep bridge/nut assembly locked to scale
@@ -966,7 +1011,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         id,
         part,
         localPoint,
-        get().settings.symmetricEditing,
+        get().appSettings.symmetricEditing,
       ),
     );
     const hardware = withRelayoutTuners(
@@ -1214,10 +1259,10 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     get().autosave();
   },
 
-  setUnit: (unit) => set((s) => ({ settings: { ...s.settings, unit } })),
-  setTheme: (theme) => set((s) => ({ settings: { ...s.settings, theme } })),
-  setView: (view) => set((s) => ({ settings: { ...s.settings, view } })),
-  setGridSize: (gridSize) => set((s) => ({ settings: { ...s.settings, gridSize } })),
+  setUnit: (unit) => patchAppSettings(set, get, { unit }),
+  setTheme: (theme) => patchAppSettings(set, get, { theme }),
+  setView: (view) => patchAppSettings(set, get, { view }),
+  setGridSize: (gridSize) => patchAppSettings(set, get, { gridSize }),
   setBodyColor: (bodyColor) => {
     set((s) => ({ settings: { ...s.settings, bodyColor } }));
     get().autosave();
@@ -1245,13 +1290,14 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     set((s) => ({ settings: { ...s.settings, headstockOpacity } }));
     get().autosave();
   },
-  toggleGridSnap: () => set((s) => ({ settings: { ...s.settings, gridSnapEnabled: !s.settings.gridSnapEnabled } })),
+  toggleGridSnap: () => patchAppSettings(set, get, { gridSnapEnabled: !get().appSettings.gridSnapEnabled }),
   toggleShowPoints: () =>
-    set((s) => ({ settings: { ...s.settings, showPointsAndHandles: !s.settings.showPointsAndHandles } })),
+    patchAppSettings(set, get, { showPointsAndHandles: !get().appSettings.showPointsAndHandles }),
   toggleSymmetricEditing: () =>
-    set((s) => ({ settings: { ...s.settings, symmetricEditing: !s.settings.symmetricEditing } })),
-  toggleDebugOverlay: () => set((s) => ({ settings: { ...s.settings, showDebugOverlay: !s.settings.showDebugOverlay } })),
-  setCanvasPadding: (mm) => set((s) => ({ settings: { ...s.settings, canvasPadding: mm } })),
+    patchAppSettings(set, get, { symmetricEditing: !get().appSettings.symmetricEditing }),
+  toggleDebugOverlay: () =>
+    patchAppSettings(set, get, { showDebugOverlay: !get().appSettings.showDebugOverlay }),
+  setCanvasPadding: (mm) => patchAppSettings(set, get, { canvasPadding: mm }),
 
   beginHistoryGesture: () => {
     historyGestureActive = true;
@@ -1297,15 +1343,28 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   resetToDefaults: () => {
     const before = snapshotOf(get());
     const doc = defaultDocument();
-    set({ ...doc, past: pushPast(get().past, before), future: [] });
+    const { appSettings } = get();
+    set({ ...doc, appSettings, past: pushPast(get().past, before), future: [] });
     get().autosave();
+  },
+
+  resetAppSettings: () => {
+    persistAppSettings(DEFAULT_APP_SETTINGS);
+    set({ appSettings: { ...DEFAULT_APP_SETTINGS } });
   },
 
   loadDocument: (doc) => {
     const migrated = migrateDesignDocument({ ...doc }) as unknown as DesignDocument;
     // Keep base64 overlays out of the Zustand snapshot / autosave.
     const { referenceOverlays: _overlays, ...rest } = migrated;
-    set({ ...rest, past: [], future: [] });
+    const { appSettings } = get();
+    set({
+      ...rest,
+      settings: finishSettingsFrom(rest.settings),
+      appSettings,
+      past: [],
+      future: [],
+    });
     get().autosave();
   },
 

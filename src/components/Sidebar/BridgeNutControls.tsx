@@ -19,7 +19,7 @@ export function BridgeNutControls({ section = 'all' }: { section?: 'all' | 'brid
   const setNutSetting = useDesignStore((s) => s.setNutSetting);
   const showStrings = useDesignStore((s) => s.layers.strings?.visible ?? false);
   const setShowStrings = useDesignStore((s) => s.setShowStrings);
-  const unit = useDesignStore((s) => s.settings.unit);
+  const unit = useDesignStore((s) => s.appSettings.unit);
   const stringCount = bridge.stringCount ?? 6;
   const showBridge = section === 'all' || section === 'bridge';
   const showNut = section === 'all' || section === 'nut';

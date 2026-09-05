@@ -108,7 +108,7 @@ describe('symmetric editing in the store', () => {
   });
 
   it('defaults to symmetric editing on', () => {
-    expect(useDesignStore.getState().settings.symmetricEditing).toBe(true);
+    expect(useDesignStore.getState().appSettings.symmetricEditing).toBe(true);
   });
 
   it('mirrors a free headstock point across the neck centerline', () => {
@@ -184,7 +184,7 @@ describe('symmetric editing in the store', () => {
 
   it('can disable symmetric editing', () => {
     useDesignStore.getState().toggleSymmetricEditing();
-    expect(useDesignStore.getState().settings.symmetricEditing).toBe(false);
+    expect(useDesignStore.getState().appSettings.symmetricEditing).toBe(false);
     const free = useDesignStore.getState().headstockAnchors.find((a) => !a.locked && a.position.y > 5)!;
     const partnerId = findCenterlinePartnerId(useDesignStore.getState().headstockAnchors, free.id)!;
     const beforeY = useDesignStore.getState().headstockAnchors.find((a) => a.id === partnerId)!.position.y;

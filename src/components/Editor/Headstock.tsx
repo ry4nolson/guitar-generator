@@ -81,7 +81,7 @@ export function TunersFront({ stageRef }: { stageRef: React.RefObject<SVGGElemen
   const move = useDesignStore((s) => s.moveHardware);
   const select = useDesignStore((s) => s.select);
   const selected = useDesignStore((s) => s.selected);
-  const settings = useDesignStore((s) => s.settings);
+  const settings = useDesignStore((s) => s.appSettings);
 
   if (!show) return null;
 

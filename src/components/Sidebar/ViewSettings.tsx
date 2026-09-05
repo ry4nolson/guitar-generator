@@ -1,7 +1,7 @@
 import { useDesignStore } from '../../state/store';
 
 export function ViewSettings() {
-  const settings = useDesignStore((s) => s.settings);
+  const settings = useDesignStore((s) => s.appSettings);
   const setUnit = useDesignStore((s) => s.setUnit);
   const setGridSize = useDesignStore((s) => s.setGridSize);
   const toggleGridSnap = useDesignStore((s) => s.toggleGridSnap);

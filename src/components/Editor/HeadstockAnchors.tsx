@@ -8,11 +8,11 @@ import { useNeckGeometry } from '../../hooks/useNeckGeometry';
 /** Draggable headstock outline points — nut corners stay locked. */
 export function HeadstockAnchors({ stageRef }: { stageRef: React.RefObject<SVGGElement | null> }) {
   const anchors = useDesignStore((s) => s.headstockAnchors);
-  const showPoints = useDesignStore((s) => s.settings.showPointsAndHandles);
+  const showPoints = useDesignStore((s) => s.appSettings.showPointsAndHandles);
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const move = useDesignStore((s) => s.moveHeadstockAnchor);
-  const settings = useDesignStore((s) => s.settings);
+  const settings = useDesignStore((s) => s.appSettings);
   const headstockType = useDesignStore((s) => s.headstockSettings.type);
   const { neckParams, joinPoint } = useNeckGeometry();
 

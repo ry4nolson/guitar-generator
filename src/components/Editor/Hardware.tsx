@@ -30,7 +30,7 @@ function DraggablePart({
   const move = useDesignStore((s) => s.moveHardware);
   const select = useDesignStore((s) => s.select);
   const selected = useDesignStore((s) => s.selected);
-  const settings = useDesignStore((s) => s.settings);
+  const settings = useDesignStore((s) => s.appSettings);
   const isSelected = selected?.kind === 'hardware' && selected.name === name && selected.index === index;
 
   const drag = useSvgDrag(stageRef, (p) => {

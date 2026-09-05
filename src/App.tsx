@@ -11,7 +11,7 @@ import './App.css';
 import './chrome.css';
 
 export default function App() {
-  const theme = useDesignStore((s) => s.settings.theme);
+  const theme = useDesignStore((s) => s.appSettings.theme);
   const bodyColor = useDesignStore((s) => s.settings.bodyColor) || DEFAULT_BODY_COLOR;
   const fretboardColor = useDesignStore((s) => s.settings.fretboardColor) || DEFAULT_FRETBOARD_COLOR;
   const headstockColor = useDesignStore((s) => s.settings.headstockColor) || DEFAULT_HEADSTOCK_COLOR;

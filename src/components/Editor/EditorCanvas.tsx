@@ -39,10 +39,10 @@ export function EditorCanvas() {
   const bodyAnchors = useDesignStore((s) => s.bodyAnchors);
   const hardware = useDesignStore((s) => s.hardware);
   const bridgeSettings = useDesignStore((s) => s.bridgeSettings);
-  const view = useDesignStore((s) => s.settings.view);
-  const gridSize = useDesignStore((s) => s.settings.gridSize);
-  const canvasPadding = useDesignStore((s) => s.settings.canvasPadding);
-  const showDebugOverlay = useDesignStore((s) => s.settings.showDebugOverlay);
+  const view = useDesignStore((s) => s.appSettings.view);
+  const gridSize = useDesignStore((s) => s.appSettings.gridSize);
+  const canvasPadding = useDesignStore((s) => s.appSettings.canvasPadding);
+  const showDebugOverlay = useDesignStore((s) => s.appSettings.showDebugOverlay);
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const templateId = useDesignStore((s) => s.templateId);

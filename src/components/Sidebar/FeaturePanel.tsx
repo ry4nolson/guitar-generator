@@ -17,7 +17,7 @@ export function FeaturePanel() {
   const templateId = useDesignStore((s) => s.templateId);
   const params = useDesignStore((s) => s.bodyParams);
   const setParam = useDesignStore((s) => s.setBodyParam);
-  const unit = useDesignStore((s) => s.settings.unit);
+  const unit = useDesignStore((s) => s.appSettings.unit);
   const selected = useDesignStore((s) => s.selected);
   const resetFeature = useDesignStore((s) => s.resetFeature);
   const [advancedOpen, setAdvancedOpen] = useState(false);

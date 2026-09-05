@@ -5,7 +5,7 @@ export function PointInspector() {
   const selected = useDesignStore((s) => s.selected);
   const anchors = useDesignStore((s) => s.bodyAnchors);
   const headstockAnchors = useDesignStore((s) => s.headstockAnchors);
-  const symmetricEditing = useDesignStore((s) => s.settings.symmetricEditing);
+  const symmetricEditing = useDesignStore((s) => s.appSettings.symmetricEditing);
   const toggleLock = useDesignStore((s) => s.toggleAnchorLock);
   const toggleMirror = useDesignStore((s) => s.toggleMirrorHandles);
   const togglePairOpposite = useDesignStore((s) => s.togglePairOpposite);

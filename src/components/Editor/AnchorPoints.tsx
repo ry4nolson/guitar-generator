@@ -19,7 +19,7 @@ function AnchorControl({
   const selected = useDesignStore((s) => s.selected);
   const select = useDesignStore((s) => s.select);
   const move = useDesignStore((s) => s.moveAnchorPoint);
-  const settings = useDesignStore((s) => s.settings);
+  const settings = useDesignStore((s) => s.appSettings);
 
   const isSelected = (part: 'position' | 'handleIn' | 'handleOut') =>
     selected?.kind === 'anchor' && selected.id === id && selected.part === part;
@@ -124,7 +124,7 @@ export function AnchorPoints({
   onlyIds?: BodyAnchorId[];
 }) {
   const anchors = useDesignStore((s) => s.bodyAnchors);
-  const showPoints = useDesignStore((s) => s.settings.showPointsAndHandles);
+  const showPoints = useDesignStore((s) => s.appSettings.showPointsAndHandles);
   const selected = useDesignStore((s) => s.selected);
   if (!showPoints) return null;
 

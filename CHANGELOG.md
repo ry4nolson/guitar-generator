@@ -2,8 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- Editor settings (units, grid, snap, points, symmetry, debug overlay) live on
+  their own inspector tab with a gear icon. Stage is layers and warnings only.
+
 ### Fixed
 
+- Reset all no longer flips dark/light mode (or other editor chrome). Theme,
+  units, grid, view, and symmetric-editing prefs now live in their own
+  localStorage key, separate from the guitar document. Finish colors still
+  reset with the design.
 - Headstock outline points, body points, and hardware can no longer be
   dragged (or typed) off into space. A yanked tip used to stretch the
   head into a long triangle; auto-laid tuners then spaced themselves

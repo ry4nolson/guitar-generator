@@ -18,7 +18,7 @@ import {
 } from './chrome/icons';
 
 export function Toolbar() {
-  const theme = useDesignStore((s) => s.settings.theme);
+  const theme = useDesignStore((s) => s.appSettings.theme);
   const setTheme = useDesignStore((s) => s.setTheme);
   const undo = useDesignStore((s) => s.undo);
   const redo = useDesignStore((s) => s.redo);
@@ -114,7 +114,7 @@ export function Toolbar() {
             {
               label: 'Reset all',
               onClick: () =>
-                confirm('Reset the WHOLE design (body, neck, hardware, settings) to defaults?') &&
+                confirm('Reset the WHOLE design (body, neck, hardware, finish) to defaults?') &&
                 resetToDefaults(),
             },
           ]}

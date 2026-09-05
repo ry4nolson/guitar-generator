@@ -22,7 +22,7 @@ export function HeadstockControls() {
   const resetTunerPositions = useDesignStore((s) => s.resetTunerPositions);
   const insertAnchor = useDesignStore((s) => s.insertHeadstockAnchor);
   const removeAnchor = useDesignStore((s) => s.removeHeadstockAnchor);
-  const unit = useDesignStore((s) => s.settings.unit);
+  const unit = useDesignStore((s) => s.appSettings.unit);
   const headed = hs.type !== 'headless';
 
   const selectedId = selected?.kind === 'headstock' ? selected.id : null;

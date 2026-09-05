@@ -16,6 +16,7 @@ import { scrollSidebarToId, sidebarTargetId, stationFromSelection, type Inspecto
 import { useConstraintViolations } from '../../hooks/useConstraintViolations';
 import {
   IconBridge,
+  IconGear,
   IconHead,
   IconNeck,
   IconPickup,
@@ -31,7 +32,8 @@ const STATIONS: { id: InspectorStation; label: string; hint: string; icon: typeo
   { id: 'bridge', label: 'Bridge', hint: 'Type, spacing, and saddles', icon: IconBridge },
   { id: 'pickups', label: 'Pickups', hint: 'Pickups, knobs, and selector', icon: IconPickup },
   { id: 'trace', label: 'Trace', hint: 'Reference photo overlay', icon: IconTrace },
-  { id: 'stage', label: 'Stage', hint: 'Layers, grid, and warnings', icon: IconStage },
+  { id: 'stage', label: 'Stage', hint: 'Layers and warnings', icon: IconStage },
+  { id: 'settings', label: 'Settings', hint: 'Units, grid, and editor prefs', icon: IconGear },
 ];
 
 export function Sidebar() {
@@ -93,10 +95,10 @@ export function Sidebar() {
           {activeStation === 'stage' && (
             <>
               <LayersPanel />
-              <ViewSettings />
               <ConstraintsPanel />
             </>
           )}
+          {activeStation === 'settings' && <ViewSettings />}
         </div>
       </div>
       <nav className="station-rail" aria-label="Inspector stations">
