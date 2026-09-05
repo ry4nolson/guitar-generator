@@ -327,7 +327,7 @@ function clampTunerBodyPoint(
 }
 
 const HISTORY_LIMIT = 100;
-const AUTOSAVE_KEY = 'guitloft-autosave-v12';
+export const AUTOSAVE_KEY = 'guitloft-autosave-v12';
 const LEGACY_AUTOSAVE_KEY = 'fretforge-autosave-v12';
 
 interface HistoryEntry {

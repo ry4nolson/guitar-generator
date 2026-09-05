@@ -69,6 +69,10 @@ export function ViewSettings() {
         <input type="checkbox" checked={settings.showDebugOverlay} onChange={toggleDebugOverlay} />
       </label>
       <p className="muted">
+        Your guitar is saved automatically in this browser. Download JSON from the toolbar
+        if you want a backup file.
+      </p>
+      <p className="muted">
         Pinch or mouse-wheel = zoom · two-finger scroll or right-drag = pan · space+drag /
         middle-click = pan · Fit (F) / Reset View (0) · Esc clears selection · Delete resets a
         manual override (with confirm).

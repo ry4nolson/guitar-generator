@@ -4,6 +4,7 @@ import { downloadJson, deserializeDocument } from '../export/jsonPersistence';
 import { buildSvgDocument, downloadSvg } from '../export/svgExport';
 import { useReferenceOverlayContext } from '../state/ReferenceOverlayContext';
 import { SplitMenu } from './chrome/SplitMenu';
+import { ChangelogButton } from './chrome/ChangelogPanel';
 import { BodyPickerButton } from './chrome/TemplatePicker';
 import {
   IconExport,
@@ -124,7 +125,7 @@ export function Toolbar() {
       <span className="toolbar-divider" />
 
       <div className="toolbar-group">
-        <button type="button" className="toolbar-btn" onClick={handleSave} title="Save JSON">
+        <button type="button" className="toolbar-btn" onClick={handleSave} title="Download JSON (also auto-saved in this browser)">
           <IconSave />
           <span className="toolbar-btn-label">Save</span>
         </button>
@@ -148,6 +149,7 @@ export function Toolbar() {
       <span className="toolbar-spacer" />
 
       <div className="toolbar-group">
+        <ChangelogButton />
         <button
           type="button"
           className="toolbar-btn icon-only"

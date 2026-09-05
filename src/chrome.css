@@ -34,6 +34,109 @@
   background: var(--btn-bg);
 }
 
+.changelog-wrap {
+  position: relative;
+}
+
+.changelog-wrap .toolbar-btn {
+  position: relative;
+}
+
+.changelog-panel {
+  position: fixed;
+  z-index: 45;
+  width: min(420px, calc(100vw - 16px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.changelog-header {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.changelog-header h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.changelog-header .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.changelog-body {
+  padding: 10px 14px 16px;
+  overflow: auto;
+}
+
+.changelog-version {
+  margin-bottom: 16px;
+}
+
+.changelog-version:last-child {
+  margin-bottom: 0;
+}
+
+.changelog-version h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.changelog-intro {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.changelog-kind {
+  margin: 10px 0 6px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.changelog-kind.kind-added {
+  color: var(--accent);
+}
+
+.changelog-group ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.changelog-group li {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.changelog-group li:last-child {
+  margin-bottom: 0;
+}
+
+.changelog-group a {
+  color: var(--accent);
+}
+
+.changelog-new {
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
 .editor-stage {
   position: relative;
   width: 100%;

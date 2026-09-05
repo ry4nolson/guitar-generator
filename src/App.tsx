@@ -7,10 +7,12 @@ import { TemplateGalleryOverlay } from './components/chrome/TemplatePicker';
 import { ReferenceImageDropZone } from './components/Editor/ReferenceImageDropZone';
 import { ReferenceOverlayProvider } from './state/ReferenceOverlayContext';
 import { darkenHex } from './geometry/color';
+import { useFlushAutosave } from './hooks/useFlushAutosave';
 import './App.css';
 import './chrome.css';
 
 export default function App() {
+  useFlushAutosave();
   const theme = useDesignStore((s) => s.appSettings.theme);
   const bodyColor = useDesignStore((s) => s.settings.bodyColor) || DEFAULT_BODY_COLOR;
   const fretboardColor = useDesignStore((s) => s.settings.fretboardColor) || DEFAULT_FRETBOARD_COLOR;

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+
+- **What's new** panel next to the theme toggle, with a badge for unseen
+  features. Opening it remembers what you've read in this browser.
+- Guitar designs are saved automatically in this browser (and flushed when
+  you hide or close the tab). Download JSON from the toolbar for a portable
+  backup.
+
 ### Changed
 
 - Editor settings (units, grid, snap, points, symmetry, debug overlay) live on

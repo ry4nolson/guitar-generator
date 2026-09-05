@@ -208,3 +208,12 @@ export function IconStage(p: IconProps) {
     </Svg>
   );
 }
+
+export function IconChangelog(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M7 3.5h8.5A2.5 2.5 0 0 1 18 6v14.5l-2.4-1.5-2.6 1.5-2.6-1.5-2.4 1.5V6A2.5 2.5 0 0 1 7 3.5z" />
+      <path d="M9.5 8.5h6M9.5 12h6M9.5 15.5h4" />
+    </Svg>
+  );
+}
