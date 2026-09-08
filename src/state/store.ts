@@ -84,6 +84,7 @@ import {
 import { translateHardware, relayoutHardwareToScale } from './scaleLockSync';
 import { migrateDesignDocument, DESIGN_DOCUMENT_VERSION } from '../export/migrateDocument';
 import { editOutlineWithSymmetry, findCenterlinePartnerId } from '../geometry/symmetricEdit';
+import { shouldAcceptOutlineEdit } from '../geometry/outlineIntegrity';
 import {
   clampBodyAnchors,
   clampHardwareBodyPoint,
@@ -629,24 +630,24 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   },
 
   setBodyParam: (key, value) => {
-    const hist = historyForMutation(get);
     const template = getBodyTemplate(get().templateId);
     const meta = template.paramMeta.find((m) => m.key === key);
     const nextValue = meta ? clampNumber(value, meta.min, meta.max) : value;
     const bodyParams = { ...get().bodyParams, [key]: nextValue };
     const oldJoinX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = recomputeAnchorsPreservingEdits(template, bodyParams, get().bodyAnchors);
+    if (!shouldAcceptOutlineEdit(get().bodyAnchors, bodyAnchors)) return;
     const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - oldJoinX;
     const hardware = dx !== 0 ? translateHardware(get().hardware, dx, 0) : get().hardware;
     // Lowering anchorCount can remove the currently selected anchor.
     const sel = get().selected;
     const selected = sel?.kind === 'anchor' && !bodyAnchors.some((a) => a.id === sel.id) ? null : sel;
+    const hist = historyForMutation(get);
     set(hist ? { bodyParams, bodyAnchors, hardware, selected, ...hist } : { bodyParams, bodyAnchors, hardware, selected });
     get().autosave();
   },
 
   moveAnchorPoint: (id, part, point) => {
-    const hist = historyForMutation(get);
     const prevJointX = neckJoinPoint(get().bodyAnchors, get().neckParams).x;
     const bodyAnchors = clampBodyAnchors(
       editOutlineWithSymmetry(
@@ -657,6 +658,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         get().appSettings.symmetricEditing,
       ),
     );
+    if (!shouldAcceptOutlineEdit(get().bodyAnchors, bodyAnchors)) return;
     // Neck joint x drives heel placement — keep bridge/nut assembly locked to scale
     // by translating hardware with the joint (y only reshapes the body pocket).
     let hardware = get().hardware;
@@ -664,12 +666,12 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       const dx = neckJoinPoint(bodyAnchors, get().neckParams).x - prevJointX;
       if (dx !== 0) hardware = translateHardware(hardware, dx, 0);
     }
+    const hist = historyForMutation(get);
     set(hist ? { bodyAnchors, hardware, ...hist } : { bodyAnchors, hardware });
     get().autosave();
   },
 
   moveFeatureAnchors: (anchorIds, dx, dy) => {
-    const hist = historyForMutation(get);
     const idSet = new Set(anchorIds);
     const movesJoint = idSet.has('neckJoint');
     const bodyAnchors = clampBodyAnchors(
@@ -684,7 +686,9 @@ export const useDesignStore = create<StoreState>((set, get) => ({
         };
       }),
     );
+    if (!shouldAcceptOutlineEdit(get().bodyAnchors, bodyAnchors)) return;
     const hardware = movesJoint ? translateHardware(get().hardware, dx, 0) : get().hardware;
+    const hist = historyForMutation(get);
     set(hist ? { bodyAnchors, hardware, ...hist } : { bodyAnchors, hardware });
     get().autosave();
   },

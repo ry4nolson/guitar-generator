@@ -1,17 +1,17 @@
 // Extensible constraint engine.
 //
-// Each constraint is a pure function (DesignDocument) -> Violation[]. This is
-// intentionally advisory-only for the MVP (surfaced in the sidebar as
-// warnings) rather than a hard solver that auto-corrects geometry — adding
-// auto-correction later only means changing how violations are consumed, not
-// this module's shape. New constraints register by pushing onto
-// `CONSTRAINTS`; nothing else needs to change.
+// Each constraint is a pure function (DesignDocument) -> Violation[]. Most
+// checks are advisory (sidebar warnings). Self-intersecting body outlines are
+// blocked at edit time in outlineIntegrity.ts; the matching constraint here
+// still flags already-knotted loaded/autosaved files. New constraints register
+// by pushing onto `CONSTRAINTS`; nothing else needs to change.
 
 import type { DesignDocument } from '../state/store';
 import { saddleClusterCenter } from './strings';
 import { neckJoinPoint } from './scaleLock';
 import { PICKUP_DIMENSIONS, PICKUP_SLOTS, PICKUP_SLOT_LABELS, controlKnobLabel } from './pickups';
 import type { PickupType } from './pickups';
+import { outlineSelfIntersects } from './outlineIntegrity';
 
 export interface ConstraintViolation {
   constraintId: string;
@@ -152,7 +152,19 @@ function hardwareCollisionDetection(doc: DesignDocument): ConstraintViolation[] 
   return violations;
 }
 
+function bodyOutlineIsSimple(doc: DesignDocument): ConstraintViolation[] {
+  if (!outlineSelfIntersects(doc.bodyAnchors)) return [];
+  return [
+    {
+      constraintId: 'body-self-intersection',
+      severity: 'error',
+      message: 'Body outline crosses itself. A guitar body has to stay a single simple loop.',
+    },
+  ];
+}
+
 export const CONSTRAINTS: Constraint[] = [
+  { id: 'body-self-intersection', label: 'Body outline does not cross itself', evaluate: bodyOutlineIsSimple },
   { id: 'bridge-centerline', label: 'Bridge remains on centerline', evaluate: bridgeOnCenterline },
   { id: 'min-wood-neck-pocket', label: 'Minimum wood around neck pocket', evaluate: minimumWoodAroundNeckPocket },
   { id: 'pickup-neck-overlap', label: 'Pickup cannot overlap neck pocket', evaluate: pickupDoesNotOverlapNeckPocket },

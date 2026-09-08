@@ -1,6 +1,6 @@
 import { useConstraintViolations } from '../../hooks/useConstraintViolations';
 
-/** Live, advisory constraint violations (not blocking) — see geometry/constraints.ts. */
+/** Live constraint violations. Body self-intersection is blocked on edit; this list still flags loaded/tangled outlines and hardware fit. */
 export function ConstraintsPanel() {
   const violations = useConstraintViolations();
 

@@ -5,55 +5,8 @@ import { buildSvgDocument } from '../src/export/svgExport';
 import { evaluateConstraints } from '../src/geometry/constraints';
 import { useDesignStore, DESIGN_DOCUMENT_VERSION } from '../src/state/store';
 import { defaultLayers } from '../src/state/layers';
-import type { BodyAnchor, Point } from '../src/geometry/types';
-
-function sampleClosedPath(anchors: BodyAnchor[], perSegment = 40): Point[] {
-  const n = anchors.length;
-  const samples: Point[] = [];
-  for (let i = 0; i < n; i++) {
-    const cur = anchors[i];
-    const next = anchors[(i + 1) % n];
-    for (let s = 0; s < perSegment; s++) {
-      const t = s / perSegment;
-      const mt = 1 - t;
-      samples.push({
-        x:
-          mt ** 3 * cur.position.x +
-          3 * mt ** 2 * t * cur.handleOut.x +
-          3 * mt * t ** 2 * next.handleIn.x +
-          t ** 3 * next.position.x,
-        y:
-          mt ** 3 * cur.position.y +
-          3 * mt ** 2 * t * cur.handleOut.y +
-          3 * mt * t ** 2 * next.handleIn.y +
-          t ** 3 * next.position.y,
-      });
-    }
-  }
-  samples.push(samples[0]);
-  return samples;
-}
-
-function segmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-  const d1 = { x: p2.x - p1.x, y: p2.y - p1.y };
-  const d2 = { x: p4.x - p3.x, y: p4.y - p3.y };
-  const denom = d1.x * d2.y - d1.y * d2.x;
-  if (Math.abs(denom) < 1e-9) return false;
-  const t = ((p3.x - p1.x) * d2.y - (p3.y - p1.y) * d2.x) / denom;
-  const u = ((p3.x - p1.x) * d1.y - (p3.y - p1.y) * d1.x) / denom;
-  return t > 0 && t < 1 && u > 0 && u < 1;
-}
-
-function hasSelfIntersection(samples: Point[]): boolean {
-  const m = samples.length - 1;
-  for (let i = 0; i < m; i++) {
-    for (let j = i + 2; j < m; j++) {
-      if (i === 0 && j === m - 1) continue;
-      if (segmentsIntersect(samples[i], samples[i + 1], samples[j], samples[j + 1])) return true;
-    }
-  }
-  return false;
-}
+import type { Point } from '../src/geometry/types';
+import { outlineSelfIntersects, sampleClosedOutline } from '../src/geometry/outlineIntegrity';
 
 function turningAngleDeg(samples: Point[]): number[] {
   const angles: number[] = [];
@@ -73,7 +26,7 @@ describe('every template preset', () => {
   for (const template of BODY_TEMPLATES) {
     describe(template.name, () => {
       const anchors = computeParametricAnchors(template, template.defaultParams);
-      const samples = sampleClosedPath(anchors);
+      const samples = sampleClosedOutline(anchors);
 
       it('creates a closed path (first and last sample coincide)', () => {
         expect(samples[0].x).toBeCloseTo(samples[samples.length - 1].x, 6);
@@ -90,7 +43,7 @@ describe('every template preset', () => {
       });
 
       it('does not self-intersect at default params', () => {
-        expect(hasSelfIntersection(samples)).toBe(false);
+        expect(outlineSelfIntersects(anchors)).toBe(false);
       });
 
       it("'smooth'-continuity anchors have approximately aligned (collinear, opposite) in/out tangents", () => {
@@ -187,7 +140,7 @@ describe('Flying-V corner continuity', () => {
 
   it('places the rounded tips exactly at the declared length / half-width', () => {
     const { bodyLength, bodyWidth } = template.defaultParams;
-    const samples = sampleClosedPath(anchors, 200);
+    const samples = sampleClosedOutline(anchors, 200);
     const maxX = Math.max(...samples.map((p) => p.x));
     const maxY = Math.max(...samples.map((p) => p.y));
     expect(maxX).toBeCloseTo(bodyLength, 0);
@@ -274,8 +227,7 @@ describe('self-intersection across a range of parameter values (not just default
       for (const bodyLength of [template.defaultParams.bodyLength * 0.9, template.defaultParams.bodyLength * 1.08]) {
         for (const bodyWidth of [template.defaultParams.bodyWidth * 0.9, template.defaultParams.bodyWidth * 1.08]) {
           const anchors = computeParametricAnchors(template, { ...template.defaultParams, bodyLength, bodyWidth });
-          const samples = sampleClosedPath(anchors);
-          expect(hasSelfIntersection(samples)).toBe(false);
+          expect(outlineSelfIntersects(anchors)).toBe(false);
         }
       }
     });
@@ -289,7 +241,7 @@ describe('turning angle sanity (no accidental hidden cusps in smooth-only templa
   for (const template of smoothTemplates) {
     it(`${template.name}: max turning angle stays well below a sharp-corner threshold`, () => {
       const anchors = computeParametricAnchors(template, template.defaultParams);
-      const samples = sampleClosedPath(anchors, 60);
+      const samples = sampleClosedOutline(anchors, 60);
       const angles = turningAngleDeg(samples);
       expect(Math.max(...angles)).toBeLessThan(25);
     });
@@ -358,6 +310,16 @@ describe('template switching', () => {
     expect(s.bridgeSettings.type).toBe('strat-tremolo');
     expect(s.headstockSettings.type).toBe('paddle');
 
+    useDesignStore.getState().setTemplate('jazzmaster');
+    s = useDesignStore.getState();
+    expect(s.pickupSettings).toEqual({ neck: 'single-coil', middle: 'none', bridge: 'single-coil' });
+    expect(s.hardware.pickups[1].visible).toBe(false);
+    expect(s.controlSettings).toMatchObject({ volumes: 2, tones: 2, selector: 'blade-3' });
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.hardware.selector.y).toBeLessThan(-40);
+    expect(s.bridgeSettings.type).toBe('strat-tremolo');
+    expect(s.headstockSettings.type).toBe('paddle');
+
     useDesignStore.getState().setTemplate('tele');
     s = useDesignStore.getState();
     expect(s.bridgeSettings.type).toBe('tele-ashtray');
@@ -369,6 +331,18 @@ describe('template switching', () => {
     expect(s.hardware.pickups[1].visible).toBe(false);
     expect(s.controlSettings).toMatchObject({ volumes: 2, tones: 2, selector: 'toggle' });
     expect(s.hardware.controls).toHaveLength(4);
+    expect(s.bridgeSettings.type).toBe('tom');
+    expect(s.headstockSettings.type).toBe('3x3');
+    expect(s.headstockSettings.tunerLayout).toBe('3x3');
+    expect(s.hardware.tuners.length).toBe(6);
+
+    useDesignStore.getState().setTemplate('sg');
+    s = useDesignStore.getState();
+    expect(s.pickupSettings).toEqual({ neck: 'humbucker', middle: 'none', bridge: 'humbucker' });
+    expect(s.hardware.pickups[1].visible).toBe(false);
+    expect(s.controlSettings).toMatchObject({ volumes: 2, tones: 2, selector: 'toggle' });
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.hardware.selector.y).toBeLessThan(-40);
     expect(s.bridgeSettings.type).toBe('tom');
     expect(s.headstockSettings.type).toBe('3x3');
     expect(s.headstockSettings.tunerLayout).toBe('3x3');

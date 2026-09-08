@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SG-style body outline extracted from Piemaster's "Gibson SG"
+  Openclipart #16718 (CC0 / public domain), 2008-05-16.
+  https://openclipart.org/detail/16718/gibson-sg
+
+  Body path only (original path11072). Neck, headstock, and hardware removed.
+  Scaled to a 410 × 330 mm body (classic ~16.1 in × 13 in SG). Coordinates match
+  Guitloft body space: +x toward the tail, +y bass, neck-pocket mouth near the horns.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8.00 -188.08 427.69 366.94" width="427.7mm" height="366.9mm">
+  <path fill="#7a1515" stroke="#2a2218" stroke-width="1.2" d="M 45.396,35.360 C 52.374,46.798 66.173,52.181 57.388,75.354 C 47.335,101.900 23.471,96.424 0.000,88.449 C 2.522,120.217 37.398,141.077 75.047,150.036 C 111.239,158.648 145.360,143.126 176.857,128.661 C 200.574,117.768 221.122,127.594 233.656,142.860 C 348.265,223.188 402.059,114.317 410.000,23.496 C 417.303,-74.162 404.899,-171.244 291.420,-179.964 C 269.432,-181.655 246.026,-163.849 223.015,-141.553 C 215.364,-134.132 208.051,-118.509 171.506,-140.258 C 143.130,-157.147 125.525,-160.485 103.576,-159.857 C 78.507,-159.151 53.827,-152.080 19.694,-112.439 C 35.807,-109.879 53.553,-107.325 60.985,-88.386 C 69.111,-67.697 60.300,-47.440 45.396,-35.360 Z"/>
+</svg>

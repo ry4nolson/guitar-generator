@@ -2,7 +2,7 @@
 
 A browser-based, parametric editor for electric guitar designs — headed or
 headless. Starting silhouettes ship grouped as Classic / V / Superstrat
-(T-style, LP, S-style, V, and pointed variants — original outlines, not
+(T-style, LP, SG, S-style, J-style, V, and pointed variants — original outlines, not
 traced production shapes). Built with React + TypeScript + Vite, SVG for all drawing/interaction,
 Zustand for state, and Vitest for geometry tests. No canvas, no backend.
 
@@ -18,7 +18,7 @@ src/
     bodyEngine.ts      Continuity modes (smooth/tangent/corner) → Bezier handles
     bodyModel.ts       Template + params → anchors; preserves manual edits
     bodyFeatures.ts    Semantic feature ids shared across templates
-    templates/         T-style / LP / S-style / V / pointed presets
+    templates/         T-style / LP / SG / S-style / J-style / V / pointed presets
     frets.ts           Equal-temperament fret math + true multiscale fan
     neckPlacement.ts   Places neck-local geometry into body space
     headstock.ts       Headstock silhouettes + tuner layouts

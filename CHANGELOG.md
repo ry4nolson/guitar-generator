@@ -12,6 +12,12 @@
 - Guitar designs are saved automatically in this browser (and flushed when
   you hide or close the tab). Download JSON from the toolbar for a portable
   backup.
+- **SG** Classic preset: pointed double-cut body traced from a CC0
+  Openclipart silhouette, with two humbuckers, 2V/2T + treble-horn toggle,
+  TOM, 3×3 open-book head, and a 24.75" scale.
+- **J-style** Classic preset: offset double-cut traced from a Jazzmaster
+  grid drawing (rounded lobes, no S-style horns), two singles, lead +
+  rhythm knobs, 3-way, tremolo, paddle head, 25.5" scale, and 21 frets.
 
 ### Changed
 
@@ -20,6 +26,9 @@
 
 ### Fixed
 
+- Body outline points can no longer be dragged (or typed) into a self-intersecting
+  loop. A guitar body has to stay a single simple silhouette; an already-knotted
+  saved file can still be pulled apart and shows an error in Stage.
 - Reset all no longer flips dark/light mode (or other editor chrome). Theme,
   units, grid, view, and symmetric-editing prefs now live in their own
   localStorage key, separate from the guitar document. Finish colors still
@@ -44,7 +53,7 @@
 ### Changed
 
 - Gallery and hardware labels drop trademarked model names: **T-style**,
-  **LP**, **S-style**, **V**, **Super-S**, **Offset V**, **Long V**, **Sym V**,
+  **LP**, **SG**, **S-style**, **J-style**, **V**, **Super-S**, **Offset V**, **Long V**, **Sym V**,
   **Hooked**; headstocks **Paddle** / **Slim**; bridges **TOM**, **Double-lock**,
   **Sync tremolo**. Internal template ids are unchanged so saved files still
   load.

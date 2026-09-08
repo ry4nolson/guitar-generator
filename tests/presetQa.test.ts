@@ -103,10 +103,38 @@ describe('preset electronics match the body family', () => {
     expect(s.headstockSettings.type).toBe('3x3');
   });
 
+  it('SG is 2V/2T with the toggle on the treble horn', () => {
+    useDesignStore.getState().setTemplate('sg');
+    const s = useDesignStore.getState();
+    expect(s.controlSettings.volumes).toBe(2);
+    expect(s.controlSettings.tones).toBe(2);
+    expect(s.controlSettings.selector).toBe('toggle');
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.hardware.selector.y).toBeLessThan(-40);
+    expect(s.bridgeSettings.type).toBe('tom');
+    expect(s.headstockSettings.type).toBe('3x3');
+  });
+
+  it('J-style is 2V/2T with rhythm knobs on the bass lobe and a treble blade', () => {
+    useDesignStore.getState().setTemplate('jazzmaster');
+    const s = useDesignStore.getState();
+    expect(s.controlSettings.volumes).toBe(2);
+    expect(s.controlSettings.tones).toBe(2);
+    expect(s.controlSettings.selector).toBe('blade-3');
+    expect(s.hardware.controls).toHaveLength(4);
+    expect(s.hardware.controls.some((c) => c.y > 40)).toBe(true);
+    expect(s.hardware.controls.some((c) => c.y < -40)).toBe(true);
+    expect(s.hardware.selector.y).toBeLessThan(-40);
+    expect(s.bridgeSettings.type).toBe('strat-tremolo');
+    expect(s.headstockSettings.type).toBe('paddle');
+    expect(getBodyTemplate('jazzmaster').defaultNeckParams.fretCount).toBe(21);
+  });
+
   it('Tele and Strat default to 22 frets so the last fret meets the cutaway', () => {
     expect(getBodyTemplate('tele').defaultNeckParams.fretCount).toBe(22);
     expect(getBodyTemplate('strat').defaultNeckParams.fretCount).toBe(22);
     expect(getBodyTemplate('les-paul').defaultNeckParams.fretCount).toBe(22);
+    expect(getBodyTemplate('sg').defaultNeckParams.fretCount).toBe(22);
     useDesignStore.getState().setTemplate('tele');
     expect(useDesignStore.getState().neckParams.fretCount).toBe(22);
     useDesignStore.getState().resetToDefaults();
