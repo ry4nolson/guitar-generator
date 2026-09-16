@@ -105,9 +105,12 @@ describe('edit envelopes', () => {
   });
 
   it('clamps neck params to the slider ranges', () => {
-    expect(clampNeckParam('neckLength', 900)).toBe(500);
+    expect(clampNeckParam('neckLength', 900)).toBe(700);
     expect(clampNeckParam('neckAngle', 6)).toBe(5);
-    expect(clampNeckParam('nutWidth', 10)).toBe(38);
+    expect(clampNeckParam('nutWidth', 10)).toBe(28);
+    expect(clampNeckParam('bassScale', 40 * 25.4)).toBe(40 * 25.4);
+    expect(clampNeckParam('bassScale', 1100)).toBe(40 * 25.4);
+    expect(clampNeckParam('trebleScale', 1100)).toBe(40 * 25.4);
   });
 });
 
@@ -215,6 +218,6 @@ describe('store applies the envelopes', () => {
 
   it('clamps an out-of-range neck length typed past the slider', () => {
     useDesignStore.getState().setNeckParam('neckLength', 2000);
-    expect(useDesignStore.getState().neckParams.neckLength).toBe(500);
+    expect(useDesignStore.getState().neckParams.neckLength).toBe(700);
   });
 });

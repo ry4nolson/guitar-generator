@@ -114,3 +114,18 @@ export function latestAddedItems(doc: ChangelogDoc): ChangelogItem[] {
 export function allItemIds(doc: ChangelogDoc): string[] {
   return doc.versions.flatMap((v) => v.groups.flatMap((g) => g.items.map((i) => i.id)));
 }
+
+/** Semver at the start of a `##` title (`0.6.0 — …`). Ignores Unreleased. */
+export function releasedVersionFromTitle(title: string): string | null {
+  const match = /^(\d+\.\d+\.\d+)\b/.exec(title.trim());
+  return match?.[1] ?? null;
+}
+
+/** First numbered Keep-a-Changelog heading (skips Unreleased). */
+export function latestReleasedVersion(markdown: string): string | null {
+  for (const version of parseChangelog(markdown).versions) {
+    const released = releasedVersionFromTitle(version.title);
+    if (released) return released;
+  }
+  return null;
+}

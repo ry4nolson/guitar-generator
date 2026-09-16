@@ -37,6 +37,10 @@ describe('loadAppSettings', () => {
     localStorage.removeItem(APP_SETTINGS_KEY);
   });
 
+  it('defaults to inches when nothing is stored', () => {
+    expect(loadAppSettings().unit).toBe('in');
+  });
+
   it('seeds from a legacy design settings blob when no app key exists', () => {
     const loaded = loadAppSettings({ theme: 'light', unit: 'in', bodyColor: '#112233' });
     expect(loaded.theme).toBe('light');

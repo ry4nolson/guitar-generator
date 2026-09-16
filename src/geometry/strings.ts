@@ -30,7 +30,7 @@ export function stringStrokeWidths(count: number): number[] {
   const thin = 0.6;
   const thick = 1.75; // outer bass — visible but not a rope
   return Array.from({ length: n }, (_, i) => {
-    const t = n <= 1 ? 0 : i / (n - 1);
+    const t = n <= 1 ? 1 : i / (n - 1);
     // Ease so extra low strings on 7–9 sets don't balloon past `thick`.
     const eased = t * t * 0.3 + t * 0.7;
     return Math.round((thin + (thick - thin) * eased) * 100) / 100;

@@ -13,7 +13,7 @@ export type NutType = 'standard' | 'locking' | 'compensated';
 
 export interface BridgeSettings {
   type: BridgeType;
-  /** Number of strings / saddles (6–12). */
+  /** Number of strings / saddles (1–12). */
   stringCount: number;
   /**
    * Center-to-center distance between the outer strings at the bridge, in mm.
@@ -28,21 +28,35 @@ export interface BridgeSettings {
   postSpacing: number;
 }
 
-export const MIN_STRING_COUNT = 6;
+export const MIN_STRING_COUNT = 1;
 export const MAX_STRING_COUNT = 12;
 
+/** Adjacent-string gap at the bridge, mm. Guitar ~10.5; bass ~19. */
+export const GUITAR_BRIDGE_GAP_MM = 10.5;
+export const BASS_BRIDGE_GAP_MM = 19;
+/** Adjacent-string gap at the nut, mm. Guitar ~7; bass ~11.5. */
+export const GUITAR_NUT_GAP_MM = 7;
+export const BASS_NUT_GAP_MM = 11.5;
+
+export interface StringSpacingOpts {
+  /** Wider bass gaps (P/J ~19 mm bridge, ~11.5 mm nut). */
+  bass?: boolean;
+}
+
 /** Typical outer-to-outer bridge spacing for a given string count. */
-export function suggestedBridgeSpacing(stringCount: number): number {
+export function suggestedBridgeSpacing(stringCount: number, opts?: StringSpacingOpts): number {
   const n = Math.max(2, stringCount);
-  // ~10.5 mm per adjacent gap → 52.5 for 6, 63 for 7, 73.5 for 8, …
-  return Math.round(10.5 * (n - 1) * 10) / 10;
+  const gap = opts?.bass ? BASS_BRIDGE_GAP_MM : GUITAR_BRIDGE_GAP_MM;
+  // Guitar: 52.5 for 6, 63 for 7, 73.5 for 8. Bass: 57 for 4, 76 for 5.
+  return Math.round(gap * (n - 1) * 10) / 10;
 }
 
 /** Typical outer-to-outer nut spacing for a given string count. */
-export function suggestedNutSpacing(stringCount: number): number {
+export function suggestedNutSpacing(stringCount: number, opts?: StringSpacingOpts): number {
   const n = Math.max(2, stringCount);
-  // ~7 mm per adjacent gap → 35 for 6, 42 for 7, 49 for 8, …
-  return Math.round(7 * (n - 1) * 10) / 10;
+  const gap = opts?.bass ? BASS_NUT_GAP_MM : GUITAR_NUT_GAP_MM;
+  // Guitar: 35 for 6, 42 for 7, 49 for 8. Bass: 34.5 for 4, 46 for 5.
+  return Math.round(gap * (n - 1) * 10) / 10;
 }
 
 export interface NutSettings {

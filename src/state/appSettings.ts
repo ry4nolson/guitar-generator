@@ -22,7 +22,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  unit: 'mm',
+  unit: 'in',
   theme: 'dark',
   view: 'top',
   gridSize: 5,

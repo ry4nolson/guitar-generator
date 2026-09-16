@@ -16,7 +16,7 @@ import { DEFAULT_NECK_PARAMS } from '../neckParams';
 import type { BodyTemplate, TemplateParamMeta } from './types';
 import { selectAnchorOrder, MIN_BODY_ANCHORS } from './smoothLoop';
 
-const PARAM_META: TemplateParamMeta[] = [
+export const STRAT_PARAM_META: TemplateParamMeta[] = [
   { key: 'bodyLength', label: 'Body length', min: 420, max: 500, step: 1, unit: 'mm' },
   { key: 'bodyWidth', label: 'Body width', min: 300, max: 350, step: 1, unit: 'mm' },
   { key: 'anchorCount', label: 'Anchor points', min: MIN_BODY_ANCHORS, max: 16, step: 1, unit: 'count' },
@@ -29,7 +29,7 @@ const PARAM_META: TemplateParamMeta[] = [
   { key: 'lowerHornReach', label: 'Lower horn reach', min: -20, max: 40, step: 1, unit: 'mm', featureId: 'lowerHornCutaway' },
 ];
 
-const DEFAULT_PARAMS: Record<string, number> = {
+export const STRAT_DEFAULT_PARAMS: Record<string, number> = {
   bodyLength: 463,
   bodyWidth: 324,
   anchorCount: 16,
@@ -42,15 +42,15 @@ const DEFAULT_PARAMS: Record<string, number> = {
   lowerHornReach: 0,
 };
 
-interface SeedAnchor {
+export interface StratSeedAnchor {
   position: Point;
   handleIn: Point;
   handleOut: Point;
   featureId: BodyFeatureId;
 }
 
-/** Absolute mm silhouette at DEFAULT_PARAMS body size (traced). */
-const SEED: Record<string, SeedAnchor> = {
+/** Absolute mm silhouette at STRAT_DEFAULT_PARAMS body size (traced). */
+export const STRAT_SEED: Record<string, StratSeedAnchor> = {
   neckJoint: {
     position: { x: 66.009, y: 0 },
     handleIn: { x: 66.009, y: -37.071 },
@@ -149,7 +149,7 @@ const SEED: Record<string, SeedAnchor> = {
   },
 };
 
-const FULL_ORDER = [
+export const STRAT_ANCHOR_ORDER = [
   'neckJoint',
   'upperCutawayInner',
   'upperHornTip',
@@ -171,7 +171,7 @@ const FULL_ORDER = [
 // Reduced-count survival order: 4-point skeleton, then the horns (the
 // offset double cutaway is the Strat's identity), then waist/bout refinement,
 // then shoulders and cutaway detail.
-const PRIORITY = [
+export const STRAT_ANCHOR_PRIORITY = [
   'neckJoint',
   'upperBoutApex',
   'tailPoint',
@@ -194,7 +194,7 @@ function scalePoint(p: Point, sx: number, sy: number): Point {
   return { x: p.x * sx, y: p.y * sy };
 }
 
-function seedToTangentSpec(id: string, seed: SeedAnchor, sx: number, sy: number): AnchorSpec {
+function seedToTangentSpec(id: string, seed: StratSeedAnchor, sx: number, sy: number): AnchorSpec {
   const position = scalePoint(seed.position, sx, sy);
   const handleIn = scalePoint(seed.handleIn, sx, sy);
   const handleOut = scalePoint(seed.handleOut, sx, sy);
@@ -222,19 +222,19 @@ function shiftY(spec: AnchorSpec | undefined, dy: number) {
   if (spec && dy !== 0) spec.position = { ...spec.position, y: spec.position.y + dy };
 }
 
-function buildAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
-  const L0 = DEFAULT_PARAMS.bodyLength;
-  const W0 = DEFAULT_PARAMS.bodyWidth;
+export function buildStratAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
+  const L0 = STRAT_DEFAULT_PARAMS.bodyLength;
+  const W0 = STRAT_DEFAULT_PARAMS.bodyWidth;
   const sx = params.bodyLength / L0;
   const sy = params.bodyWidth / W0;
   const L = params.bodyLength;
 
-  const order = selectAnchorOrder(FULL_ORDER, PRIORITY, params.anchorCount);
-  const specs = order.map((id) => seedToTangentSpec(id, SEED[id], sx, sy));
+  const order = selectAnchorOrder(STRAT_ANCHOR_ORDER, STRAT_ANCHOR_PRIORITY, params.anchorCount);
+  const specs = order.map((id) => seedToTangentSpec(id, STRAT_SEED[id], sx, sy));
   const byId = new Map(specs.map((s) => [s.id, s]));
 
   // Feature sliders apply as deltas from the seeded defaults (isolation-friendly).
-  const hornDx = -(params.upperHornReach - DEFAULT_PARAMS.upperHornReach) * sx;
+  const hornDx = -(params.upperHornReach - STRAT_DEFAULT_PARAMS.upperHornReach) * sx;
   shiftX(byId.get('upperHornTip'), hornDx);
   shiftX(byId.get('upperHornShoulder'), hornDx * 0.55);
   shiftX(byId.get('upperCutawayInner'), hornDx * 0.15);
@@ -242,20 +242,20 @@ function buildAnchorSpecs(params: Record<string, number>): AnchorSpec[] {
   const waist = byId.get('waistPoint');
   if (waist) {
     waist.position = {
-      x: waist.position.x + (params.waistPosition - DEFAULT_PARAMS.waistPosition) * L,
-      y: waist.position.y - (params.waistDepth - DEFAULT_PARAMS.waistDepth) * sy,
+      x: waist.position.x + (params.waistPosition - STRAT_DEFAULT_PARAMS.waistPosition) * L,
+      y: waist.position.y - (params.waistDepth - STRAT_DEFAULT_PARAMS.waistDepth) * sy,
     };
   }
 
-  const fScale = params.lowerBoutFullness / DEFAULT_PARAMS.lowerBoutFullness;
+  const fScale = params.lowerBoutFullness / STRAT_DEFAULT_PARAMS.lowerBoutFullness;
   for (const id of ['lowerBassBoutApex', 'lowerTrebleBoutApex', 'tailShoulderBass', 'tailShoulderTreble'] as const) {
     const a = byId.get(id);
     if (a) a.position = { ...a.position, y: a.position.y * fScale };
   }
 
-  shiftY(byId.get('hipContourPoint'), (params.hipCutoutDepth - DEFAULT_PARAMS.hipCutoutDepth) * sy);
+  shiftY(byId.get('hipContourPoint'), (params.hipCutoutDepth - STRAT_DEFAULT_PARAMS.hipCutoutDepth) * sy);
 
-  const lowerDx = -(params.lowerHornReach - DEFAULT_PARAMS.lowerHornReach) * sx;
+  const lowerDx = -(params.lowerHornReach - STRAT_DEFAULT_PARAMS.lowerHornReach) * sx;
   shiftX(byId.get('lowerHornTip'), lowerDx);
   shiftX(byId.get('lowerHornShoulder'), lowerDx * 0.5);
 
@@ -271,9 +271,9 @@ export const STRAT_TEMPLATE: BodyTemplate = {
   name: 'S-style',
   family: 'classic',
   description: 'Traced offset double cutaway: long bass horn, deep treble cutaway, sculpted waist, flowing lower bout.',
-  defaultParams: DEFAULT_PARAMS,
-  paramMeta: PARAM_META,
-  buildAnchorSpecs,
+  defaultParams: STRAT_DEFAULT_PARAMS,
+  paramMeta: STRAT_PARAM_META,
+  buildAnchorSpecs: buildStratAnchorSpecs,
   defaultNeckParams: STRAT_NECK,
   presets: {
     pickups: { neck: 'single-coil', middle: 'single-coil', bridge: 'single-coil' },
@@ -282,7 +282,7 @@ export const STRAT_TEMPLATE: BodyTemplate = {
     headstockType: 'paddle',
   },
   defaultHardware: buildHardwareDefaults({
-    joinX: SEED.neckJoint.position.x + STRAT_NECK.neckInset,
+    joinX: STRAT_SEED.neckJoint.position.x + STRAT_NECK.neckInset,
     neckParams: STRAT_NECK,
     bridgeType: 'strat-tremolo',
     pickupSettings: { neck: 'single-coil', middle: 'single-coil', bridge: 'single-coil' },

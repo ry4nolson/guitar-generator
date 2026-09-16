@@ -103,29 +103,33 @@ export function ChangelogButton() {
             <p className="muted">Your guitar is saved automatically in this browser.</p>
           </header>
           <div className="changelog-body">
-            {changelog.versions.map((version) => (
-              <section key={version.title} className="changelog-version">
-                <h3>{version.title}</h3>
-                {version.intro && <p className="muted changelog-intro">{version.intro}</p>}
-                {version.groups
-                  .filter((group) => VISIBLE_KINDS.has(group.kind) && group.items.length > 0)
-                  .map((group, gi) => (
-                    <div key={`${version.title}-${group.kind}-${gi}`} className="changelog-group">
-                      <h4 className={`changelog-kind kind-${group.kind.toLowerCase()}`}>{group.kind}</h4>
-                      <ul>
-                        {group.items.map((item) => (
-                          <li
-                            key={item.id}
-                            className={highlightIds.has(item.id) ? 'changelog-new' : undefined}
-                          >
-                            {renderInline(item.text)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-              </section>
-            ))}
+            {changelog.versions
+              .filter((version) =>
+                version.groups.some((group) => VISIBLE_KINDS.has(group.kind) && group.items.length > 0),
+              )
+              .map((version) => (
+                <section key={version.title} className="changelog-version">
+                  <h3>{version.title}</h3>
+                  {version.intro && <p className="muted changelog-intro">{version.intro}</p>}
+                  {version.groups
+                    .filter((group) => VISIBLE_KINDS.has(group.kind) && group.items.length > 0)
+                    .map((group, gi) => (
+                      <div key={`${version.title}-${group.kind}-${gi}`} className="changelog-group">
+                        <h4 className={`changelog-kind kind-${group.kind.toLowerCase()}`}>{group.kind}</h4>
+                        <ul>
+                          {group.items.map((item) => (
+                            <li
+                              key={item.id}
+                              className={highlightIds.has(item.id) ? 'changelog-new' : undefined}
+                            >
+                              {renderInline(item.text)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                </section>
+              ))}
           </div>
         </div>
       )}

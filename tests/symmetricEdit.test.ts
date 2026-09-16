@@ -138,7 +138,7 @@ describe('symmetric editing in the store', () => {
   });
 
   it('ships unpaired body points except on the symmetrical V templates', () => {
-    const paired = new Set(['flying-v', 'king-v']);
+    const paired = new Set(['flying-v', 'king-v', 'violin-bass']);
     for (const t of BODY_TEMPLATES) {
       const anchors = computeParametricAnchors(t, t.defaultParams);
       const expectPaired = paired.has(t.id);

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuse a push if package.json drifted from the latest numbered CHANGELOG heading.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+exec node scripts/sync-package-version.mjs --check

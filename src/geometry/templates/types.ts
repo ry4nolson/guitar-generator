@@ -19,6 +19,8 @@ export interface TemplatePresets {
   headstockType?: HeadstockType;
   /** Head dimensions for this family (applied unless the outline was hand-sculpted). */
   headstock?: Partial<Pick<HeadstockSettings, 'length' | 'tipWidth' | 'earWidth'>>;
+  /** Applied on template switch (basses ship as 4-string). */
+  stringCount?: number;
 }
 
 export interface TemplateParamMeta {
@@ -32,7 +34,7 @@ export interface TemplateParamMeta {
   featureId?: BodyFeatureId;
 }
 
-export type TemplateFamily = 'classic' | 'v' | 'superstrat';
+export type TemplateFamily = 'classic' | 'v' | 'superstrat' | 'bass';
 
 export interface BodyTemplate {
   id: string;

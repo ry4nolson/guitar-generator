@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { latestAddedItems, parseChangelog } from '../src/changelog/parseChangelog';
+import { latestAddedItems, latestReleasedVersion, parseChangelog } from '../src/changelog/parseChangelog';
+import { latestReleasedVersion as scriptLatestReleasedVersion, withPackageVersion } from '../scripts/sync-package-version.mjs';
 import {
   CHANGELOG_SEEN_KEY,
   loadSeenIds,
@@ -58,8 +59,35 @@ describe('parseChangelog', () => {
     const md = readFileSync(resolve(process.cwd(), 'CHANGELOG.md'), 'utf8');
     const doc = parseChangelog(md);
     expect(doc.versions[0].title).toBe('Unreleased');
-    expect(latestAddedItems(doc).length).toBeGreaterThan(0);
+    const added = latestAddedItems(doc).map((i) => i.text).join(' ');
+    expect(added).toContain('P-style');
+    expect(added).toContain('Violin');
+    expect(doc.versions.some((v) => v.title.startsWith('0.6.0'))).toBe(true);
     expect(doc.versions.some((v) => v.title.startsWith('0.5.0'))).toBe(true);
+  });
+});
+
+describe('package.json version follows the changelog', () => {
+  it('reads the first numbered heading, skipping Unreleased', () => {
+    expect(latestReleasedVersion(SAMPLE)).toBe('0.5.3');
+    expect(scriptLatestReleasedVersion(SAMPLE)).toBe('0.5.3');
+    expect(latestReleasedVersion('# Changelog\n\n## Unreleased\n')).toBeNull();
+  });
+
+  it('matches package.json to CHANGELOG.md', () => {
+    const md = readFileSync(resolve(process.cwd(), 'CHANGELOG.md'), 'utf8');
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
+    expect(latestReleasedVersion(md)).toBe('0.6.0');
+    expect(pkg.version).toBe(latestReleasedVersion(md));
+  });
+
+  it('rewrites package.json only when the version differs', () => {
+    const original = '{\n  "name": "guitloft",\n  "version": "0.0.0"\n}\n';
+    const bumped = withPackageVersion(original, '0.6.0');
+    expect(bumped.changed).toBe(true);
+    expect(bumped.previous).toBe('0.0.0');
+    expect(JSON.parse(bumped.text).version).toBe('0.6.0');
+    expect(withPackageVersion(bumped.text, '0.6.0').changed).toBe(false);
   });
 });
 

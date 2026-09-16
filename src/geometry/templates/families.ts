@@ -7,6 +7,7 @@ export const TEMPLATE_FAMILIES: { id: TemplateFamily; label: string }[] = [
   { id: 'classic', label: 'Classic' },
   { id: 'v', label: 'V' },
   { id: 'superstrat', label: 'Superstrat' },
+  { id: 'bass', label: 'Bass' },
 ];
 
 export function groupedTemplates(
@@ -33,6 +34,7 @@ function pickupAbbrev(pickups?: PickupSettings): string {
 export function templateHardwareHint(template: BodyTemplate): string {
   const p = template.presets;
   const parts: string[] = [];
+  if (p?.stringCount) parts.push(`${p.stringCount}-string`);
   const pick = pickupAbbrev(p?.pickups);
   if (pick) parts.push(pick);
   if (p?.bridgeType) {

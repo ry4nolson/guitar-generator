@@ -182,7 +182,7 @@ export function HeadstockControls() {
             stretched along the whole outline. Drag pegs to fine-tune — they stay on the
             headstock wood. Dragged pegs stay put when you reshape the outline; unlock them
             (or reset) to follow auto layout again. Count follows Strings under Bridge &amp;
-            nut (6–12).
+            nut (1–12).
           </p>
         </>
       )}

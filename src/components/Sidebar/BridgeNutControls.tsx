@@ -46,8 +46,8 @@ export function BridgeNutControls({ section = 'all' }: { section?: 'all' | 'brid
           <ParamSlider
             label="Bridge string spacing"
             value={bridge.stringSpacing}
-            min={48}
-            max={120}
+            min={8}
+            max={140}
             step={0.1}
             unit="mm"
             displayUnit={unit}
@@ -108,7 +108,8 @@ export function BridgeNutControls({ section = 'all' }: { section?: 'all' | 'brid
             </button>
           </div>
           <p className="muted">
-            6–12 strings. Changing count rebuilds saddles and suggests nut/bridge spacing.
+            1–12 strings — one-string cigar boxes through 4-string bass up to 12-string.
+            Changing count rebuilds saddles and suggests nut/bridge spacing.
           </p>
           <label className="row-inline checkbox">
             <span>Show strings</span>
@@ -138,8 +139,8 @@ export function BridgeNutControls({ section = 'all' }: { section?: 'all' | 'brid
           <ParamSlider
             label="Nut string spacing"
             value={nut.stringSpacing}
-            min={32}
-            max={80}
+            min={8}
+            max={90}
             step={0.1}
             unit="mm"
             displayUnit={unit}

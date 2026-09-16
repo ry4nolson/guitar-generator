@@ -47,6 +47,8 @@ export function buildHardwareDefaults(opts: {
   neckParams: NeckParams;
   /** Outer-to-outer bridge string spacing, mm. Defaults to the bridge type's spacing. */
   stringSpacing?: number;
+  /** Saddle / string count. Defaults to 6. */
+  stringCount?: number;
   /** Bridge family; sets default string spacing when `stringSpacing` is omitted. */
   bridgeType?: BridgeType;
   /** Which pickup slots are populated (drives per-slot visibility). */
@@ -64,7 +66,12 @@ export function buildHardwareDefaults(opts: {
 }): HardwareState {
   const bridgeType = opts.bridgeType ?? DEFAULT_BRIDGE_SETTINGS.type;
   const spacing = opts.stringSpacing ?? bridgeTypeMeta(bridgeType).defaultSpacing;
-  const bridgeSettings = { ...DEFAULT_BRIDGE_SETTINGS, type: bridgeType, stringSpacing: spacing };
+  const bridgeSettings = {
+    ...DEFAULT_BRIDGE_SETTINGS,
+    type: bridgeType,
+    stringCount: opts.stringCount ?? DEFAULT_BRIDGE_SETTINGS.stringCount,
+    stringSpacing: spacing,
+  };
   const placement = { joinPoint: { x: opts.joinX, y: 0 } };
   const saddles = layoutSaddlesFromScale(opts.neckParams, bridgeSettings, placement);
   const pickupSettings = opts.pickupSettings ?? DEFAULT_PICKUP_SETTINGS;

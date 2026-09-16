@@ -162,6 +162,31 @@ describe('preset electronics match the body family', () => {
     }
   });
 
+  it('P-style is 1V/1T with a middle soapbar and no selector', () => {
+    useDesignStore.getState().setTemplate('p-bass');
+    const s = useDesignStore.getState();
+    expect(s.controlSettings.volumes).toBe(1);
+    expect(s.controlSettings.tones).toBe(1);
+    expect(s.controlSettings.selector).toBe('none');
+    expect(s.hardware.controls).toHaveLength(2);
+    expect(s.pickupSettings.middle).toBe('p90');
+    expect(s.hardware.pickups[1].visible).toBe(true);
+    expect(s.hardware.pickups[0].visible).toBe(false);
+    expect(s.hardware.pickups[2].visible).toBe(false);
+  });
+
+  it('Violin is 2V/1T with neck and bridge soapbars', () => {
+    useDesignStore.getState().setTemplate('violin-bass');
+    const s = useDesignStore.getState();
+    expect(s.controlSettings.volumes).toBe(2);
+    expect(s.controlSettings.tones).toBe(1);
+    expect(s.controlSettings.selector).toBe('none');
+    expect(s.hardware.controls).toHaveLength(3);
+    expect(s.pickupSettings).toEqual({ neck: 'p90', middle: 'none', bridge: 'p90' });
+    expect(s.hardware.pickups[0].visible).toBe(true);
+    expect(s.hardware.pickups[2].visible).toBe(true);
+  });
+
   it('Strat blade sits beside the pickups, nearly parallel to the strings', () => {
     useDesignStore.getState().setTemplate('strat');
     const s = useDesignStore.getState();

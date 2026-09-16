@@ -43,6 +43,10 @@ describe('string gauges', () => {
     expect(STRING_STROKE_MM[5]).toBeLessThanOrEqual(1.85);
   });
 
+  it('produces a single fat string for a 1-string set', () => {
+    expect(stringStrokeWidths(1)).toEqual([1.75]);
+  });
+
   it('produces N gauges for multi-string sets', () => {
     expect(stringStrokeWidths(9)).toHaveLength(9);
     expect(stringStrokeWidths(9)[8]).toBeLessThanOrEqual(1.85);
@@ -55,6 +59,8 @@ describe('suggested spacing', () => {
     expect(suggestedBridgeSpacing(7)).toBeCloseTo(63, 5);
     expect(suggestedNutSpacing(6)).toBeCloseTo(35, 5);
     expect(suggestedNutSpacing(8)).toBeGreaterThan(suggestedNutSpacing(6));
+    expect(suggestedBridgeSpacing(4, { bass: true })).toBeCloseTo(57, 5);
+    expect(suggestedNutSpacing(4, { bass: true })).toBeCloseTo(34.5, 5);
   });
 });
 
@@ -143,11 +149,19 @@ describe('bridge type switching', () => {
     expect(span).toBeCloseTo(s.bridgeSettings.stringSpacing, 5);
   });
 
-  it('setStringCount clamps to 6–12', () => {
-    useDesignStore.getState().setStringCount(3);
-    expect(useDesignStore.getState().bridgeSettings.stringCount).toBe(6);
+  it('setStringCount clamps to 1–12', () => {
+    useDesignStore.getState().setStringCount(0);
+    expect(useDesignStore.getState().bridgeSettings.stringCount).toBe(1);
     useDesignStore.getState().setStringCount(99);
     expect(useDesignStore.getState().bridgeSettings.stringCount).toBe(12);
+  });
+
+  it('setStringCount(1) lays a single centerline saddle', () => {
+    useDesignStore.getState().setStringCount(1);
+    const s = useDesignStore.getState();
+    expect(s.bridgeSettings.stringCount).toBe(1);
+    expect(s.hardware.saddles).toHaveLength(1);
+    expect(s.hardware.saddles[0].y).toBeCloseTo(0, 5);
   });
 });
 

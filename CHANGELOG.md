@@ -4,6 +4,28 @@
 
 ### Added
 
+- **P-style** bass preset: S-style body stretched a little, split-P in the
+  middle, vol + tone, hardtail, paddle head, 34" scale, 4 strings.
+- **Violin** bass preset: figure-8 short-scale with C-bouts, two soapbars,
+  2V/1T, split head, 30" scale, 4 strings.
+- String count goes down to **1** (cigar box / diddley bow through 4-string
+  bass up to 12-string). Bass presets bring 19 mm bridge gaps.
+
+### Changed
+
+- Scale, nut, heel, and neck-length sliders reach bass territory (up to 40"
+  scale, wider nut/heel, longer neck). Bridge/nut spacing sliders follow.
+- Display units default to inches. Switch back to mm in editor settings.
+
+### Tests
+
+- Pre-commit bumps `package.json` to the latest numbered CHANGELOG heading
+  and stages it; pre-push refuses if they still disagree.
+
+## 0.6.0 — Classic bodies + editor chrome
+
+### Added
+
 - Open tabs notice a new Netlify deploy (polls uncached `/version.json`) and
   show an **Update** button next to What's new. Reload keeps the autosaved
   guitar.

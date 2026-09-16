@@ -359,6 +359,31 @@ describe('template switching', () => {
     expect(s.hardware.tuners.length).toBe(6);
   });
 
+  it('applies bass family presets: 4 strings, bass scale, P-style split-P, Violin soapbars', () => {
+    useDesignStore.getState().setTemplate('p-bass');
+    let s = useDesignStore.getState();
+    expect(s.bridgeSettings.stringCount).toBe(4);
+    expect(s.hardware.saddles).toHaveLength(4);
+    expect(s.hardware.tuners.length).toBe(4);
+    expect(s.neckParams.bassScale).toBe(863.6);
+    expect(s.neckParams.fretCount).toBe(20);
+    expect(s.pickupSettings).toEqual({ neck: 'none', middle: 'p90', bridge: 'none' });
+    expect(s.controlSettings).toMatchObject({ volumes: 1, tones: 1, selector: 'none' });
+    expect(s.bridgeSettings.type).toBe('hardtail');
+    expect(s.headstockSettings.type).toBe('paddle');
+    expect(s.bridgeSettings.stringSpacing).toBeCloseTo(57, 5);
+
+    useDesignStore.getState().setTemplate('violin-bass');
+    s = useDesignStore.getState();
+    expect(s.bridgeSettings.stringCount).toBe(4);
+    expect(s.neckParams.bassScale).toBe(762);
+    expect(s.neckParams.fretCount).toBe(22);
+    expect(s.pickupSettings).toEqual({ neck: 'p90', middle: 'none', bridge: 'p90' });
+    expect(s.controlSettings).toMatchObject({ volumes: 2, tones: 1, selector: 'none' });
+    expect(s.headstockSettings.type).toBe('3x3');
+    expect(s.hardware.tuners.length).toBe(4);
+  });
+
   it('applies each family head at its natural proportions unless the outline was hand-sculpted', () => {
     useDesignStore.getState().setTemplate('strat');
     let s = useDesignStore.getState();
@@ -449,13 +474,13 @@ describe('SVG export excludes reference overlays', () => {
 describe('template families', () => {
   it('assigns every template to a gallery family', () => {
     for (const t of BODY_TEMPLATES) {
-      expect(['classic', 'v', 'superstrat']).toContain(t.family);
+      expect(['classic', 'v', 'superstrat', 'bass']).toContain(t.family);
     }
   });
 
-  it('groups Classic / V / Superstrat without dropping templates', () => {
+  it('groups Classic / V / Superstrat / Bass without dropping templates', () => {
     const groups = groupedTemplates(BODY_TEMPLATES);
-    expect(groups.map((g) => g.id)).toEqual(['classic', 'v', 'superstrat']);
+    expect(groups.map((g) => g.id)).toEqual(['classic', 'v', 'superstrat', 'bass']);
     expect(groups.flatMap((g) => g.templates).length).toBe(BODY_TEMPLATES.length);
   });
 
@@ -463,5 +488,30 @@ describe('template families', () => {
     const hint = templateHardwareHint(getBodyTemplate('strat'));
     expect(hint).toContain('SSS');
     expect(hint.length).toBeGreaterThan(3);
+  });
+
+  it('builds a 4-string hardware hint for P-style', () => {
+    const hint = templateHardwareHint(getBodyTemplate('p-bass'));
+    expect(hint).toContain('4-string');
+    expect(hint).toContain('P');
+  });
+
+  it('P-style is the S-style outline stretched a little, not a cutaway morph', () => {
+    const strat = getBodyTemplate('strat');
+    const p = getBodyTemplate('p-bass');
+    const sx = p.defaultParams.bodyLength / strat.defaultParams.bodyLength;
+    const sy = p.defaultParams.bodyWidth / strat.defaultParams.bodyWidth;
+    expect(sx).toBeGreaterThan(1);
+    expect(sx).toBeLessThan(1.1);
+    expect(sy).toBeGreaterThan(1);
+    expect(sy).toBeLessThan(1.08);
+
+    const sa = computeParametricAnchors(strat, strat.defaultParams);
+    const pa = computeParametricAnchors(p, p.defaultParams);
+    expect(pa.map((a) => a.id)).toEqual(sa.map((a) => a.id));
+    for (let i = 0; i < sa.length; i++) {
+      expect(pa[i].position.x).toBeCloseTo(sa[i].position.x * sx, 4);
+      expect(pa[i].position.y).toBeCloseTo(sa[i].position.y * sy, 4);
+    }
   });
 });

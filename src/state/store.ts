@@ -27,7 +27,7 @@ import {
   resetFeature,
 } from '../geometry/bodyModel';
 import { getBodyTemplate, TELE_TEMPLATE } from '../geometry/templates';
-import type { NeckParams } from '../geometry/neckParams';
+import { isBassScale, type NeckParams } from '../geometry/neckParams';
 import { seatAshtrayBridgePickup, type HardwareState } from './hardwareDefaults';
 import { LAYER_IDS, defaultLayers, type LayerId, type LayerState } from './layers';
 import type { BodyFeatureId } from '../geometry/bodyFeatures';
@@ -402,7 +402,7 @@ interface StoreState extends DesignDocument {
   // --- bridge / nut ---
   setBridgeType: (type: BridgeType) => void;
   setBridgeSetting: <K extends keyof BridgeSettings>(key: K, value: BridgeSettings[K]) => void;
-  /** Change string count (6–12); relayouts saddles and suggests nut/bridge spacing. */
+  /** Change string count (1–12); relayouts saddles and suggests nut/bridge spacing. */
   setStringCount: (count: number) => void;
   setNutType: (type: NutType) => void;
   setNutSetting: <K extends keyof NutSettings>(key: K, value: NutSettings[K]) => void;
@@ -519,19 +519,31 @@ export const useDesignStore = create<StoreState>((set, get) => ({
     const before = snapshotOf(get());
     const template = getBodyTemplate(templateId);
     const currentNeck = get().neckParams;
-    // Preserve shared neck settings the user already dialed in; reset only
-    // template-specific body geometry + hardware placement.
+    const presets = template.presets ?? {};
+    const toBass = template.family === 'bass';
+    // Bass presets bring their own 34"/30" neck. Leaving a bass for a guitar
+    // body keeps the long scale + neck length so a P-style → Strat stays a bass.
+    const keepLongScale = !toBass && isBassScale(currentNeck.bassScale);
     const neckParams: NeckParams = {
       ...template.defaultNeckParams,
-      bassScale: currentNeck.bassScale,
-      trebleScale: currentNeck.trebleScale,
-      fretCount: currentNeck.fretCount,
-      nutWidth: currentNeck.nutWidth,
-      neutralFret: currentNeck.neutralFret,
+      ...(toBass
+        ? {}
+        : {
+            bassScale: currentNeck.bassScale,
+            trebleScale: currentNeck.trebleScale,
+            fretCount: currentNeck.fretCount,
+            nutWidth: currentNeck.nutWidth,
+            neutralFret: currentNeck.neutralFret,
+            ...(keepLongScale
+              ? { neckLength: currentNeck.neckLength, heelWidth: currentNeck.heelWidth }
+              : {}),
+          }),
     };
     const bodyAnchors = computeParametricAnchors(template, template.defaultParams);
-    const presets = template.presets ?? {};
-    const stringCount = get().bridgeSettings.stringCount ?? 6;
+    let stringCount = get().bridgeSettings.stringCount ?? 6;
+    if (presets.stringCount !== undefined) {
+      stringCount = Math.min(MAX_STRING_COUNT, Math.max(MIN_STRING_COUNT, Math.round(presets.stringCount)));
+    }
 
     // Family presets: electronics + bridge + headstock. Multi-string designs
     // keep their spacing; only 6-string snaps to the bridge type's default.
@@ -540,7 +552,20 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       ? { ...get().controlSettings, ...presets.controls }
       : get().controlSettings;
     let bridgeSettings: BridgeSettings = get().bridgeSettings;
-    if (presets.bridgeType && presets.bridgeType !== bridgeSettings.type) {
+    let nutSettings: NutSettings = get().nutSettings;
+    const bassGaps = toBass || isBassScale(neckParams.bassScale);
+    if (presets.stringCount !== undefined) {
+      bridgeSettings = {
+        ...bridgeSettings,
+        type: presets.bridgeType ?? bridgeSettings.type,
+        stringCount,
+        stringSpacing: suggestedBridgeSpacing(stringCount, { bass: bassGaps }),
+      };
+      nutSettings = {
+        ...nutSettings,
+        stringSpacing: suggestedNutSpacing(stringCount, { bass: bassGaps }),
+      };
+    } else if (presets.bridgeType && presets.bridgeType !== bridgeSettings.type) {
       bridgeSettings = {
         ...bridgeSettings,
         type: presets.bridgeType,
@@ -592,6 +617,7 @@ export const useDesignStore = create<StoreState>((set, get) => ({
       pickupSettings,
       controlSettings,
       bridgeSettings,
+      nutSettings,
       headstockSettings,
       headstockAnchors,
       selected: null,
@@ -841,14 +867,15 @@ export const useDesignStore = create<StoreState>((set, get) => ({
   setStringCount: (count) => {
     const before = snapshotOf(get());
     const stringCount = Math.min(MAX_STRING_COUNT, Math.max(MIN_STRING_COUNT, Math.round(count)));
+    const bassGaps = isBassScale(get().neckParams.bassScale);
     const bridgeSettings: BridgeSettings = {
       ...get().bridgeSettings,
       stringCount,
-      stringSpacing: suggestedBridgeSpacing(stringCount),
+      stringSpacing: suggestedBridgeSpacing(stringCount, { bass: bassGaps }),
     };
     const nutSettings: NutSettings = {
       ...get().nutSettings,
-      stringSpacing: suggestedNutSpacing(stringCount),
+      stringSpacing: suggestedNutSpacing(stringCount, { bass: bassGaps }),
     };
     // Wider nut for multi-string so slots still sit inside the board.
     const neckParams: NeckParams = {

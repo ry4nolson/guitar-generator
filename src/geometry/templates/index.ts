@@ -5,11 +5,13 @@ import { SG_TEMPLATE } from './sg';
 import { JAZZMASTER_TEMPLATE } from './jazzmaster';
 import { FLYING_V_TEMPLATE } from './flyingV';
 import { JACKSON_TEMPLATES } from './jackson';
+import { BASS_TEMPLATES } from './bass';
 import type { BodyTemplate } from './types';
 
 export type { BodyTemplate, TemplateParamMeta, TemplateFamily } from './types';
 export { TELE_TEMPLATE, STRAT_TEMPLATE, LES_PAUL_TEMPLATE, SG_TEMPLATE, JAZZMASTER_TEMPLATE, FLYING_V_TEMPLATE };
 export { SOLOIST_TEMPLATE, KELLY_TEMPLATE, RHOADS_TEMPLATE, KING_V_TEMPLATE, WARRIOR_TEMPLATE } from './jackson';
+export { P_BASS_TEMPLATE, VIOLIN_BASS_TEMPLATE } from './bass';
 export { groupedTemplates, templateHardwareHint, shortTemplateName, TEMPLATE_FAMILIES } from './families';
 
 export const BODY_TEMPLATES: BodyTemplate[] = [
@@ -20,6 +22,7 @@ export const BODY_TEMPLATES: BodyTemplate[] = [
   JAZZMASTER_TEMPLATE,
   FLYING_V_TEMPLATE,
   ...JACKSON_TEMPLATES,
+  ...BASS_TEMPLATES,
 ];
 
 export function getBodyTemplate(id: string): BodyTemplate {
