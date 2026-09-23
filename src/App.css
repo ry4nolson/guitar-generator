@@ -592,8 +592,32 @@
 }
 
 .param-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.param-value input {
+  width: 7.2ch;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.param-value input:hover,
+.param-value input:focus {
+  color: var(--text);
+  background: var(--btn-bg);
+  border-color: var(--panel-border);
+  outline: none;
 }
 
 .param-slider input[type='range'] {

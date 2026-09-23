@@ -35,8 +35,12 @@ export const DEFAULT_NECK_PARAMS: NeckParams = {
 export const LONG_BASS_SCALE_MM = 863.6;
 /** Short-scale bass (30"). */
 export const SHORT_BASS_SCALE_MM = 762;
+/** Slider floor for bass/treble scale (10", pocket-uke territory). */
+export const MIN_SCALE_MM = 10 * 25.4;
 /** Slider ceiling for bass/treble scale (40"). */
 export const MAX_SCALE_MM = 40 * 25.4;
+/** Shortest nut-to-heel length (5"). A 10" scale can still meet the body at the octave. */
+export const MIN_NECK_LENGTH_MM = 5 * 25.4;
 /** Scales at or above this read as bass for spacing / template neck lock. */
 export const BASS_SCALE_THRESHOLD_MM = 750;
 
@@ -54,13 +58,13 @@ export interface NeckParamMeta {
 }
 
 export const NECK_PARAM_META: NeckParamMeta[] = [
-  { key: 'bassScale', label: 'Bass scale length', min: 600, max: MAX_SCALE_MM, step: 0.05, unit: 'mm' },
-  { key: 'trebleScale', label: 'Treble scale length', min: 580, max: MAX_SCALE_MM, step: 0.05, unit: 'mm' },
+  { key: 'bassScale', label: 'Bass scale length', min: MIN_SCALE_MM, max: MAX_SCALE_MM, step: 0.05, unit: 'mm' },
+  { key: 'trebleScale', label: 'Treble scale length', min: MIN_SCALE_MM, max: MAX_SCALE_MM, step: 0.05, unit: 'mm' },
   { key: 'neutralFret', label: 'Neutral fret', min: 0, max: 24, step: 1, unit: 'count' },
   { key: 'fretCount', label: 'Fret count', min: 20, max: 27, step: 1, unit: 'count' },
   { key: 'nutWidth', label: 'Nut width', min: 28, max: 56, step: 0.5, unit: 'mm' },
   { key: 'heelWidth', label: 'Heel width', min: 50, max: 80, step: 0.5, unit: 'mm' },
-  { key: 'neckLength', label: 'Neck length', min: 400, max: 700, step: 1, unit: 'mm' },
+  { key: 'neckLength', label: 'Neck length', min: MIN_NECK_LENGTH_MM, max: 700, step: 1, unit: 'mm' },
   { key: 'neckAngle', label: 'Neck angle', min: -5, max: 5, step: 0.1, unit: 'deg' },
   { key: 'neckInset', label: 'Neck pocket inset', min: 0, max: 90, step: 1, unit: 'mm' },
 ];

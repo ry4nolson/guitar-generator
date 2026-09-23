@@ -110,7 +110,10 @@ describe('edit envelopes', () => {
     expect(clampNeckParam('nutWidth', 10)).toBe(28);
     expect(clampNeckParam('bassScale', 40 * 25.4)).toBe(40 * 25.4);
     expect(clampNeckParam('bassScale', 1100)).toBe(40 * 25.4);
+    expect(clampNeckParam('bassScale', 100)).toBe(10 * 25.4);
     expect(clampNeckParam('trebleScale', 1100)).toBe(40 * 25.4);
+    expect(clampNeckParam('trebleScale', 100)).toBe(10 * 25.4);
+    expect(clampNeckParam('neckLength', 50)).toBe(5 * 25.4);
   });
 });
 

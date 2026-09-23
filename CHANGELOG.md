@@ -13,8 +13,9 @@
 
 ### Changed
 
-- Scale, nut, heel, and neck-length sliders reach bass territory (up to 40"
-  scale, wider nut/heel, longer neck). Bridge/nut spacing sliders follow.
+- Scale runs from **10"** (pocket uke) to **40"** (long bass). Neck length
+  can drop to 5" so a short scale still meets the body. Slider readouts are
+  typeable. Nut, heel, and spacing sliders still cover bass widths.
 - Display units default to inches. Switch back to mm in editor settings.
 
 ### Tests
