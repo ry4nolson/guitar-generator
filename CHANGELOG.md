@@ -18,6 +18,12 @@
   typeable. Nut, heel, and spacing sliders still cover bass widths.
 - Display units default to inches. Switch back to mm in editor settings.
 
+### Fixed
+
+- Headstock length, head width, and the other sidebar settings survive a
+  refresh. Resizing a stock headstock no longer looks "unedited", so reload
+  was putting those dimensions back to the preset.
+
 ### Tests
 
 - Pre-commit bumps `package.json` to the latest numbered CHANGELOG heading

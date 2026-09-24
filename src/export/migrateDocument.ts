@@ -253,20 +253,12 @@ export function migrateDesignDocument(parsed: Record<string, unknown>): Record<s
     const neck = parsed.neckParams as NeckParams | undefined;
     const count = (parsed.bridgeSettings as BridgeSettings | undefined)?.stringCount ?? 6;
     const existing = parsed.headstockAnchors as HeadstockAnchor[] | undefined;
-    // A pristine outline (never hand-edited) is just the preset — re-seed so
-    // saved designs pick up the current authored silhouettes and peg rows.
+    // A pristine outline (never hand-edited) is regenerated from the saved
+    // dimensions so silhouette updates apply. Length, width, and peg-row
+    // settings stay as the user left them — slider edits re-seed without
+    // marking anchors dirty, so they must not be treated as "still default".
     const pristine = Array.isArray(existing) && !isHeadstockDirty(existing);
     if (!Array.isArray(existing) || pristine) {
-      const meta = headstockTypeMeta(hs.type);
-      if (pristine && hs.type !== 'headless') {
-        // Untouched preset: adopt the traced silhouette's natural proportions
-        // and peg-row clearance rather than stretching it to legacy defaults.
-        hs.length = meta.defaultDims.length;
-        hs.tipWidth = meta.defaultDims.tipWidth;
-        if ([0.14, 0.16, 0.2, 0.22, 0.28, 0.3].includes(hs.tunerTipClearance)) {
-          hs.tunerTipClearance = meta.defaultTipClearance;
-        }
-      }
       parsed.headstockAnchors = neck ? seedHeadstockAnchors(neck, hs, count) : [];
     } else {
       parsed.headstockAnchors = clampHeadstockAnchors(existing);
